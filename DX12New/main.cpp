@@ -79,7 +79,7 @@ bool m_TearingSupported = false;
 bool m_FullScreen = false;
 
 //回调函数
-LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+//LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
 //命令行参数解析，允许使用命令行参数覆盖一些全局变量的值
 void ParseCommandLineArguments()
@@ -598,64 +598,64 @@ void SetFullScreen(bool _fullScreen)
 	}
 }
 
-LRESULT CALLBACK WndProc(HWND _hwnd, UINT _message, WPARAM _wParam, LPARAM _lParam)
-{
-	if (m_Initialized)
-	{
-		switch (_message)
-		{
-		case WM_PAINT:
-			Update();
-			Render();
-			break;
-		case WM_SYSKEYDOWN:
-		case WM_KEYDOWN:
-		{
-			bool alt = (::GetAsyncKeyState(VK_MENU) & 0x8000 != 0);
-
-			switch (_wParam)
-			{
-			case 'V':
-				m_VSync = !m_VSync;
-				break;
-			case VK_ESCAPE:
-				::PostQuitMessage(0);
-				break;
-			case  VK_RETURN:
-				if (alt)
-				{
-			case VK_F11:
-				SetFullScreen(!m_FullScreen);
-				}
-				break;
-			}
-		}
-		break;
-		case WM_SYSCHAR:
-			break;
-		case WM_SIZE:
-		{
-			RECT clientRect = {};
-			::GetClientRect(m_HWND, &clientRect);
-
-			int width = clientRect.right - clientRect.left;
-			int height = clientRect.bottom - clientRect.top;
-
-			Resize(width, height);
-		}
-		break;
-		case WM_DESTROY:
-			::PostQuitMessage(0);
-			break;
-		default:
-			return ::DefWindowProcW(_hwnd, _message, _wParam, _lParam);
-		}
-	}
-	else
-	{
-		return ::DefWindowProcW(_hwnd, _message, _wParam, _lParam);
-	}
-}
+//LRESULT CALLBACK WndProc(HWND _hwnd, UINT _message, WPARAM _wParam, LPARAM _lParam)
+//{
+//	if (m_Initialized)
+//	{
+//		switch (_message)
+//		{
+//		case WM_PAINT:
+//			Update();
+//			Render();
+//			break;
+//		case WM_SYSKEYDOWN:
+//		case WM_KEYDOWN:
+//		{
+//			bool alt = (::GetAsyncKeyState(VK_MENU) & 0x8000 != 0);
+//
+//			switch (_wParam)
+//			{
+//			case 'V':
+//				m_VSync = !m_VSync;
+//				break;
+//			case VK_ESCAPE:
+//				::PostQuitMessage(0);
+//				break;
+//			case  VK_RETURN:
+//				if (alt)
+//				{
+//			case VK_F11:
+//				SetFullScreen(!m_FullScreen);
+//				}
+//				break;
+//			}
+//		}
+//		break;
+//		case WM_SYSCHAR:
+//			break;
+//		case WM_SIZE:
+//		{
+//			RECT clientRect = {};
+//			::GetClientRect(m_HWND, &clientRect);
+//
+//			int width = clientRect.right - clientRect.left;
+//			int height = clientRect.bottom - clientRect.top;
+//
+//			Resize(width, height);
+//		}
+//		break;
+//		case WM_DESTROY:
+//			::PostQuitMessage(0);
+//			break;
+//		default:
+//			return ::DefWindowProcW(_hwnd, _message, _wParam, _lParam);
+//		}
+//	}
+//	else
+//	{
+//		return ::DefWindowProcW(_hwnd, _message, _wParam, _lParam);
+//	}
+//}
 
 int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow)
 {
