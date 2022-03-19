@@ -1,13 +1,17 @@
 #pragma once
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-
+#include <string>
 #include <wrl.h>
 #include <d3d12.h>
 #include <dxgi1_5.h>
+#include <memory>
 
-#include <Events.h>
-#include <HighResolutionClock.h>
+//#include "d3dx12.h"
+#include "Event.h"
+#include "HighResolutionClock.h"
+
+
 
 class Game;
 
@@ -40,8 +44,8 @@ public:
 	void ToggleFullScreen() { SetFullScreen(!m_FullScreen); }
 
 	//显示窗口
-	void Show() { ::ShowCaret(m_HWND, SW_SHOW); }
-	void Hide() { ::ShowCaret(m_HWND, SW_HIDE); }
+	void Show() { ::ShowWindow(m_HWND, SW_SHOW); }
+	void Hide() { ::ShowWindow(m_HWND, SW_HIDE); }
 
 	//返回当前后台缓冲序号
 	UINT GetCurrentBackBufferIndex() const { return m_CurrentBackBufferIndex; }
@@ -53,7 +57,7 @@ public:
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRTV() const;
 
 	//获取后台缓冲区的资源
-	Microsoft::WRL::ComPtr<ID3D12Resource> GetCurrentBackBuffer() const {return m_BackBuffers[m_CurrentBackBufferIndex]};
+	Microsoft::WRL::ComPtr<ID3D12Resource> GetCurrentBackBuffer() const { return m_BackBuffers[m_CurrentBackBufferIndex]; }
 
 protected:
 	friend LRESULT CALLBACK WndProc(HWND _hwnd, UINT _message, WPARAM _wParam, LPARAM _lParam);
@@ -63,11 +67,31 @@ protected:
 	friend class Application;
 
 	Window() = delete;
-	Window(HWND _hwnd, std::wstring& _windowName, int _width, int _height, bool _vsync);
+	Window(HWND _hwnd, const std::wstring& _windowName, int _width, int _height, bool _vsync);
 	virtual ~Window();
 
 	//创建交换链
 	Microsoft::WRL::ComPtr<IDXGISwapChain4> CreateSwapChain();
+
+	//注册回调函数
+	void RegisterCallBacks(std::shared_ptr<Game> _pGame);
+
+	//更新和绘制函数仅仅会被Application调用
+	virtual void OnUpdate(UpdateEventArgs& _e);
+	virtual void OnRender(RenderEventArgs& _e);
+
+	//键盘按键
+	virtual void OnKeyPressed(KeyEventArgs& _e);
+	virtual void OnKeyReleased(KeyEventArgs& _e);
+
+	//鼠标事件
+	virtual void OnMouseMoved(MouseMotionEventArgs& _e);
+	virtual void OnMouseButtonPressed(MouseButtonEventArgs& _e);
+	virtual void OnMouseButtonReleased(MouseButtonEventArgs& _e);
+	virtual void OnMouseWheel(MouseWheelEventArgs& _e);
+
+	//窗口大小调整
+	virtual void OnResize(ResizeEventArgs& _e);
 	
 	//更新RTV
 	void UpdateRTVs();
@@ -94,16 +118,16 @@ private:
 	bool m_FullScreen = false;
 
 	//交换链  RTV堆和后台缓冲区
-	ComPtr<IDXGISwapChain4> m_SwapChain = nullptr;
-	ComPtr<ID3D12DescriptorHeap> m_RTVHeap;
-	ComPtr<ID3D12Resource> m_BackBuffers[m_BufferCount];
+	Microsoft::WRL::ComPtr<IDXGISwapChain4> m_SwapChain = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_RTVHeap;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_BackBuffers[m_BufferCount];
 
 	UINT m_RTVDescriptorSize;//描述符的大小，用于偏移地址
 	UINT m_CurrentBackBufferIndex;
 
 	//计时器
-	high_resolution_clock m_UpdateClock;
-	high_resolution_clock m_RenderClock;
+	HighResolutionClock m_UpdateClock;
+	HighResolutionClock m_RenderClock;
 	uint64_t m_FrameCounter;
 
 	std::weak_ptr<Game> m_pGame;

@@ -10,7 +10,7 @@ class CommandQueue
 {
 public:
 	CommandQueue(Microsoft::WRL::ComPtr<ID3D12Device2> _device, D3D12_COMMAND_LIST_TYPE _type);
-	virtual ~CommandQueue() = 0;
+	virtual ~CommandQueue();
 
 	//获取一个可以直接使用的命令列表，无需重置列表
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> GetCommandList();

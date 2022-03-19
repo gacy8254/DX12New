@@ -28,14 +28,26 @@ using namespace Microsoft::WRL;
 #include <dxgi1_6.h>
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
+//#include <DirectXTex.h>
 #include "d3dx12.h"
 
 //标准库
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <chrono>
+#include <condition_variable>
+#include <filesystem>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <new>
 #include <string>
-#include <conio.h>
+#include <unordered_map>
+#include <thread>
+#include <vector>
+
+//namespace fs = std::experimental::filesystem;
 
 //自己的文件
 #include "helpers.h"

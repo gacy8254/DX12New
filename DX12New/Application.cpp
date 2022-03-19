@@ -1,9 +1,11 @@
-#include <DX12LibPCH.h>
+
 
 #include "CommandQueue.h"
 #include "Window.h"
 #include "Game.h"
 #include "Application.h"
+#include "D3D12LibPCH.h"
+
 
 constexpr wchar_t WINDOW_CLASS_NAME[] = L"DX12RenderWindowClass";
 
@@ -15,6 +17,8 @@ static Application* gs_Application = nullptr;
 static WindowMap gs_Windows;
 static windowNameMap gs_WindowByName;
 
+uint64_t Application::ms_FrameCount = 0;
+
 struct MakeWindow : public Window
 {
 	MakeWindow(HWND _hWnd, const std::wstring& _windowName, int _width, int _height, bool _vSync)
@@ -22,9 +26,53 @@ struct MakeWindow : public Window
 	{}
 };
 
-LRESULT CALLBACK WndProc(HWND _hwnd, UINT _message, WPARAM _wParam, LPARAM _lParam);
+//移除一个窗口
+static void RemoveWindow(HWND _hWnd)
+{
+	WindowMap::iterator iter = gs_Windows.find(_hWnd);
+	if (iter != gs_Windows.end())
+	{
+		WindowPtr pWindow = iter->second;
+		gs_WindowByName.erase(pWindow->GetWindowName());
+		gs_Windows.erase(iter);
+	}
+}
 
-LRESULT CALLBACK WndProc(HWND _hwnd, UINT _message, WPARAM _wParam, LPARAM _lParam)
+// 将消息ID转换成鼠标按键ID
+MouseButtonEventArgs::MouseButton DecodeMouseButton(UINT messageID)
+{
+	MouseButtonEventArgs::MouseButton mouseButton = MouseButtonEventArgs::None;
+	switch (messageID)
+	{
+	case WM_LBUTTONDOWN:
+	case WM_LBUTTONUP:
+	case WM_LBUTTONDBLCLK:
+	{
+		mouseButton = MouseButtonEventArgs::Left;
+	}
+	break;
+	case WM_RBUTTONDOWN:
+	case WM_RBUTTONUP:
+	case WM_RBUTTONDBLCLK:
+	{
+		mouseButton = MouseButtonEventArgs::Right;
+	}
+	break;
+	case WM_MBUTTONDOWN:
+	case WM_MBUTTONUP:
+	case WM_MBUTTONDBLCLK:
+	{
+		mouseButton = MouseButtonEventArgs::Middel;
+	}
+	break;
+	}
+
+	return mouseButton;
+}
+
+static LRESULT CALLBACK WndProc(HWND _hwnd, UINT _message, WPARAM _wParam, LPARAM _lParam);
+
+static LRESULT CALLBACK WndProc(HWND _hwnd, UINT _message, WPARAM _wParam, LPARAM _lParam)
 {
 	WindowPtr pWindow;
 	WindowMap::iterator iter = gs_Windows.find(_hwnd);
@@ -33,53 +81,162 @@ LRESULT CALLBACK WndProc(HWND _hwnd, UINT _message, WPARAM _wParam, LPARAM _lPar
 		pWindow = iter->second;
 	}
 
-
 	if (pWindow)
 	{
 		switch (_message)
 		{
+		//绘制
 		case WM_PAINT:
-			pWindow->Update();
-			pWindow->Render();
-			break;
+		{
+			++Application::ms_FrameCount;
+			UpdateEventArgs updateEventArgs(0.0f, 0.0f, Application::ms_FrameCount);
+			pWindow->OnUpdate(updateEventArgs);
+			RenderEventArgs renderEventArgs(0.0f, 0.0f, Application::ms_FrameCount);
+			pWindow->OnRender(renderEventArgs);
+		}
+		break;
+		//键盘按键按下
 		case WM_SYSKEYDOWN:
 		case WM_KEYDOWN:
 		{
-			bool alt = (::GetAsyncKeyState(VK_MENU) & 0x8000 != 0);
+			MSG charMsg;
 
-			switch (_wParam)
+			unsigned int c = 0;
+
+			if (PeekMessage(&charMsg, _hwnd, 0, 0, PM_NOREMOVE) && charMsg.message == WM_CHAR)
 			{
-			case 'V':
-				m_VSync = !m_VSync;
-				break;
-			case VK_ESCAPE:
-				::PostQuitMessage(0);
-				break;
-			case  VK_RETURN:
-				if (alt)
-				{
-			case VK_F11:
-				SetFullScreen(!m_FullScreen);
-				}
-				break;
+				GetMessage(&charMsg, _hwnd, 0, 0);
+				c = static_cast<unsigned int>(charMsg.wParam);
 			}
+			bool shift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+			bool alt = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+			bool control = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+			KeyCode::Key key = (KeyCode::Key)_wParam;
+			unsigned int scanCode = (_lParam & 0x00FF0000) >> 16;
+			KeyEventArgs keyEventArgs(key, c, KeyEventArgs::Pressed, shift, control, alt);
+			pWindow->OnKeyPressed(keyEventArgs);
 		}
 		break;
+		//键盘按键释放
+		case WM_SYSKEYUP:
+		case WM_KEYUP:
+		{
+			bool shift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+			bool alt = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+			bool control = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+			KeyCode::Key key = (KeyCode::Key)_wParam;
+			unsigned int c = 0;
+			unsigned int scanCode = (_lParam & 0x00FF0000) >> 16;
+
+			unsigned char keyboardState[256];
+			GetKeyboardState(keyboardState);
+			wchar_t translateCharacters[4];
+			if (int result = ToUnicodeEx(static_cast<UINT>(_wParam), scanCode, keyboardState, translateCharacters, 4, 0, NULL) > 0)
+			{
+				c = translateCharacters[0];
+			}
+			KeyEventArgs keyEventArgs(key, c, KeyEventArgs::Released, shift, control, alt);
+			pWindow->OnKeyReleased(keyEventArgs);
+		}
 		case WM_SYSCHAR:
-			break;
+		break;
+		//鼠标移动
+		case WM_MOUSEMOVE:
+		{
+			bool leftButton = (_wParam & MK_LBUTTON) != 0;
+			bool rightButton = (_wParam & MK_RBUTTON) != 0;
+			bool midderButton = (_wParam & MK_MBUTTON) != 0;
+			bool shift = (_wParam & MK_SHIFT) != 0;
+			bool control = (_wParam & MK_CONTROL) != 0;
+
+			int x = ((int)(short)LOWORD(_lParam));
+			int y = ((int)(short)HIWORD(_lParam));
+
+			MouseMotionEventArgs event(leftButton, midderButton, rightButton, control, shift, x, y);
+			pWindow->OnMouseMoved(event);
+		}
+		break;
+		//鼠标按键按下
+		case WM_LBUTTONDOWN:
+		case WM_RBUTTONDOWN:
+		case WM_MBUTTONDOWN:
+		{
+			bool lButton = (_wParam & MK_LBUTTON) != 0;
+			bool rButton = (_wParam & MK_RBUTTON) != 0;
+			bool mButton = (_wParam & MK_MBUTTON) != 0;
+			bool shift = (_wParam & MK_SHIFT) != 0;
+			bool control = (_wParam & MK_CONTROL) != 0;
+
+			int x = ((int)(short)LOWORD(_lParam));
+			int y = ((int)(short)HIWORD(_lParam));
+
+			MouseButtonEventArgs mouseButtonEventArgs(DecodeMouseButton(_message), MouseButtonEventArgs::Pressed, lButton, mButton, rButton, control, shift, x, y);
+			pWindow->OnMouseButtonPressed(mouseButtonEventArgs);
+		}
+		break;
+		//鼠标按键抬起
+		case WM_LBUTTONUP:
+		case WM_RBUTTONUP:
+		case WM_MBUTTONUP:
+		{
+			bool lButton = (_wParam & MK_LBUTTON) != 0;
+			bool rButton = (_wParam & MK_RBUTTON) != 0;
+			bool mButton = (_wParam & MK_MBUTTON) != 0;
+			bool shift = (_wParam & MK_SHIFT) != 0;
+			bool control = (_wParam & MK_CONTROL) != 0;
+
+			int x = ((int)(short)LOWORD(_lParam));
+			int y = ((int)(short)HIWORD(_lParam));
+
+			MouseButtonEventArgs mouseButtonEventArgs(DecodeMouseButton(_message), MouseButtonEventArgs::Released, lButton, mButton, rButton, control, shift, x, y);
+			pWindow->OnMouseButtonReleased(mouseButtonEventArgs);
+		}
+		break;
+		//鼠标滚轮
+		case WM_MOUSEWHEEL:
+		{
+			// The distance the mouse wheel is rotated.
+			// A positive value indicates the wheel was rotated to the right.
+			// A negative value indicates the wheel was rotated to the left.
+			float zDelta = ((int)(short)HIWORD(_wParam)) / (float)WHEEL_DELTA;
+			short keyStates = (short)LOWORD(_wParam);
+
+			bool lButton = (keyStates & MK_LBUTTON) != 0;
+			bool rButton = (keyStates & MK_RBUTTON) != 0;
+			bool mButton = (keyStates & MK_MBUTTON) != 0;
+			bool shift = (keyStates & MK_SHIFT) != 0;
+			bool control = (keyStates & MK_CONTROL) != 0;
+
+			int x = ((int)(short)LOWORD(_lParam));
+			int y = ((int)(short)HIWORD(_lParam));
+
+			// Convert the screen coordinates to client coordinates.
+			POINT clientToScreenPoint;
+			clientToScreenPoint.x = x;
+			clientToScreenPoint.y = y;
+			ScreenToClient(_hwnd, &clientToScreenPoint);
+
+			MouseWheelEventArgs mouseWheelEventArgs(zDelta, lButton, mButton, rButton, control, shift, (int)clientToScreenPoint.x, (int)clientToScreenPoint.y);
+			pWindow->OnMouseWheel(mouseWheelEventArgs);
+		}
+		break;
+		//改变大小
 		case WM_SIZE:
 		{
-			RECT clientRect = {};
-			::GetClientRect(m_HWND, &clientRect);
+			int width = ((int)(short)LOWORD(_lParam));
+			int height = ((int)(short)HIWORD(_lParam));
 
-			int width = clientRect.right - clientRect.left;
-			int height = clientRect.bottom - clientRect.top;
-
-			Resize(width, height);
+			ResizeEventArgs resizeEventArgs(width, height);
+			pWindow->OnResize(resizeEventArgs);
 		}
 		break;
+		//窗口关闭
 		case WM_DESTROY:
-			::PostQuitMessage(0);
+			RemoveWindow(_hwnd);
+			if (gs_Windows.empty())
+			{
+				PostQuitMessage(0);
+			}
 			break;
 		default:
 			return ::DefWindowProcW(_hwnd, _message, _wParam, _lParam);
@@ -89,6 +246,7 @@ LRESULT CALLBACK WndProc(HWND _hwnd, UINT _message, WPARAM _wParam, LPARAM _lPar
 	{
 		return ::DefWindowProcW(_hwnd, _message, _wParam, _lParam);
 	}
+	return 0;
 }
 
 void Application::Create(HINSTANCE _hInst)
@@ -136,7 +294,7 @@ std::shared_ptr<Window> Application::CreateRenderWindow(const std::wstring& _win
 
 	if (!hWnd)
 	{
-		MessageBoxA(NULL, "无法创建渲染窗口"， "错误", MB_OK | MB_ICONERROR);
+		MessageBoxA(NULL, "无法创建渲染窗口", "错误", MB_OK | MB_ICONERROR);
 		return nullptr;
 	}
 
@@ -184,7 +342,32 @@ std::shared_ptr<Window> Application::GetWindowByName(const std::wstring& _window
 
 int Application::Run(std::shared_ptr<Game> pGame)
 {
+	if (!pGame->Init())
+	{
+		return 1;
+	}
+	if (!pGame->LoadContent())
+	{
+		return 2;
+	}
 
+
+	MSG msg = { 0 };
+	while (msg.message != WM_QUIT)
+	{
+		if (::PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+		{
+			::TranslateMessage(&msg);
+			::DispatchMessage(&msg);
+		}
+	}
+
+	Flush();
+
+	pGame->UnLoadContent();
+	pGame->Destroy();
+
+	return static_cast<int>(msg.wParam);
 }
 
 void Application::Quit(int _exitCode /*= 0*/)
@@ -240,6 +423,11 @@ UINT Application::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE _t
 	return m_Device->GetDescriptorHandleIncrementSize(_type);
 }
 
+uint64_t Application::GetFrameCount()
+{
+	return ms_FrameCount;
+}
+
 Application::Application(HINSTANCE _hIns)
 	:m_HIntance(_hIns)
 {
@@ -255,25 +443,32 @@ Application::Application(HINSTANCE _hIns)
 	windowClass.cbSize = sizeof(WNDCLASSEXW);
 	windowClass.style = CS_HREDRAW | CS_VREDRAW;
 	windowClass.lpfnWndProc = &WndProc;
-	windowClass.hInstance = _hInst;
-	windowClass.hIcon = ::LoadIcon(_hInst, NULL);
+	windowClass.hInstance = _hIns;
+	windowClass.hIcon = ::LoadIcon(_hIns, NULL);
 	windowClass.hCursor = ::LoadCursor(NULL, IDC_ARROW);
 	windowClass.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
 	windowClass.lpszMenuName = NULL;
 	windowClass.lpszClassName = WINDOW_CLASS_NAME;
-	windowClass.hIconSm = ::LoadIcon(_hInst, NULL);
+	windowClass.hIconSm = ::LoadIcon(_hIns, NULL);
 
 	if (!RegisterClassExW(&windowClass))
 	{
-		MessageBoxA(NULL, "注册窗口失败", "错误"， MB_OK | MB_ICONERROR);
+		MessageBoxA(NULL, "注册窗口失败", "错误", MB_OK | MB_ICONERROR);
 	}
 
 	//依次创建适配器，设备，三个队列
 	m_Adapter = GetAdapter(false);
+	//如果没有可用的适配器，则使用软件适配器
+	if (!m_Adapter)
+	{
+		m_Adapter = GetAdapter(true);
+	}
+
 	if (m_Adapter)
 	{
 		m_Device = CreateDevice(m_Adapter);
 	}
+
 	if (m_Device)
 	{
 		m_DirectCommandQueue = std::make_shared<CommandQueue>(m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
@@ -282,9 +477,11 @@ Application::Application(HINSTANCE _hIns)
 
 		m_TearingSupported = CheckTearingSupport();
 	}
+
+	ms_FrameCount = 0;
 }
 
-Application::!Application()
+Application::~Application()
 {
 	Flush();
 }

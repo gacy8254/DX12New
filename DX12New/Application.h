@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 
+
 class Window;
 class Game;
 class CommandQueue;
@@ -57,18 +58,23 @@ public:
 	//获取描述符的大小
 	UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE _type) const;
 
+	static uint64_t GetFrameCount();
+
 protected:
 	//创建应用程序实例
 	Application(HINSTANCE _hIns);
 
-	virtual !Application();
+	virtual ~Application();
 
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> GetAdapter(bool _useWarp);
 	Microsoft::WRL::ComPtr<ID3D12Device2> CreateDevice(Microsoft::WRL::ComPtr<IDXGIAdapter4> _adapter);
 
+	//检查是否支持VSync
 	bool CheckTearingSupport();
 
 private:
+	friend LRESULT CALLBACK WndProc(HWND _hwnd, UINT _message, WPARAM _wParam, LPARAM _lParam);
+
 	Application(const Application& copy) = delete;
 	Application& operator=(const Application& other) = delete;
 
@@ -82,5 +88,7 @@ private:
 	std::shared_ptr<CommandQueue> m_CopyCommandQueue;
 
 	bool m_TearingSupported = false;
+
+	static uint64_t ms_FrameCount;
 };
 

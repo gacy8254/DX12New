@@ -1,11 +1,16 @@
 #include "Window.h"
 
+#include "Application.h"
+#include "CommandQueue.h"
+#include "D3D12LibPCH.h"
+#include "Game.h"
+
 void Window::Destroy()
 {
 	if (auto pGame = m_pGame.lock())
 	{
 		//告知游戏类，窗口即将呗摧毁
-		pGame->OnWindowDestroy();
+		//pGame->OnWindowDestroy();
 	}
 	if (m_HWND)
 	{
@@ -69,6 +74,8 @@ UINT Window::Present()
 
 	//更新后台缓冲区的序号
 	m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
+
+	return m_CurrentBackBufferIndex;
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE Window::GetCurrentRTV() const
@@ -76,7 +83,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE Window::GetCurrentRTV() const
 	return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_RTVHeap->GetCPUDescriptorHandleForHeapStart(), m_CurrentBackBufferIndex, m_RTVDescriptorSize);
 }
 
-Window::Window(HWND _hwnd, std::wstring& _windowName, int _width, int _height, bool _vsync)
+Window::Window(HWND _hwnd, const std::wstring& _windowName, int _width, int _height, bool _vsync)
 	:m_HWND(_hwnd), m_WindowName(_windowName), m_Width(_width), m_Height(_height), m_VSync(_vsync), m_FrameCounter(0)
 {
 	Application& app = Application::Get();
@@ -93,12 +100,17 @@ Window::Window(HWND _hwnd, std::wstring& _windowName, int _width, int _height, b
 	UpdateRTVs();
 }
 
+Window::~Window()
+{
+	assert(!m_HWND && "在销毁窗口前就已经使用Application销毁了窗口");
+}
+
 Microsoft::WRL::ComPtr<IDXGISwapChain4> Window::CreateSwapChain()
 {
 	Application& app = Application::Get();
 
-	ComPtr<IDXGISwapChain4> swapChain4;
-	ComPtr<IDXGIFactory4> dxgiFactory4;
+	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain4;
+	Microsoft::WRL::ComPtr<IDXGIFactory4> dxgiFactory4;
 
 	UINT createFactoryFlags = 0;
 #if defined(_DEBUG)
@@ -108,8 +120,8 @@ Microsoft::WRL::ComPtr<IDXGISwapChain4> Window::CreateSwapChain()
 	ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory4)));
 
 	DXGI_SWAP_CHAIN_DESC1 desc = {};
-	desc.Width = _width;
-	desc.Height = _height;
+	desc.Width = m_Width;
+	desc.Height = m_Height;
 	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	desc.Stereo = FALSE;
 	desc.SampleDesc = { 1, 0 };
@@ -118,14 +130,14 @@ Microsoft::WRL::ComPtr<IDXGISwapChain4> Window::CreateSwapChain()
 	desc.Scaling = DXGI_SCALING_STRETCH;
 	desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-	desc.Flags = m_TearingSupported() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+	desc.Flags = m_TearingSupported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 
 
 	ID3D12CommandQueue* pCommandQueue = app.GetCommandQueue()->GetCommandQueue().Get();
-	ComPtr<IDXGISwapChain1> swapChain1;
+	Microsoft::WRL::ComPtr<IDXGISwapChain1> swapChain1;
 	ThrowIfFailed(dxgiFactory4->CreateSwapChainForHwnd(
 		pCommandQueue,
-		_hwnd,
+		m_HWND,
 		&desc,
 		nullptr,
 		nullptr, &swapChain1));
@@ -139,6 +151,115 @@ Microsoft::WRL::ComPtr<IDXGISwapChain4> Window::CreateSwapChain()
 	return swapChain4;
 }
 
+void Window::RegisterCallBacks(std::shared_ptr<Game> _pGame)
+{
+	m_pGame = _pGame;
+}
+
+void Window::OnUpdate(UpdateEventArgs& _e)
+{
+	m_UpdateClock.Tick();
+
+	if (auto pGame = m_pGame.lock())
+	{
+		m_FrameCounter++;
+
+		UpdateEventArgs updateEvent(m_UpdateClock.GetDeltaSeconds(), m_UpdateClock.GetTotalSeconds(), _e.FrameCount);
+		pGame->OnUpdate(updateEvent);
+	}
+}
+
+void Window::OnRender(RenderEventArgs& _e)
+{
+	m_RenderClock.Tick();
+
+	if (auto pGame = m_pGame.lock())
+	{
+		m_FrameCounter++;
+
+		RenderEventArgs renderEvent(m_RenderClock.GetDeltaSeconds(), m_RenderClock.GetTotalSeconds(), _e.FrameCount);
+		pGame->OnRender(renderEvent);
+	}
+}
+
+void Window::OnKeyPressed(KeyEventArgs& _e)
+{
+	if (auto pGame = m_pGame.lock())
+	{
+		pGame->OnKeyPressed(_e);
+	}
+}
+
+void Window::OnKeyReleased(KeyEventArgs& _e)
+{
+	if (auto pGame = m_pGame.lock())
+	{
+		pGame->OnKeyReleased(_e);
+	}
+}
+
+void Window::OnMouseMoved(MouseMotionEventArgs& _e)
+{
+	if (auto pGame = m_pGame.lock())
+	{
+		pGame->OnMouseMoved(_e);
+	}
+}
+
+void Window::OnMouseButtonPressed(MouseButtonEventArgs& _e)
+{
+	if (auto pGame = m_pGame.lock())
+	{
+		pGame->OnMouseButtonPressed(_e);
+	}
+}
+
+void Window::OnMouseButtonReleased(MouseButtonEventArgs& _e)
+{
+	if (auto pGame = m_pGame.lock())
+	{
+		pGame->OnMouseButtonReleased(_e);
+	}
+}
+
+void Window::OnMouseWheel(MouseWheelEventArgs& _e)
+{
+	if (auto pGame = m_pGame.lock())
+	{
+		pGame->OnMouseWheel(_e);
+	}
+}
+
+void Window::OnResize(ResizeEventArgs& _e)
+{
+	if (m_Width != _e.Width || m_Height != _e.Height)
+	{
+		m_Width = _e.Width;
+		m_Height = _e.Height;
+
+		//刷新GPU
+		Application::Get().Flush();
+
+		for (int i = 0; i < m_BufferCount; i++)
+		{
+			m_BackBuffers[i].Reset();
+		}
+
+		DXGI_SWAP_CHAIN_DESC desc = {};
+		ThrowIfFailed(m_SwapChain->GetDesc(&desc));
+		ThrowIfFailed(m_SwapChain->ResizeBuffers(m_BufferCount, m_Width, m_Height, desc.BufferDesc.Format, desc.Flags));
+
+		m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
+
+		UpdateRTVs();
+	}
+
+	if (auto pGame = m_pGame.lock())
+	{
+		pGame->OnResize(_e);
+	}
+}
+
 void Window::UpdateRTVs()
 {
 	auto device = Application::Get().GetDevice();
@@ -147,7 +268,7 @@ void Window::UpdateRTVs()
 
 	for (int i = 0; i < m_BufferCount; i++)
 	{
-		ComPtr<ID3D12Resource> backbuffer;
+		Microsoft::WRL::ComPtr<ID3D12Resource> backbuffer;
 		ThrowIfFailed(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)));
 
 		device->CreateRenderTargetView(backbuffer.Get(), nullptr, handle);

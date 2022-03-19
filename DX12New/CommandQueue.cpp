@@ -18,6 +18,11 @@ CommandQueue::CommandQueue(Microsoft::WRL::ComPtr<ID3D12Device2> _device, D3D12_
 	assert(m_FenceEvent && "创建围栏事件失败");
 }
 
+CommandQueue::~CommandQueue()
+{
+
+}
+
 Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList()
 {
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandAllocator;
@@ -128,9 +133,6 @@ Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> CommandQueue::CreateCommandLi
 {
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> commandList;
 	ThrowIfFailed(m_Device->CreateCommandList(0, m_CommandListType, _allocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
-
-	//命令列表在使用前必须是关闭状态
-	ThrowIfFailed(commandList->Close());
 
 	return commandList;
 }
