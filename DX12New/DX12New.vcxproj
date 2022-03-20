@@ -143,21 +143,27 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
+    <ClCompile Include="CommandList.cpp" />
     <ClCompile Include="CommandQueue.cpp" />
     <ClCompile Include="DescriptorAllocation.cpp" />
     <ClCompile Include="DescriptorAllocator.cpp" />
     <ClCompile Include="DescriptorAllocatorPage.cpp" />
+    <ClCompile Include="DynamicDescriptorHeap.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="HighResolutionClock.cpp" />
     <ClCompile Include="KeyCodes.cpp" />
     <ClCompile Include="Lesson2.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="main1.cpp" />
+    <ClCompile Include="Resource.cpp" />
+    <ClCompile Include="ResourceStateTracker.cpp" />
+    <ClCompile Include="RootSignature.cpp" />
     <ClCompile Include="UploadBuffer.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
+    <ClInclude Include="CommandList.h" />
     <ClInclude Include="CommandQueue.h" />
     <ClInclude Include="D3D12LibPCH.h" />
     <ClInclude Include="d3dx12.h" />
@@ -165,12 +171,16 @@
     <ClInclude Include="DescriptorAllocation.h" />
     <ClInclude Include="DescriptorAllocator.h" />
     <ClInclude Include="DescriptorAllocatorPage.h" />
+    <ClInclude Include="DynamicDescriptorHeap.h" />
     <ClInclude Include="Event.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="helpers.h" />
     <ClInclude Include="HighResolutionClock.h" />
     <ClInclude Include="KeyCodes.h" />
     <ClInclude Include="Lesson2.h" />
+    <ClInclude Include="Resource.h" />
+    <ClInclude Include="ResourceStateTracker.h" />
+    <ClInclude Include="RootSignature.h" />
     <ClInclude Include="UploadBuffer.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
