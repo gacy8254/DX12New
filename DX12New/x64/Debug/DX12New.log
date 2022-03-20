@@ -1,23 +1,15 @@
 ﻿  DynamicDescriptorHeap.cpp
 C:\Code\DX12New\DX12New\RootSignature.h(28,50): warning C4099: “std::default_delete<dx12lib::RootSignature>”: 类型名称以前使用“struct”现在使用的是“class”
 C:\Code\DX12New\DX12New\RootSignature.h(28): message : 参见“std::default_delete<dx12lib::RootSignature>”的声明
-C:\Code\DX12New\DX12New\DynamicDescriptorHeap.cpp(64,35): error C2039: "GetGraphicsCommandList": 不是 "CommandList" 的成员
-C:\Code\DX12New\DX12New\CommandList.h(2): message : 参见“CommandList”的声明
-C:\Code\DX12New\DX12New\DynamicDescriptorHeap.cpp(66,3): error C3536: “commandList”: 初始化之前无法使用
-C:\Code\DX12New\DX12New\DynamicDescriptorHeap.cpp(66,3): error C2446: “!=”: 没有从“nullptr”到“int”的转换
-C:\Code\DX12New\DX12New\DynamicDescriptorHeap.cpp(66,3): message : 本机 nullptr 只能转换为 bool 或使用 reinterpret_cast 转换为整型
-C:\Code\DX12New\DX12New\DynamicDescriptorHeap.cpp(105,65): error C2664: “_Ret std::_Func_class<_Ret,ID3D12GraphicsCommandList *,UINT,D3D12_GPU_DESCRIPTOR_HANDLE>::operator ()(ID3D12GraphicsCommandList *,UINT,D3D12_GPU_DESCRIPTOR_HANDLE) const”: 无法将参数 1 从“int”转换为“ID3D12GraphicsCommandList *”
+C:\Code\DX12New\DX12New\DynamicDescriptorHeap.cpp(79,16): error C2228: “.SetDescriptorHeap”的左边必须有类/结构/联合
+C:\Code\DX12New\DX12New\DynamicDescriptorHeap.cpp(79,16): message : 类型是“T *”
           with
           [
-              _Ret=void
+              T=ID3D12GraphicsCommandList2
           ]
-C:\Code\DX12New\DX12New\DynamicDescriptorHeap.cpp(105,13): message : 从整型强制转换为指针类型要求 reinterpret_cast、C 样式强制转换或函数样式强制转换
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\functional(963,10): message : 参见“std::_Func_class<_Ret,ID3D12GraphicsCommandList *,UINT,D3D12_GPU_DESCRIPTOR_HANDLE>::operator ()”的声明
-          with
-          [
-              _Ret=void
-          ]
+C:\Code\DX12New\DX12New\DynamicDescriptorHeap.cpp(79,16): message : 是否改用“->”?
 C:\Code\DX12New\DX12New\DynamicDescriptorHeap.cpp(138,16): error C2039: "SetDescriptorHeap": 不是 "CommandList" 的成员
-C:\Code\DX12New\DX12New\CommandList.h(2): message : 参见“CommandList”的声明
-  Resource.cpp
+C:\Code\DX12New\DX12New\CommandList.h(6): message : 参见“CommandList”的声明
+  ResourceStateTracker.cpp
+C:\Code\DX12New\DX12New\ResourceStateTracker.cpp(131,85): warning C4804: “~”: 在操作中使用类型“bool”不安全
   正在生成代码...
