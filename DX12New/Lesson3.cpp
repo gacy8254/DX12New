@@ -105,7 +105,16 @@ Lesson3::~Lesson3()
 
 bool Lesson3::LoadContent()
 {
-	return true;
+	auto device = Application::Get().GetDevice();
+	auto commandQueue = Application::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+	auto commandList = commandQueue->GetCommandList();
+
+	m_Cube = Mesh::CreateCube(*commandList);
+	m_Sphere = Mesh::CreateSphere(*commandList);
+	m_Cone = Mesh::CreateCone(*commandList);
+	m_Torus = Mesh::CreateTorus(*commandList);
+	m_Plane = Mesh::CreatePlane(*commandList);
+
 }
 
 void Lesson3::UnLoadContent()
