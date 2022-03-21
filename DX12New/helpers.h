@@ -307,6 +307,13 @@ namespace Math
     }
 }
 
+template<typename T>
+constexpr const T& Clamp(const T& _val, const T& _min, const T& _max)
+{
+	return _val < _min ? _min : _val > _max ? _max : _val;
+}
+
+
 #define STR1(x) #x
 #define STR(x) STR1(x)
 #define WSTR1(x) L##x

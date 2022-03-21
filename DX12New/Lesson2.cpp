@@ -22,12 +22,6 @@ using namespace Microsoft::WRL;
 
 using namespace DirectX;
 
-template<typename T>
-constexpr const T& Clamp(const T& _val, const T& _min, const T& _max)
-{
-	return _val < _min ? _min : _val > _max ? _max : _val;
-}
-
 struct VertexPosColor 
 {
 	XMFLOAT3 Position;

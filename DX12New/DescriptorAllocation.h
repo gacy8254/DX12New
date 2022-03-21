@@ -28,7 +28,7 @@ public:
 	bool IsNull() const;
 
 	//获取指定偏移量的描述符
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHandle(uint32_t _offset = 0);
+	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHandle(uint32_t _offset = 0) const;
 
 	//获取描述符的数量
 	uint32_t GetNumHandles() const;

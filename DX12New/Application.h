@@ -6,10 +6,12 @@
 #include <memory>
 #include <string>
 
+#include "DescriptorAllocation.h"
 
 class Window;
 class Game;
 class CommandQueue;
+class DescriptorAllocator;
 
 class Application
 {
@@ -27,6 +29,9 @@ public:
 	//_windowName 该名称将出现在窗口的标题栏中，该名称应该是唯一的
 	//返回创建的窗口实例
 	std::shared_ptr<Window> CreateRenderWindow(const std::wstring& _windowName, int _width, int _height, bool _vSync = true);
+
+	//分配一个CPU可见描述符
+	DescriptorAllocation AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptor = 1);
 
 	//销毁窗口
 	void DestroyWindow(const std::wstring& _windowName);
@@ -86,6 +91,8 @@ private:
 	std::shared_ptr<CommandQueue> m_DirectCommandQueue;
 	std::shared_ptr<CommandQueue> m_ComputeCommandQueue;
 	std::shared_ptr<CommandQueue> m_CopyCommandQueue;
+
+	std::unique_ptr<DescriptorAllocator> m_DescriptorAllocators[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 
 	bool m_TearingSupported = false;
 

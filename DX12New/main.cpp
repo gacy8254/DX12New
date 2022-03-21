@@ -4,7 +4,7 @@
 #include <dxgidebug.h>
 
 #include "Application.h"
-#include "Lesson2.h"
+#include "Lesson3.h"
 
 void ReportLiveObjects()
 {
@@ -29,7 +29,7 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 	}
 
 	Application::Create(hInstance);
-	std::shared_ptr<Lesson2> demo = std::make_shared<Lesson2>(L"Learning DX12", 1280, 720, true);
+	std::shared_ptr<Lesson3> demo = std::make_shared<Lesson3>(L"Learning DX12", 1280, 720, true);
 	retCode = Application::Get().Run(demo);
 
 	Application::Destroy();

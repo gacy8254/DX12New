@@ -2,15 +2,15 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>C:\Code\DX12New\x64\Debug\DX12New.exe</FullPath>
+      <FullPath>D:\repository\DX12New\x64\Debug\DX12New.exe</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles>
     <ContentFile>
-      <FullPath>C:\Code\DX12New\x64\Debug\PixelShader.cso</FullPath>
+      <FullPath>D:\repository\DX12New\x64\Debug\PixelShader.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Code\DX12New\x64\Debug\VertexShader.cso</FullPath>
+      <FullPath>D:\repository\DX12New\x64\Debug\VertexShader.cso</FullPath>
     </ContentFile>
   </ContentFiles>
   <SatelliteDlls />

@@ -127,8 +127,8 @@ uint32_t ResourceStateTracker::FlushPendingResourceBarriers(CommandList& _comman
 			if (iter != ms_GlobalResourceState.end())
 			{
 				auto& resourceState = iter->second;
-				//如果挂起的资源屏障正在转换所有子资源的状态，并且有一些子资源的状态不为空
-				if (pendingTransition.Subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES && ~resourceState.SubresourceState.empty())
+				//如果挂起的资源屏障正在转换所有子资源的状态，并且有一些子资源的状态不同
+				if (pendingTransition.Subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES && !resourceState.SubresourceState.empty())
 				{
 					//转换所有子资源
 					for (auto subresource : resourceState.SubresourceState)
@@ -183,32 +183,54 @@ void ResourceStateTracker::FlushResourceBarrier(CommandList& _commandList)
 
 void ResourceStateTracker::CommitFinalResourceStates()
 {
+	//为了保证全局资源状态映射的一致，对全局映射的访问必须是线程独占的
+	assert(ms_IsLocked);
 
+	//将最终的资源状态提交到全局的资源状态
+	for (const auto& resourceState : m_FinalResourceState)
+	{
+		ms_GlobalResourceState[resourceState.first] = resourceState.second;
+	}
+
+	m_FinalResourceState.clear();
 }
 
 void ResourceStateTracker::Reset()
 {
-
+	m_FinalResourceState.clear();
+	m_PendingResourceBarriers.clear();
+	m_ResourceBarriers.clear();
 }
 
 void ResourceStateTracker::Lock()
 {
-
+	ms_GlobalMutex.lock();
+	ms_IsLocked = true;
 }
 
 void ResourceStateTracker::UnLock()
 {
-
+	ms_IsLocked = false;
+	ms_GlobalMutex.unlock();
 }
 
 void ResourceStateTracker::AddGlobalResourceState(ID3D12Resource* _resource, D3D12_RESOURCE_STATES _states)
 {
-
+	//添加一个新资源和初始状态到全局状态
+	if (_resource != nullptr)
+	{
+		std::lock_guard<std::mutex> lock(ms_GlobalMutex);
+		ms_GlobalResourceState[_resource].SetSubresourceState(D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, _states);
+	}
 }
 
 void ResourceStateTracker::RemoveGlobalResourceState(ID3D12Resource* _resource)
 {
-
+	if (_resource != nullptr)
+	{
+		std::lock_guard<std::mutex> lock(ms_GlobalMutex);
+		ms_GlobalResourceState.erase(_resource);
+	}
 }
 
 

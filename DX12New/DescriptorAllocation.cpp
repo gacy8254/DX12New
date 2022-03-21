@@ -26,7 +26,7 @@ bool DescriptorAllocation::IsNull() const
 	return m_Descriptor.ptr == 0;
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocation::GetDescriptorHandle(uint32_t _offset /*= 0*/)
+D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocation::GetDescriptorHandle(uint32_t _offset /*= 0*/) const
 {
 	assert(_offset < m_NumHandles);
 	//·µ»ØÆ«ÒÆÁ¿

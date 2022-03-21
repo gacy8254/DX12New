@@ -76,7 +76,7 @@ void DynamicDescriptorHeap::CommitStagedDescriptors(CommandList& _commandList, s
 			m_NumFreeHandles = m_NumDescriptorPerHeap;
 
 			//通过列表设置描述符堆
-			commandList.SetDescriptorHeap(m_DescriptorType, m_CurrentDescriptorHeap.Get());
+			_commandList.SetDescriptorHeap(m_DescriptorType, m_CurrentDescriptorHeap.Get());
 			//确保可将所有暂存描述符复制到新的描述符堆中
 			m_StaleDescriptorTableBitMake = m_DescriptorTableBitMask;
 		}

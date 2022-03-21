@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <queue>
 
-
+class CommandList;
 
 class CommandQueue
 {
@@ -13,7 +13,7 @@ public:
 	virtual ~CommandQueue();
 
 	//获取一个可以直接使用的命令列表，无需重置列表
-	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> GetCommandList();
+	std::shared_ptr<CommandList> GetCommandList();
 
 	//执行命令列表
 	//返回一个围栏值去等待命令的完成

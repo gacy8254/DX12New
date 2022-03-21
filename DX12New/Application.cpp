@@ -1,5 +1,5 @@
 
-
+#include "DescriptorAllocator.h"
 #include "CommandQueue.h"
 #include "Window.h"
 #include "Game.h"
@@ -305,6 +305,11 @@ std::shared_ptr<Window> Application::CreateRenderWindow(const std::wstring& _win
 	gs_WindowByName.insert(windowNameMap::value_type(_windowName, pWindow));
 
 	return pWindow;
+}
+
+DescriptorAllocation Application::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptor /*= 1*/)
+{
+	return m_DescriptorAllocators[_type]->Allocate(_numDescriptor);
 }
 
 void Application::DestroyWindow(const std::wstring& _windowName)

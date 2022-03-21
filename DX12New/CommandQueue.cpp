@@ -23,10 +23,10 @@ CommandQueue::~CommandQueue()
 
 }
 
-Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList()
+std::shared_ptr<CommandList> CommandQueue::GetCommandList()
 {
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandAllocator;
-	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> commandList;
+	std::shared_ptr<CommandList> commandList;
 
 	//检查命令分配器队列中是否有可用的分配器，如果有就直接使用，如果没有就创建一个新的分配器
 	if (!m_CommandAllocatorQueue.empty() && IsFenceComplete(m_CommandAllocatorQueue.front().fenceValue))
