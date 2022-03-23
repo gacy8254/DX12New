@@ -71,6 +71,9 @@ protected:
 
 	virtual ~Application();
 
+	//≥ı ºªØ
+	void Init();
+
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> GetAdapter(bool _useWarp);
 	Microsoft::WRL::ComPtr<ID3D12Device2> CreateDevice(Microsoft::WRL::ComPtr<IDXGIAdapter4> _adapter);
 

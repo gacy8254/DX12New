@@ -3,22 +3,42 @@
 #include "ByteAddressBuffer.h"
 #include "ConstantBuffer.h"
 #include "CommandQueue.h"
-//#include "GenerateMipsPSO.h"
+#include "GenerateMipsPSO.h"
 #include "IndexBuffer.h"
 //#include "PanoToCubemapPSO.h"
 #include "RenderTarget.h"
 #include "Resource.h"
 #include "ResourceStateTracker.h"
-#include "RootSignature.h"
 #include "StructuredBuffer.h"
 #include "Texture.h"
 #include "UploadBuffer.h"
 #include "VertexBuffer.h"
 #include "DynamicDescriptorHeap.h"
+#include "D3D12LibPCH.h"
 
-CommandList::CommandList(D3D12_COMMAND_LIST_TYPE)
+using namespace DirectX;
+
+CommandList::CommandList(D3D12_COMMAND_LIST_TYPE _type)
+	:m_CommandListType(_type)
 {
+	auto device = Application::Get().GetDevice();
 
+	//创建命令列表和分配器
+	ThrowIfFailed(device->CreateCommandAllocator(m_CommandListType, IID_PPV_ARGS(&m_CommandAllocator)));
+
+	ThrowIfFailed(device->CreateCommandList(0, m_CommandListType, m_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_CommandList)));
+
+	//创建上传堆
+	m_UploadBuffer = std::make_unique<UploadBuffer>();
+	//创建资源跟踪器
+	m_ResourceStateTrack = std::make_unique<ResourceStateTracker>();
+
+	//创建动态描述符堆
+	for (int i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
+	{
+		m_DynamicDescriptorHeap[i] = std::make_unique<DynamicDescriptorHeap>(static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(i));
+		m_DescriptorHeaps[i] = nullptr;
+	}
 }
 
 CommandList::~CommandList()
@@ -28,13 +48,17 @@ CommandList::~CommandList()
 
 void CommandList::TransitionBarrier(const Resource& _resource, D3D12_RESOURCE_STATES _state, UINT _subresource /*= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES*/, bool _flushBarriers /*= false*/)
 {
+	TransitionBarrier(_resource.GetResource(), _state, _subresource, _flushBarriers);
+}
+
+void CommandList::TransitionBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> _resource, D3D12_RESOURCE_STATES _state, UINT _subresource /*= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES*/, bool _flushBarriers /*= false*/)
+{
 	//获取资源
 	//创建一个资源屏障
 	//交由资源屏障追踪类进行处理
-	auto resource = _resource.GetResource();
-	if (resource)
+	if (_resource)
 	{
-		auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), D3D12_RESOURCE_STATE_COMMON, _state, _subresource);
+		auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(_resource.Get(), D3D12_RESOURCE_STATE_COMMON, _state, _subresource);
 		m_ResourceStateTrack->ResourceBarrier(barrier);
 	}
 
@@ -48,12 +72,36 @@ void CommandList::TransitionBarrier(const Resource& _resource, D3D12_RESOURCE_ST
 
 void CommandList::UAVBarrier(const Resource& _resource, bool _flushBarriers /*= false*/)
 {
+	UAVBarrier(_resource.GetResource(), _flushBarriers);
+}
 
+void CommandList::UAVBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> _resource, bool _flushBarriers /*= false*/)
+{
+	auto barrier = CD3DX12_RESOURCE_BARRIER::UAV(_resource.Get());
+
+	m_ResourceStateTrack->ResourceBarrier(barrier);
+
+	if (_flushBarriers)
+	{
+		FlushResourceBarriers();
+	}
 }
 
 void CommandList::AliasingBarrier(const Resource& _beforeResource, const Resource& _afterResource, bool _flushBarriers /*= false*/)
 {
+	AliasingBarrier(_beforeResource.GetResource(), _afterResource.GetResource(), _flushBarriers);
+}
 
+void CommandList::AliasingBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> _beforeResource, Microsoft::WRL::ComPtr<ID3D12Resource> _afterResource, bool _flushBarriers /*= false*/)
+{
+	auto barrier = CD3DX12_RESOURCE_BARRIER::Aliasing(_beforeResource.Get(), _afterResource.Get());
+
+	m_ResourceStateTrack->ResourceBarrier(barrier);
+
+	if (_flushBarriers)
+	{
+		FlushResourceBarriers();
+	}
 }
 
 void CommandList::FlushResourceBarriers()
@@ -76,6 +124,19 @@ void CommandList::CopyResource(Resource& _dstRes, const Resource& _srcRes)
 	//追踪资源
 	TrackResource(_dstRes);
 	TrackResource(_srcRes);
+}
+
+void CommandList::CopyResource(Microsoft::WRL::ComPtr<ID3D12Resource> _dstRes, Microsoft::WRL::ComPtr<ID3D12Resource> _srcRes)
+{
+	TransitionBarrier(_dstRes, D3D12_RESOURCE_STATE_COPY_DEST);
+	TransitionBarrier(_srcRes, D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+	FlushResourceBarriers();
+
+	m_CommandList->CopyResource(_dstRes.Get(), _srcRes.Get());
+
+	TrackObject(_dstRes);
+	TrackObject(_srcRes);
 }
 
 void CommandList::ResolveSubresource(Resource& _detRes, const Resource& _srcRes, uint32_t _detSubresource /*= 0*/, uint32_t _srcSubresource /*= 0*/)
@@ -108,24 +169,302 @@ void CommandList::StePrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY _primitiveTopology
 
 }
 
-void CommandList::LoadTextureFromFile(Texture& _texture, const std::wstring& _fileName)
+void CommandList::LoadTextureFromFile(Texture& _texture, const std::wstring& _fileName, TextureUsage _usage)
 {
+	auto device = Application::Get().GetDevice();
 
+	fs::path filePath(_fileName);
+	if (!fs::exists(filePath))
+	{
+		throw std::exception("文件不存在");
+	}
+
+	std::lock_guard<std::mutex> lock(ms_TextureCacheMutex);
+	//判断贴图是否已经加载过，如果已经加载过就更新贴图的属性
+	auto iter = ms_TextureCache.find(_fileName);
+	if (iter != ms_TextureCache.end())
+	{
+		_texture.SetTextureUsage(_usage);
+		_texture.SetResource(iter->second);
+		_texture.CreateViews();
+		_texture.SetName(_fileName);
+	}
+	else
+	{
+		//没有加载过
+		TexMetadata metadata;
+		ScratchImage scratchImage;
+		Microsoft::WRL::ComPtr<ID3D12Resource> textureResource;
+
+		//根据文件格式读取贴图内容
+		if (filePath.extension() == ".dds")
+		{
+			ThrowIfFailed(LoadFromDDSFile(_fileName.c_str(), DDS_FLAGS_NONE, &metadata, scratchImage));
+		}
+		else if (filePath.extension() == ".hdr")
+		{
+			ThrowIfFailed(LoadFromHDRFile(_fileName.c_str(), &metadata, scratchImage));
+		}
+		else if (filePath.extension() == ".tga")
+		{
+			ThrowIfFailed(LoadFromTGAFile(_fileName.c_str(), &metadata, scratchImage));
+		}
+		else
+		{
+			ThrowIfFailed(LoadFromWICFile(_fileName.c_str(), WIC_FLAGS_NONE, &metadata, scratchImage));
+		}
+
+		//如果是颜色贴图设置为sRGB
+		if (_usage == TextureUsage::Albedo)
+		{
+			metadata.format = MakeSRGB(metadata.format);
+		}
+
+		//判断贴图维度
+		D3D12_RESOURCE_DESC desc = {};
+		switch (metadata.dimension)
+		{
+		case TEX_DIMENSION_TEXTURE1D:
+			desc = CD3DX12_RESOURCE_DESC::Tex1D(metadata.format, static_cast<UINT64>(metadata.width), static_cast<UINT16>(metadata.arraySize));
+			break;
+		case TEX_DIMENSION_TEXTURE2D:
+			desc = CD3DX12_RESOURCE_DESC::Tex2D(metadata.format, static_cast<UINT64>(metadata.width), static_cast<UINT>(metadata.height), static_cast<UINT16>(metadata.arraySize));
+			break;
+		case TEX_DIMENSION_TEXTURE3D:
+			desc = CD3DX12_RESOURCE_DESC::Tex3D(metadata.format, static_cast<UINT64>(metadata.width), static_cast<UINT>(metadata.height), static_cast<UINT16>(metadata.depth));
+			break;
+		default:
+			throw std::exception("无效的贴图格式.");
+			break;
+		}
+
+		//创建资源
+		auto p = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+		ThrowIfFailed(device->CreateCommittedResource(
+			&p,
+			D3D12_HEAP_FLAG_NONE,
+			&desc,
+			D3D12_RESOURCE_STATE_COMMON,
+			nullptr,
+			IID_PPV_ARGS(&textureResource)));
+
+		//更新到全局资源状态追踪器中
+		ResourceStateTracker::AddGlobalResourceState(textureResource.Get(), D3D12_RESOURCE_STATE_COMMON);
+
+		//设置贴图属性
+		_texture.SetTextureUsage(_usage);
+		_texture.SetResource(textureResource);
+		_texture.CreateViews();
+		_texture.SetName(_fileName);
+
+		//查找纹理的子资源，例如Mipmaps
+		std::vector<D3D12_SUBRESOURCE_DATA> subResources(scratchImage.GetImageCount());
+		const Image* pImages = scratchImage.GetImages();
+		for (int i = 0; i < scratchImage.GetImageCount(); ++i)
+		{
+			auto& subResource = subResources[i];
+			subResource.RowPitch = pImages[i].rowPitch;
+			subResource.SlicePitch = pImages[i].slicePitch;
+			subResource.pData = pImages[i].pixels;
+		}
+
+		CopyTextureSubresource(_texture, 0, static_cast<uint32_t>(subResources.size()), subResources.data());
+
+		//如果找到的子资源的数量小于纹理的Mips数量，则应该生成mipmaps
+		if (subResources.size() < textureResource->GetDesc().MipLevels)
+		{
+			GenerateMips(_texture);
+		}
+
+		//将贴图加入到贴图缓存中
+		ms_TextureCache[_fileName] = textureResource.Get();
+	}
+}
+
+void CommandList::CopyTextureSubresource(Texture& _texture, uint32_t _firstSubresource, uint32_t _numSubresource, D3D12_SUBRESOURCE_DATA* _subresourceData)
+{
+	auto device = Application::Get().GetDevice();
+	//GPU中的目标地址
+	auto destinationResource = _texture.GetResource();
+
+	if (destinationResource)
+	{
+		//将资源状态转换成复制目标，并刷新状态
+		TransitionBarrier(_texture, D3D12_RESOURCE_STATE_COPY_DEST);
+		FlushResourceBarriers();
+
+		//计算需要多大的空间来容纳资源
+		uint64_t requiredSize = GetRequiredIntermediateSize(destinationResource.Get(), _firstSubresource, _numSubresource);
+
+		//创建一个中间缓冲区，在上传堆中
+		ComPtr<ID3D12Resource> intermediateResource;
+		auto p = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		auto o = CD3DX12_RESOURCE_DESC::Buffer(requiredSize);
+		ThrowIfFailed(device->CreateCommittedResource(
+			&p,
+			D3D12_HEAP_FLAG_NONE,
+			&o,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&intermediateResource)));
+
+		//将像素数据复制到目标纹理
+		UpdateSubresources(m_CommandList.Get(), destinationResource.Get(), intermediateResource.Get(), 0, _firstSubresource, _numSubresource, _subresourceData);
+
+		TrackObject(intermediateResource);
+		TrackObject(destinationResource);
+	}
 }
 
 void CommandList::ClearTexture(const Texture& _texture, const float _clearColor[4])
 {
+	TransitionBarrier(_texture, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	m_CommandList->ClearRenderTargetView(_texture.GetRenderTargetView(), _clearColor, 0, nullptr);
 
+	TrackResource(_texture);
 }
 
 void CommandList::ClearDepthStencilTexture(const Texture& _texture, D3D12_CLEAR_FLAGS _clearFlags, float _depth /*= 1.0f*/, uint8_t _stencil /*= 0*/)
 {
+	TransitionBarrier(_texture, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	m_CommandList->ClearDepthStencilView(_texture.GetDepthStencilView(), _clearFlags, _depth, _stencil, 0, nullptr);
 
+	TrackResource(_texture);
 }
 
 void CommandList::GenerateMips(Texture& _texture)
 {
+	//如果当前命令列表时复制命令列表
+	//检索计算命令列表
+	//在计算命令列表上执行该操作
+	if (m_CommandListType == D3D12_COMMAND_LIST_TYPE_COPY)
+	{
+		if (!m_ComputerCommandList)
+		{
+			m_ComputerCommandList = Application::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE)->GetCommandList();
+		}
+		m_ComputerCommandList->GenerateMips(_texture);
+		return;
+	}
+	//获取资源
+	auto resource = _texture.GetResource();
 
+	//如果底层资源无效，返回
+	if (!resource)
+	{
+		return;
+	}
+	
+	//查询资源描述
+	auto resDesc = resource->GetDesc();
+
+	//如果Miplevels只有1层，直接返回
+	if (resDesc.MipLevels == 1)
+	{
+		return;
+	}
+
+	//如果不是2d贴图，或者是纹理数组，或者是超采样贴图，则直接返回
+	if (resDesc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || resDesc.DepthOrArraySize != 1 || resDesc.SampleDesc.Count > 1)
+	{
+		throw std::exception("非2D贴图，纹理数组，超采样贴图，不支持生成Mips");
+	}
+
+	ComPtr<ID3D12Resource> uavResource = resource;
+	//仅当需要将原始资源拷贝到UAV资源时才使用
+	ComPtr<ID3D12Resource> aliasResource;
+
+	//检查是否支持UAV加载和存储纹理
+	//如果不支持，生成一个支持的临时资源
+	if (!_texture.CheckUAVSupport() || (resDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) == 0)
+	{
+		auto device = Application::Get().GetDevice();
+
+		auto aliasDesc = resDesc;
+
+		//别名资源必须是UAV不能是RT和深度模板图
+		aliasDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		aliasDesc.Flags &= ~(D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+
+		//获取符合规定的UAV格式
+		auto uavDesc = aliasDesc;
+		uavDesc.Format = Texture::GetUAVCompatableFormat(resDesc.Format);
+
+		D3D12_RESOURCE_DESC resourceDescs[] = {
+		aliasDesc,
+		uavDesc
+		};
+
+		//查询所需堆的大小（以字节为单位）
+		auto allocationInfo = device->GetResourceAllocationInfo(0, _countof(resourceDescs), resourceDescs);
+
+		//创建堆的描述
+		D3D12_HEAP_DESC heapDesc = {};
+		heapDesc.SizeInBytes = allocationInfo.SizeInBytes;
+		heapDesc.Alignment = allocationInfo.Alignment;
+		heapDesc.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
+		heapDesc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		heapDesc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		heapDesc.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+		//创建堆
+		ComPtr<ID3D12Heap> heap;
+		ThrowIfFailed(device->CreateHeap(&heapDesc, IID_PPV_ARGS(&heap)));
+
+		//追踪资源，确保资源在命令队列上执行之前不被释放
+		TrackObject(heap);
+
+		//创建与原始资源描述匹配的放置资源
+		//用于将原始资源复制到兼容UAV的资源
+		ThrowIfFailed(device->CreatePlacedResource(heap.Get(),
+			0,
+			&aliasDesc,
+			D3D12_RESOURCE_STATE_COMMON,
+			nullptr,
+			IID_PPV_ARGS(&aliasResource)));
+
+		//追踪资源状态
+		ResourceStateTracker::AddGlobalResourceState(aliasResource.Get(), D3D12_RESOURCE_STATE_COMMON);
+
+		//追踪资源
+		TrackObject(aliasResource);
+
+		//创建一个兼容UAV的资源，和别名资源在同一个堆中
+		ThrowIfFailed(device->CreatePlacedResource(heap.Get(),
+			0,
+			&uavDesc,
+			D3D12_RESOURCE_STATE_COMMON,
+			nullptr,
+			IID_PPV_ARGS(&uavResource)));
+
+		//追踪资源状态
+		ResourceStateTracker::AddGlobalResourceState(uavResource.Get(), D3D12_RESOURCE_STATE_COMMON);
+
+		//追踪资源
+		TrackObject(uavResource);
+
+		//添加一个别名屏障，使别名资源处于活动状态
+		AliasingBarrier(nullptr, aliasResource);
+
+		//将原始资源拷贝到别名资源
+		CopyResource(aliasResource, resource);
+
+		//将UAV资源设置为活动资源
+		AliasingBarrier(aliasResource, uavResource);
+	}
+
+	//使用一个UAV兼容的资源生成Mips
+	Texture t(uavResource, _texture.GetTextureUsage());
+	GenerateMips_UAV(t, resDesc.Format);
+
+	if (aliasResource)
+	{
+		//将别名资源转换为活动状态
+		AliasingBarrier(uavResource, aliasResource);
+
+		//将资源复制到原始资源中
+		CopyResource(resource, aliasResource);
+	}
 }
 
 void CommandList::PanoToCubeMap(Texture& _cubeMap, const Texture& _pano)
@@ -155,7 +494,7 @@ void CommandList::SetGraphics32BitConstants(uint32_t _rootParameterIndex, size_t
 
 void CommandList::SetComputer32BitConstants(uint32_t _rootParameterIndex, size_t _numContants, const void* _bufferData)
 {
-
+	m_CommandList->SetComputeRoot32BitConstants(_rootParameterIndex, _numContants, _bufferData, 0);
 }
 
 void CommandList::SetDynamicVertexBuffer(uint32_t _slot, size_t _numVertices, size_t _vertexSize, const void* _vertexBufferData)
@@ -168,7 +507,7 @@ void CommandList::SetVertexBuffer(uint32_t _slot, const VertexBuffer& _vertexBuf
 
 }
 
-void CommandList::SetVertexBuffer(const IndexBuffer& _indexBuffer)
+void CommandList::SetIndexBuffer(const IndexBuffer& _indexBuffer)
 {
 
 }
@@ -208,14 +547,41 @@ void CommandList::SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> _
 
 }
 
-void CommandList::SetGraphicsRootSignature(const RootSignature& _rootSignature)
+void CommandList::SetGraphicsRootSignature(const dx12lib::RootSignature& _rootSignature)
 {
+	auto rs = _rootSignature.GetRootSignature().Get();
+	if (m_RootSignature != rs)
+	{
+		m_RootSignature = rs;
 
+		for (int i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
+		{
+			m_DynamicDescriptorHeap[i]->ParseRootSignature(_rootSignature);
+		}
+
+		m_CommandList->SetGraphicsRootSignature(m_RootSignature);
+
+		TrackObject(m_RootSignature);
+	}
 }
 
-void CommandList::SetComputerRootSignature(const RootSignature& _rootSignature)
-{
 
+void CommandList::SetComputerRootSignature(const dx12lib::RootSignature& _rootSignature)
+{
+	auto rs = _rootSignature.GetRootSignature().Get();
+	if (m_RootSignature != rs)
+	{
+		m_RootSignature = rs;
+
+		for (int i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
+		{
+			m_DynamicDescriptorHeap[i]->ParseRootSignature(_rootSignature);
+		}
+
+		m_CommandList->SetComputeRootSignature(m_RootSignature);
+
+		TrackObject(m_RootSignature);
+	}
 }
 
 void CommandList::SetShaderResourceView(
@@ -277,7 +643,38 @@ void CommandList::SetUnorderedAccessView(uint32_t _rootParameterIndex,
 
 void CommandList::SetRenderTarget(const RenderTarget& _renderTarget)
 {
+	std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> rtDescriptor;
+	rtDescriptor.reserve(AttachmentPoint::NumAttachmentPoints);
 
+	const auto& textures = _renderTarget.GetTextures();
+
+	for (int i = 0; i < 8; i++)
+	{
+		auto& texture = textures[i];
+
+		if (texture.IsVaild())
+		{
+			TransitionBarrier(texture, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			rtDescriptor.push_back(texture.GetRenderTargetView());
+
+			TrackResource(texture);
+		}
+	}
+
+	const auto depthTexture = _renderTarget.GetTexture(AttachmentPoint::DepthStencil);
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE dsDescriptor(D3D12_DEFAULT);
+	if (depthTexture.GetResource())
+	{
+		TransitionBarrier(depthTexture, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		dsDescriptor = depthTexture.GetDepthStencilView();
+
+		TrackResource(depthTexture);
+	}
+
+	D3D12_CPU_DESCRIPTOR_HANDLE* pDSV = dsDescriptor.ptr != 0 ? &dsDescriptor : nullptr;
+
+	m_CommandList->OMSetRenderTargets(static_cast<UINT>(rtDescriptor.size()), rtDescriptor.data(), FALSE, pDSV);
 }
 
 void CommandList::Draw(uint32_t _vertexCount, uint32_t _instanceCount /*= 1*/, uint32_t _startVertex /*= 0*/, uint32_t _startInstance /*= 0*/)
@@ -317,29 +714,59 @@ void CommandList::DrawIndexed(
 
 void CommandList::Dispatch(uint32_t _numGroupsX, uint32_t _numGroupsY, uint32_t _numGroupsZ /*= 1*/)
 {
+	FlushResourceBarriers();
 
+	for (int i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; i++)
+	{
+		m_DynamicDescriptorHeap[i]->CommitStagedDescriptorsForDispatch(*this);
+	}
+
+	m_CommandList->Dispatch(_numGroupsX, _numGroupsY, _numGroupsZ);
 }
 
 bool CommandList::Close(CommandList& _pendingCommandList)
 {
-	bool b = true;
+	FlushResourceBarriers();
 
-	return b;
+	m_CommandList->Close();
+
+	//刷新挂起的资源屏障
+	uint32_t numPendingBarriers = m_ResourceStateTrack->FlushPendingResourceBarriers(_pendingCommandList);
+	//提交最终资源状态到全局状态
+	m_ResourceStateTrack->CommitFinalResourceStates();
+
+	return numPendingBarriers > 0;
 }
 
 void CommandList::Close()
 {
-
+	FlushResourceBarriers();
+	m_CommandList->Close();
 }
 
 void CommandList::Reset()
 {
+	ThrowIfFailed(m_CommandAllocator->Reset());
+	ThrowIfFailed(m_CommandList->Reset(m_CommandAllocator.Get(), nullptr));
 
+	m_ResourceStateTrack->Reset();
+	m_UploadBuffer->Reset();
+
+	ReleaseTrackedObjects();
+
+	for (int i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
+	{
+		m_DynamicDescriptorHeap[i]->Reset();
+		m_DescriptorHeaps[i] = nullptr;
+	}
+
+	m_RootSignature = nullptr;
+	m_ComputerCommandList = nullptr;
 }
 
 void CommandList::ReleaseTrackedObjects()
 {
-
+	m_TrackedObjects.clear();
 }
 
 void CommandList::SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE _type, ID3D12DescriptorHeap* _heap)
@@ -361,9 +788,92 @@ void CommandList::TrackResource(const Resource& _res)
 	TrackObject(_res.GetResource());
 }
 
-void CommandList::GenerateMips_UAV(Texture& _texture)
+void CommandList::GenerateMips_UAV(Texture& _texture, DXGI_FORMAT _format)
 {
+	//检查PSO是否存在，没有就创建一个
+	if (!m_GenerateMipsPSO)
+	{
+		m_GenerateMipsPSO = std::make_unique<GenerateMipsPSO>();
+	}
 
+	//设置PSO和根签名
+	m_CommandList->SetPipelineState(m_GenerateMipsPSO->GetPSO().Get());
+	auto root = m_GenerateMipsPSO->GetRootSignature();
+	SetComputerRootSignature(root);
+
+	GenerateMipsCB generateMipsCB;
+	generateMipsCB.IsSRGB = Texture::IsSRGBFormat(_format);
+
+	auto res = _texture.GetResource();
+	auto resDesc = _texture.GetResourceDesc();
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = _format;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = resDesc.MipLevels;
+
+	for (uint32_t srcMip = 0; srcMip < resDesc.MipLevels - 1u;)
+	{
+		//源贴图的宽高，>> 右移运算符，相当于除以2，mip的维度也决定了此PASS的计算调度维度
+		uint64_t srcWidth = resDesc.Width >> srcMip;
+		uint32_t srcHeight = resDesc.Height >> srcMip;
+		uint32_t dstWidth = static_cast<uint32_t>(srcWidth >> 1);
+		uint32_t desHeight = srcHeight >> 1;
+
+		//SrcDimension是一个位掩码，用于只是源MIP的宽度或高度是否为奇数
+		generateMipsCB.SrcDimension = (srcHeight & 1) << 1 | (srcWidth & 1);
+
+		//当前迭代生成的Mip级别数，最大为4
+		DWORD mipCount;
+		//用了一系列神奇的运算方法，暂时看不懂
+		_BitScanForward(&mipCount, (dstWidth == 1 ? desHeight : dstWidth) | (desHeight == 1 ? dstWidth : desHeight));
+
+		//最大生成四个MIP
+		mipCount = std::min<DWORD>(4, mipCount + 1);
+		//放置生成的mip比原始纹理中的mipcount多，将mipCount设置为剩余的mip数量
+		mipCount = (srcMip + mipCount) >= resDesc.MipLevels ? resDesc.MipLevels - srcMip - 1 : mipCount;
+
+		dstWidth = std::max<DWORD>(1, dstWidth);
+		desHeight = std::max<DWORD>(1, desHeight);
+
+		generateMipsCB.SrcMipLevel = srcMip;
+		generateMipsCB.NumMipLevels = mipCount;
+		generateMipsCB.TexelSize.x = 1.0f / (float)dstWidth;
+		generateMipsCB.TexelSize.y = 1.0f / (float)desHeight;
+
+		//设置根参数常量
+		SetComputer32BitConstants(GenerateMips::GenerateMipsCB, generateMipsCB);
+
+		//设置SRV
+		SetShaderResourceView(GenerateMips::SrcMip, 0, _texture, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, srcMip, 1, &srvDesc);
+
+		//设置UAV
+		for (uint32_t mip = 0; mip < mipCount; mip++)
+		{
+			D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+			uavDesc.Format = resDesc.Format;
+			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+			uavDesc.Texture2D.MipSlice = srcMip + mip + 1;
+
+			SetUnorderedAccessView(GenerateMips::OutMip, mip, _texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, srcMip + mip + 1, 1, &uavDesc);
+		}
+
+		//如果生成的MIPS数小于4，则未使用的mip都应该使用默认UAV填充
+		if (mipCount < 4)
+		{
+			m_DynamicDescriptorHeap[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]->StageDescriptor(GenerateMips::OutMip, mipCount, 4 - mipCount, m_GenerateMipsPSO->GetDefaultUAV());
+		}
+
+		//执行计算分配
+		//DivideByMultiple返回一个除以某个数得到的最大整数  如100 / 8 = 13
+		Dispatch(Math::DivideByMultiple(dstWidth, 8), Math::DivideByMultiple(desHeight, 8));
+
+		UAVBarrier(_texture);
+
+		//源mip数递增，已开始下一次迭代
+		srcMip += mipCount;
+	}
 }
 
 void CommandList::GenerateMips_BGR(Texture& _texture)
@@ -397,3 +907,7 @@ void CommandList::BindDescriptorHeaps()
 
 	m_CommandList->SetDescriptorHeaps(numDescriptor, desHeap);
 }
+
+std::map<std::wstring, ID3D12Resource*> CommandList::ms_TextureCache;
+
+std::mutex CommandList::ms_TextureCacheMutex;

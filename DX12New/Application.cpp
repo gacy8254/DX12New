@@ -254,6 +254,7 @@ void Application::Create(HINSTANCE _hInst)
 	if (!gs_Application)
 	{
 		gs_Application = new Application(_hInst);
+		gs_Application->Init();
 	}
 }
 
@@ -438,11 +439,6 @@ Application::Application(HINSTANCE _hIns)
 {
 	SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
-#if defined(_DEBUG)
-	ComPtr<ID3D12Debug> debugInterface;
-	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
-	debugInterface->EnableDebugLayer();
-#endif
 
 	WNDCLASSEXW windowClass = { 0 };
 	windowClass.cbSize = sizeof(WNDCLASSEXW);
@@ -460,6 +456,20 @@ Application::Application(HINSTANCE _hIns)
 	{
 		MessageBoxA(NULL, "注册窗口失败", "错误", MB_OK | MB_ICONERROR);
 	}
+}
+
+Application::~Application()
+{
+	Flush();
+}
+
+void Application::Init()
+{
+#if defined(_DEBUG)
+	ComPtr<ID3D12Debug> debugInterface;
+	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
+	debugInterface->EnableDebugLayer();
+#endif
 
 	//依次创建适配器，设备，三个队列
 	m_Adapter = GetAdapter(false);
@@ -476,19 +486,20 @@ Application::Application(HINSTANCE _hIns)
 
 	if (m_Device)
 	{
-		m_DirectCommandQueue = std::make_shared<CommandQueue>(m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-		m_ComputeCommandQueue = std::make_shared<CommandQueue>(m_Device, D3D12_COMMAND_LIST_TYPE_COMPUTE);
-		m_CopyCommandQueue = std::make_shared<CommandQueue>(m_Device, D3D12_COMMAND_LIST_TYPE_COPY);
+		m_DirectCommandQueue = std::make_shared<CommandQueue>(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		m_ComputeCommandQueue = std::make_shared<CommandQueue>(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+		m_CopyCommandQueue = std::make_shared<CommandQueue>(D3D12_COMMAND_LIST_TYPE_COPY);
 
 		m_TearingSupported = CheckTearingSupport();
 	}
 
-	ms_FrameCount = 0;
-}
+	//创建描述符分配器
+	for (int i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; i++)
+	{
+		m_DescriptorAllocators[i] = std::make_unique<DescriptorAllocator>(static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(i));
+	}
 
-Application::~Application()
-{
-	Flush();
+	ms_FrameCount = 0;
 }
 
 Microsoft::WRL::ComPtr<IDXGIAdapter4> Application::GetAdapter(bool _useWarp)

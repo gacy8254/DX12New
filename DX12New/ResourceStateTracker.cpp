@@ -160,7 +160,7 @@ uint32_t ResourceStateTracker::FlushPendingResourceBarriers(CommandList& _comman
 	if (numBarriers > 0)
 	{
 		auto commandList = _commandList.GetGraphicsCommandList();
-		commandList->ResourceBarrier(numBarriers, m_ResourceBarriers.data());
+		commandList->ResourceBarrier(numBarriers, resourceBarriers.data());
 		m_ResourceBarriers.clear();
 	}
 	//清空挂起的资源屏障数组

@@ -51,10 +51,20 @@ public:
 	//这在更改交换链大小时很有用
 	virtual void Reset();
 
+	//检车格式支持
+	bool CheckFormatSupport(D3D12_FORMAT_SUPPORT1 formatSupport) const;
+	bool CheckFormatSupport(D3D12_FORMAT_SUPPORT2 formatSupport) const;
+
+	
 protected:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_Resource = nullptr;
 	std::unique_ptr<D3D12_CLEAR_VALUE> m_ClearValue = nullptr;
 	std::wstring m_Name;
+	D3D12_FEATURE_DATA_FORMAT_SUPPORT m_FormatSupport;
+
+private:
+	void CheckFeatureSupport();
+
 };
 

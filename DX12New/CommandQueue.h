@@ -2,14 +2,18 @@
 #include <d3d12.h>
 #include <wrl.h>
 #include <cstdint>
-#include <queue>
+#include <memory>
+#include <condition_variable>
+#include <atomic>
+
+#include "ThreadSafeQueue.h"
 
 class CommandList;
 
 class CommandQueue
 {
 public:
-	CommandQueue(Microsoft::WRL::ComPtr<ID3D12Device2> _device, D3D12_COMMAND_LIST_TYPE _type);
+	CommandQueue(D3D12_COMMAND_LIST_TYPE _type);
 	virtual ~CommandQueue();
 
 	//获取一个可以直接使用的命令列表，无需重置列表
@@ -17,39 +21,42 @@ public:
 
 	//执行命令列表
 	//返回一个围栏值去等待命令的完成
-	uint64_t ExecuteCommandList(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> _commandList);
+	uint64_t ExecuteCommandList(const std::vector<std::shared_ptr<CommandList>>& _commandList);
+	uint64_t ExecuteCommandList(std::shared_ptr<CommandList> _commandList);
 
 	uint64_t Signal();
 	bool IsFenceComplete(uint64_t _fenceValue);
 	void WaitForFenceValue(uint64_t _fenceValue);
 	void Flush();
 
+	//等待其他的命令队列结束
+	void Wait(const CommandQueue& _other);
+
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> GetCommandQueue() const;
 
 protected:
-	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CreateCommandAllocator();
-	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> CreateCommandList(Microsoft::WRL::ComPtr<ID3D12CommandAllocator> _allocator);
 
 private:
-	//该结构体用于将分配器与围栏值关联起来
-	struct CommandAllocatorEntry
-	{
-		uint64_t fenceValue;
-		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandAllocator;
-	};
+	//释放命令队列上已经完成处理的所有命令列表
+	void ProcessInFlightCommandLists();
 
-	//起别名
-	using CommandAllocatorQueue = std::queue<CommandAllocatorEntry>;
-	using CommandListQueue = std::queue<Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2>>;
+
+	//保持对正在工作的命令分配器的追踪，第一个值是围栏的值，第二个是正在工作的命令列表的共享指针
+	using CommandAllocatorEntry = std::tuple<uint64_t, std::shared_ptr<CommandList>>;
+
+	ThreadSafeQueue<std::shared_ptr<CommandList>> m_AvaliableCommandList;
+	ThreadSafeQueue<CommandAllocatorEntry> m_InFlightCommandLists;
 
 	D3D12_COMMAND_LIST_TYPE m_CommandListType;
-	Microsoft::WRL::ComPtr<ID3D12Device2> m_Device = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_CommandQueue = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Fence> m_Fence = nullptr;
-	HANDLE m_FenceEvent;
 	uint64_t m_fenceValue;
 
-	CommandAllocatorQueue m_CommandAllocatorQueue;
-	CommandListQueue m_CommandListQueue;
+
+	//线程
+	std::thread m_ProcessInFlightCommandListsThread;
+	std::atomic_bool m_bProcessInFlightCommandLists;
+	std::mutex m_ProcessInFlightCommandListsThreadMutex;
+	std::condition_variable m_ProcessInFlightCommandListsThreadCV;
 };
 

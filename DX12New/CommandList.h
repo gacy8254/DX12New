@@ -7,6 +7,9 @@
 #include <mutex>
 #include <vector>
 
+#include "TextureUsage.hpp"
+#include "RootSignature.h"
+
 class Buffer;
 class ByteAddressBuffer;
 class ConstantBuffer;
@@ -33,7 +36,7 @@ public:
 	D3D12_COMMAND_LIST_TYPE GetCommandListType() const { return m_CommandListType; }
 
 	//获取列表
-	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> GetGraphicsCommandList() { return m_CommandList; }
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> GetGraphicsCommandList() const { return m_CommandList; }
 
 	//将资源转换到特定状态
 	//要转换的资源
@@ -41,22 +44,26 @@ public:
 	//要转换的子资源,默认情况下转换所有子资源
 	//强制清除所有障碍
 	void TransitionBarrier(const Resource& _resource, D3D12_RESOURCE_STATES _state, UINT _subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, bool _flushBarriers = false);
+	void TransitionBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> _resource, D3D12_RESOURCE_STATES _state, UINT _subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, bool _flushBarriers = false);
 
 	//添加一个UAV屏障,确保对资源的写入已经完成
 	//要转换的资源
 	//强制清除所有障碍
 	void UAVBarrier(const Resource& _resource, bool _flushBarriers = false);
+	void UAVBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> _resource, bool _flushBarriers = false);
 
 	//添加一个别名屏障
 	//当前占用堆的资源
 	//将要占用堆的资源
 	void AliasingBarrier(const Resource& _beforeResource, const Resource& _afterResource, bool _flushBarriers = false);
+	void AliasingBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> _beforeResource, Microsoft::WRL::ComPtr<ID3D12Resource> _afterResource, bool _flushBarriers = false);
 
 	//刷新所有推送到命令列表的资源屏障
 	void FlushResourceBarriers();
 
 	//复制一个资源
 	void CopyResource(Resource& _dstRes, const Resource& _srcRes);
+	void CopyResource(Microsoft::WRL::ComPtr<ID3D12Resource> _dstRes, Microsoft::WRL::ComPtr<ID3D12Resource> _srcRes);
 
 	//将一个多重采样资源解析为非多重采样的资源
 	void ResolveSubresource(Resource& _detRes, const Resource& _srcRes, uint32_t _detSubresource = 0, uint32_t _srcSubresource = 0);
@@ -100,7 +107,14 @@ public:
 	void StePrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY _primitiveTopology);
 
 	//从文件中加载一直贴图
-	void LoadTextureFromFile(Texture& _texture, const std::wstring& _fileName);
+	void LoadTextureFromFile(Texture& _texture, const std::wstring& _fileName, TextureUsage _usage = TextureUsage::Albedo);
+
+	//像素数据不能直接复制到目标纹理资源
+	//需要在上传堆中创建一个中间缓冲区
+	//现将资源拷贝到中间缓冲区，然后再命令列表上发出将数据拷贝到目标的GPU命令
+	//只有执行了命令后资源才会被拷贝到目标区域
+	//之后才能使用纹理
+	void CopyTextureSubresource(Texture& _texture, uint32_t _firstSubresource, uint32_t _numSubresource, D3D12_SUBRESOURCE_DATA* _subresourceData);
 
 	//清空一张贴图
 	void ClearTexture(const Texture& _texture, const float _clearColor[4]);
@@ -153,7 +167,7 @@ public:
 	}
 
 	//设置索引缓冲到渲染管线
-	void SetVertexBuffer(const IndexBuffer& _indexBuffer);
+	void SetIndexBuffer(const IndexBuffer& _indexBuffer);
 	//设置一个动态索引缓冲到渲染管线
 	void SetDynamicIndexBuffer(size_t _numIndicies, DXGI_FORMAT _indexFormat, const void* _indexxBufferData);
 	template<typename T>
@@ -185,8 +199,8 @@ public:
 	void SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> _pso);
 
 	//设置根签名
-	void SetGraphicsRootSignature(const RootSignature& _rootSignature);
-	void SetComputerRootSignature(const RootSignature& _rootSignature);
+	void SetGraphicsRootSignature(const dx12lib::RootSignature& _rootSignature);
+	void SetComputerRootSignature(const dx12lib::RootSignature& _rootSignature);
 
 	//设置SRV
 	//根参数索引(必须是描述符表)
@@ -259,7 +273,7 @@ private:
 	void TrackResource(const Resource& _res);
 
 	//生成mips
-	void GenerateMips_UAV(Texture& _texture);
+	void GenerateMips_UAV(Texture& _texture, DXGI_FORMAT _format);
 	void GenerateMips_BGR(Texture& _texture);
 	void GenerateMips_sRGB(Texture& _texture);
 
@@ -301,7 +315,7 @@ private:
 
 	//pso
 	//std::unique_ptr<PanoToCubemapPSO> m_PanoToCubemapPSO = nullptr;
-	//std::unique_ptr<GenerateMipsPSO> m_GenerateMipsPSO = nullptr;
+	std::unique_ptr<GenerateMipsPSO> m_GenerateMipsPSO = nullptr;
 
 	//由命令列表追踪的在运行中的命令队列上的物体,不能被删除
 	//确保在列表执行完成之前不被删除

@@ -5,7 +5,6 @@
 #include "Application.h"
 #include "helpers.h"
 #include "ResourceStateTracker.h"
-#include "DescriptorAllocation.h"
 
 Texture::Texture(TextureUsage textureUsage, const std::wstring& name)
 	: Resource(name)
@@ -158,18 +157,14 @@ void Texture::CreateViews()
 
 		CD3DX12_RESOURCE_DESC desc(m_Resource->GetDesc());
 
-		D3D12_FEATURE_DATA_FORMAT_SUPPORT formatSupport;
-		formatSupport.Format = desc.Format;
-		ThrowIfFailed(device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &formatSupport, sizeof(D3D12_FEATURE_DATA_FORMAT_SUPPORT)));
-
 		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0 &&
-			CheckRTVSupport(formatSupport.Support1))
+			CheckRTVSupport())
 		{
 			m_RenderTargetView = app.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 			device->CreateRenderTargetView(m_Resource.Get(), nullptr, m_RenderTargetView.GetDescriptorHandle());
 		}
 		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0 &&
-			CheckDSVSupport(formatSupport.Support1))
+			CheckDSVSupport())
 		{
 			m_DepthStencilView = app.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 			device->CreateDepthStencilView(m_Resource.Get(), nullptr, m_DepthStencilView.GetDescriptorHandle());
@@ -265,7 +260,6 @@ bool Texture::IsUAVCompatibleFormat(DXGI_FORMAT format)
 	case DXGI_FORMAT_R32G32B32A32_UINT:
 	case DXGI_FORMAT_R32G32B32A32_SINT:
 	case DXGI_FORMAT_R16G16B16A16_FLOAT:
-		//    case DXGI_FORMAT_R16G16B16A16_UNORM:
 	case DXGI_FORMAT_R16G16B16A16_UINT:
 	case DXGI_FORMAT_R16G16B16A16_SINT:
 	case DXGI_FORMAT_R8G8B8A8_UNORM:
@@ -291,8 +285,12 @@ bool Texture::IsSRGBFormat(DXGI_FORMAT format)
 	switch (format)
 	{
 	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+	case DXGI_FORMAT_BC1_UNORM_SRGB:
+	case DXGI_FORMAT_BC2_UNORM_SRGB:
+	case DXGI_FORMAT_BC3_UNORM_SRGB:
 	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
 	case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+	case DXGI_FORMAT_BC7_UNORM_SRGB:
 		return true;
 	default:
 		return false;
@@ -305,7 +303,9 @@ bool Texture::IsBGRFormat(DXGI_FORMAT format)
 	{
 	case DXGI_FORMAT_B8G8R8A8_UNORM:
 	case DXGI_FORMAT_B8G8R8X8_UNORM:
+	case DXGI_FORMAT_B8G8R8A8_TYPELESS:
 	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+	case DXGI_FORMAT_B8G8R8X8_TYPELESS:
 	case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
 		return true;
 	default:
@@ -440,3 +440,29 @@ DXGI_FORMAT Texture::GetTypelessFormat(DXGI_FORMAT format)
 
 	return typelessFormat;
 }
+
+DXGI_FORMAT Texture::GetUAVCompatableFormat(DXGI_FORMAT format)
+{
+	DXGI_FORMAT uavFormat = format;
+
+	switch (format)
+	{
+	case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+	case DXGI_FORMAT_B8G8R8A8_UNORM:
+	case DXGI_FORMAT_B8G8R8X8_UNORM:
+	case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+	case DXGI_FORMAT_B8G8R8X8_TYPELESS:
+	case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+		uavFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+		break;
+	case DXGI_FORMAT_R32_TYPELESS:
+	case DXGI_FORMAT_D32_FLOAT:
+		uavFormat = DXGI_FORMAT_R32_FLOAT;
+		break;
+	}
+
+	return uavFormat;
+}
+

@@ -28,7 +28,7 @@ using namespace Microsoft::WRL;
 #include <dxgi1_6.h>
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
-//#include <DirectXTex.h>
+#include <DirectXTex.h>
 #include "d3dx12.h"
 
 //标准库
@@ -47,7 +47,11 @@ using namespace Microsoft::WRL;
 #include <thread>
 #include <vector>
 
-//namespace fs = std::experimental::filesystem;
+#if defined( __cpp_lib_filesystem )
+namespace fs = std::filesystem;
+#else
+namespace fs = std::experimental::filesystem;
+#endif
 
 //自己的文件
 #include "helpers.h"

@@ -233,8 +233,14 @@
     <ClInclude Include="Mesh.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="TextureUsage.h">
+    <ClInclude Include="TextureUsage.hpp">
       <Filter>Common\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="ThreadSafeQueue.h">
+      <Filter>Common\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="HLSL\GanerateMips_GS.h">
+      <Filter>Shaders</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -244,5 +250,11 @@
     <FxCompile Include="..\shaders\VertexShader.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="..\shaders\GanerateMips_GS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

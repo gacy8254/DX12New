@@ -4,6 +4,8 @@
 #include "CommandQueue.h"
 #include "D3D12LibPCH.h"
 #include "Game.h"
+#include "ResourceStateTracker.h"
+#include "CommandList.h"
 
 void Window::Destroy()
 {
@@ -64,18 +66,56 @@ void Window::SetFullScreen(bool _fullScreen)
 	}
 }
 
-UINT Window::Present()
+UINT Window::Present(const Texture& _texture)
 {
+	//获取所需的对象
+	auto commandQueue = Application::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	auto commandList = commandQueue->GetCommandList();
+
+	auto& backBuffer = m_BackBufferTextures[m_CurrentBackBufferIndex];
+
+	//如果贴图有效
+	//判断贴图是否是超采样贴图，是就拆分子资源
+	//不是就拷贝资源
+	if (_texture.IsVaild())
+	{
+		if (_texture.GetResourceDesc().SampleDesc.Count > 1)
+		{
+			commandList->ResolveSubresource(backBuffer, _texture);
+		}
+		else
+		{
+			commandList->CopyResource(backBuffer, _texture);
+		}
+	}
+
+	RenderTarget rT;
+	rT.AttachTexture(AttachmentPoint::Color0, backBuffer);
+
+	commandList->TransitionBarrier(backBuffer, D3D12_RESOURCE_STATE_PRESENT);
+	commandQueue->ExecuteCommandList(commandList);
+
 	//设置vsync
 	UINT syncInterval = m_VSync ? 1 : 0;
 	UINT presentFlags = m_TearingSupported && !m_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
 	//呈现
 	ThrowIfFailed(m_SwapChain->Present(syncInterval, presentFlags));
 
+	m_FenceValue[m_CurrentBackBufferIndex] = commandQueue->Signal();
+	m_FrameValue[m_CurrentBackBufferIndex] = Application::GetFrameCount();
+
 	//更新后台缓冲区的序号
 	m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
 
+	commandQueue->WaitForFenceValue(m_FrameValue[m_CurrentBackBufferIndex]);
+
 	return m_CurrentBackBufferIndex;
+}
+
+const RenderTarget& Window::GetRenderTarget() const
+{
+	m_RenderTarget.AttachTexture(AttachmentPoint::Color0, m_BackBufferTextures[m_CurrentBackBufferIndex]);
+	return m_RenderTarget;
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE Window::GetCurrentRTV() const
@@ -84,7 +124,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE Window::GetCurrentRTV() const
 }
 
 Window::Window(HWND _hwnd, const std::wstring& _windowName, int _width, int _height, bool _vsync)
-	:m_HWND(_hwnd), m_WindowName(_windowName), m_Width(_width), m_Height(_height), m_VSync(_vsync), m_FrameCounter(0)
+	:m_HWND(_hwnd), m_WindowName(_windowName), m_Width(_width), m_Height(_height), m_VSync(_vsync), m_FrameCounter(0), m_FenceValue{0}, m_FrameValue{0}
 {
 	Application& app = Application::Get();
 
@@ -92,9 +132,11 @@ Window::Window(HWND _hwnd, const std::wstring& _windowName, int _width, int _hei
 
 	//创建交换链
 	m_SwapChain = CreateSwapChain();
-	//创建RTV堆
-	m_RTVHeap = app.CreateDescriptorHeap(m_BufferCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	m_RTVDescriptorSize = app.GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	
+	for (int i = 0; i < m_BufferCount; i++)
+	{
+		m_BackBufferTextures[i].SetName(L"BackBuffer[" + std::to_wstring(i) + L"]");
+	}
 
 	//更新RTV
 	UpdateRTVs();
@@ -240,9 +282,13 @@ void Window::OnResize(ResizeEventArgs& _e)
 		//刷新GPU
 		Application::Get().Flush();
 
+		//释放所有引用
+		m_RenderTarget.AttachTexture(AttachmentPoint::Color0, Texture());
+
 		for (int i = 0; i < m_BufferCount; i++)
 		{
-			m_BackBuffers[i].Reset();
+			ResourceStateTracker::RemoveGlobalResourceState(m_BackBufferTextures[i].GetResource().Get());
+			m_BackBufferTextures[i].Reset();
 		}
 
 		DXGI_SWAP_CHAIN_DESC desc = {};
@@ -262,19 +308,15 @@ void Window::OnResize(ResizeEventArgs& _e)
 
 void Window::UpdateRTVs()
 {
-	auto device = Application::Get().GetDevice();
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_RTVHeap->GetCPUDescriptorHandleForHeapStart());
-
 	for (int i = 0; i < m_BufferCount; i++)
 	{
 		Microsoft::WRL::ComPtr<ID3D12Resource> backbuffer;
 		ThrowIfFailed(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)));
 
-		device->CreateRenderTargetView(backbuffer.Get(), nullptr, handle);
-		m_BackBuffers[i] = backbuffer;
+		ResourceStateTracker::AddGlobalResourceState(backbuffer.Get(), D3D12_RESOURCE_STATE_COMMON);
 
-		handle.Offset(m_RTVDescriptorSize);
+		m_BackBufferTextures[i].SetResource(backbuffer);
+		m_BackBufferTextures[i].CreateViews();
 	}
 }
 

@@ -169,6 +169,7 @@ void DynamicDescriptorHeap::ParseRootSignature(const dx12lib::RootSignature& _ro
 
 	uint32_t currentOffset = 0;
 	DWORD rootIndex;
+	
 	while (_BitScanForward(&rootIndex, descriptorTableBitMask) && rootIndex < rootSignatureDesc.NumParameters)
 	{
 		//获取描述符的数量

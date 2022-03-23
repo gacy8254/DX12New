@@ -1,5 +1,6 @@
 #include "RootSignature.h"
 #include "D3D12LibPCH.h"
+#include "Application.h"
 
 uint32_t dx12lib::RootSignature::GteDescriptorTableBitMask(D3D12_DESCRIPTOR_HEAP_TYPE _type) const
 {
@@ -8,6 +9,7 @@ uint32_t dx12lib::RootSignature::GteDescriptorTableBitMask(D3D12_DESCRIPTOR_HEAP
 	{
 	case  D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
 		bitMask = m_DescriptorTableBitMask;
+		break;
 	case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
 		bitMask = m_SmaplerTableBitMask;
 	}
@@ -21,15 +23,15 @@ uint32_t dx12lib::RootSignature::GetNumDescriptors(uint32_t _rootIndex) const
 	return m_NumDescriptorPerTable[_rootIndex];
 }
 
-dx12lib::RootSignature::RootSignature(Microsoft::WRL::ComPtr<ID3D12Device2> _device, const D3D12_ROOT_SIGNATURE_DESC1& _rootSignatureDesc)
-	:m_Device(_device), m_RootSignatureDesc{}
+dx12lib::RootSignature::RootSignature(const D3D12_ROOT_SIGNATURE_DESC1& _rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION _rootSignatureVersion)
+	:m_NumDescriptorPerTable{0}, m_RootSignatureDesc{}
 {
-	SetRootSignatureDesc(_rootSignatureDesc);
+	SetRootSignatureDesc(_rootSignatureDesc, _rootSignatureVersion);
 }
 
 dx12lib::RootSignature::RootSignature()
+	: m_NumDescriptorPerTable{ 0 }, m_RootSignatureDesc{}
 {
-
 }
 
 dx12lib::RootSignature::~RootSignature()
@@ -59,10 +61,12 @@ void dx12lib::RootSignature::Destroy()
 	memset(m_NumDescriptorPerTable, 0, sizeof(m_NumDescriptorPerTable));
 }
 
-void dx12lib::RootSignature::SetRootSignatureDesc(const D3D12_ROOT_SIGNATURE_DESC1& _rootSignatureDesc)
+void dx12lib::RootSignature::SetRootSignatureDesc(const D3D12_ROOT_SIGNATURE_DESC1& _rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION _rootSignatureVersion)
 {
 	//确保先前分配的根签名描述已经被清理
 	Destroy();
+
+	auto device = Application::Get().GetDevice();
 
 	//根参数的数量
 	UINT numParameters = _rootSignatureDesc.NumParameters;
@@ -135,22 +139,14 @@ void dx12lib::RootSignature::SetRootSignatureDesc(const D3D12_ROOT_SIGNATURE_DES
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC versionRootSignatureDesc;
 	versionRootSignatureDesc.Init_1_1(numParameters, parameters, numStaticSamplers, pStaticSampler, flasg);
 
-	//检查支持的根签名版本
-	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
-	featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
-	if (FAILED(m_Device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
-	{
-		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-	}
-
 	//根签名序列化
 	Microsoft::WRL::ComPtr<ID3DBlob> rootSignatureBlob;
 	Microsoft::WRL::ComPtr<ID3DBlob> errorBlob;
 
 	//序列化
-	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&versionRootSignatureDesc, featureData.HighestVersion, &rootSignatureBlob, &errorBlob));
+	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&versionRootSignatureDesc, _rootSignatureVersion, &rootSignatureBlob, &errorBlob));
 
 	//创建根签名
-	ThrowIfFailed(m_Device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)));
+	ThrowIfFailed(device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)));
 
 }

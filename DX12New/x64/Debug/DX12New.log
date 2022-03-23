@@ -1,4 +1,5 @@
-﻿  Lesson3.cpp
-D:\repository\DX12New\DX12New\RootSignature.h(28,50): warning C4099: “std::default_delete<dx12lib::RootSignature>”: 类型名称以前使用“struct”现在使用的是“class”
-D:\repository\DX12New\DX12New\RootSignature.h(28): message : 参见“std::default_delete<dx12lib::RootSignature>”的声明
-  DX12New.vcxproj -> D:\repository\DX12New\x64\Debug\DX12New.exe
+﻿  CommandList.cpp
+C:\Code\DX12New\DX12New\RootSignature.h(29,50): warning C4099: “std::default_delete<dx12lib::RootSignature>”: 类型名称以前使用“struct”现在使用的是“class”
+C:\Code\DX12New\DX12New\RootSignature.h(29): message : 参见“std::default_delete<dx12lib::RootSignature>”的声明
+C:\Code\DX12New\DX12New\CommandList.cpp(497,95): warning C4267: “参数”: 从“size_t”转换到“UINT”，可能丢失数据
+  DX12New.vcxproj -> C:\Code\DX12New\x64\Debug\DX12New.exe

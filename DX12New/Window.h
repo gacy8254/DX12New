@@ -10,6 +10,8 @@
 //#include "d3dx12.h"
 #include "Event.h"
 #include "HighResolutionClock.h"
+#include "Texture.h"
+#include "RenderTarget.h"
 
 
 
@@ -51,7 +53,12 @@ public:
 	UINT GetCurrentBackBufferIndex() const { return m_CurrentBackBufferIndex; }
 
 	//呈现图像，返回当前的缓冲区序号
-	UINT Present();
+	UINT Present(const Texture& _texture);
+
+	//获取窗口的渲染目标
+	//此方法应当每一帧都被调用
+	//因为颜色附加的位置根据当前后台缓冲区变化
+	const RenderTarget& GetRenderTarget() const;
 
 	//获取当前的RTV缓冲区
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRTV() const;
@@ -121,9 +128,15 @@ private:
 	Microsoft::WRL::ComPtr<IDXGISwapChain4> m_SwapChain = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_RTVHeap;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_BackBuffers[m_BufferCount];
+	Texture m_BackBufferTextures[m_BufferCount];
+	//标记为可变，允许在const函数中改变
+	mutable RenderTarget m_RenderTarget;
 
 	UINT m_RTVDescriptorSize;//描述符的大小，用于偏移地址
 	UINT m_CurrentBackBufferIndex;
+
+	UINT64 m_FenceValue[m_BufferCount];
+	uint64_t m_FrameValue[m_BufferCount];
 
 	//计时器
 	HighResolutionClock m_UpdateClock;

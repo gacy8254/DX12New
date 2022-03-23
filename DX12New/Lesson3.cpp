@@ -83,8 +83,8 @@ Lesson3::Lesson3(const std::wstring& _name, int _width, int _height, bool _vSync
 	, m_Yaw(0)
 	, m_AnimaeLights(false)
 	, m_Shift(false)
-	, m_Width(0)
-	, m_Height(0)
+	, m_Width(_width)
+	, m_Height(_height)
 {
 	XMVECTOR cameraPos = XMVectorSet(0, 5, -20, 1);
 	XMVECTOR cameraTarget = XMVectorSet(0, 5, 0, 1);
@@ -115,6 +115,49 @@ bool Lesson3::LoadContent()
 	m_Torus = Mesh::CreateTorus(*commandList);
 	m_Plane = Mesh::CreatePlane(*commandList);
 
+	commandList->LoadTextureFromFile(m_DefaultTexture, L"C:/Code/DX12New/Textures/DefaultWhite.bmp");
+	commandList->LoadTextureFromFile(m_DirectXTexture, L"C:/Code/DX12New/Textures/Directx9.png");
+	commandList->LoadTextureFromFile(m_EarthTexture, L"C:/Code/DX12New/Textures/earth.dds");
+	commandList->LoadTextureFromFile(m_MonalisaTexture, L"C:/Code/DX12New/Textures/Mona_Lisa.jpg");
+
+	// sRGB formats provide free gamma correction!
+	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
+
+	auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+		backBufferFormat,
+		m_Width, m_Height,
+		1, 1, 1, 0,
+		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+
+	D3D12_CLEAR_VALUE clear;
+	clear.Format = colorDesc.Format;
+	clear.Color[0] = 0.4f;
+	clear.Color[1] = 0.6f;
+	clear.Color[2] = 0.9f;
+	clear.Color[3] = 1.0f;
+
+	Texture colorTexture = Texture(colorDesc, &clear, TextureUsage::RenderTarget, L"ColorRT");
+
+	auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+		depthBufferFormat,
+		m_Width, m_Height,
+		1, 1, 1, 0,
+		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+
+	D3D12_CLEAR_VALUE depthClear;
+	depthClear.Format = depthDesc.Format;
+	depthClear.DepthStencil = { 1.0f, 0 };
+
+	Texture DepthTexture = Texture(depthDesc, &depthClear, TextureUsage::Depth, L"DepthRT");
+
+	m_RenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
+	m_RenderTarget.AttachTexture(AttachmentPoint::DepthStencil, DepthTexture);
+
+	auto fenceValue = commandQueue->ExecuteCommandList(commandList);
+	commandQueue->WaitForFenceValue(fenceValue);
+
+	return true;
 }
 
 void Lesson3::UnLoadContent()
@@ -136,12 +179,12 @@ void Lesson3::OnUpdate(UpdateEventArgs& _e)
 	{
 		double fps = frameCount / totalTime;
 
-		char buffer[500];
-		sprintf_s(buffer, 500, "FPS: %f\n", fps);
-		WCHAR wszClassName[256];
-		memset(wszClassName, 0, sizeof(wszClassName));
-		MultiByteToWideChar(CP_ACP, 0, buffer, static_cast<int>(strlen(buffer) + 1), wszClassName, sizeof(wszClassName) / sizeof(wszClassName[0]));
-		OutputDebugString(wszClassName);
+		//char buffer[500];
+		//sprintf_s(buffer, 500, "FPS: %f\n", fps);
+		//WCHAR wszClassName[256];
+		//memset(wszClassName, 0, sizeof(wszClassName));
+		//MultiByteToWideChar(CP_ACP, 0, buffer, static_cast<int>(strlen(buffer) + 1), wszClassName, sizeof(wszClassName) / sizeof(wszClassName[0]));
+		//OutputDebugString(wszClassName);
 
 		frameCount = 0;
 		totalTime = 0.0f;
@@ -159,6 +202,25 @@ void XM_CALLCONV ComputerMatrices(FXMMATRIX _model, CXMMATRIX _view, CXMMATRIX _
 void Lesson3::OnRender(RenderEventArgs& _e)
 {
 
+	super::OnRender(_e);
+
+		//获取所需的对象
+	auto commandQueue = Application::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	auto commandList = commandQueue->GetCommandList();
+
+	//清除缓冲区
+	FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
+	commandList->ClearTexture(m_RenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
+	commandList->ClearDepthStencilTexture(m_RenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
+
+	commandList->SetViewport(m_Viewport);
+	commandList->SetScissorRect(m_Rect);
+
+	commandList->SetRenderTarget(m_RenderTarget);
+
+	commandQueue->ExecuteCommandList(commandList);
+
+	m_pWindow->Present(m_RenderTarget.GetTexture(AttachmentPoint::Color0));
 }
 
 static bool g_AllowFullscreenToggle = true;
