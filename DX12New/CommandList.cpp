@@ -5,7 +5,7 @@
 #include "CommandQueue.h"
 #include "GenerateMipsPSO.h"
 #include "IndexBuffer.h"
-//#include "PanoToCubemapPSO.h"
+#include "PanoToCubemapPSO.h"
 #include "RenderTarget.h"
 #include "Resource.h"
 #include "ResourceStateTracker.h"
@@ -146,27 +146,28 @@ void CommandList::ResolveSubresource(Resource& _detRes, const Resource& _srcRes,
 
 void CommandList::CopyVertexBuffer(VertexBuffer& _vertexBuffer, size_t _numVertices, size_t _vertexStride, const void* _vertexBufferData)
 {
-
+	CopyBuffer(_vertexBuffer, _numVertices, _vertexStride, _vertexBufferData);
 }
 
 void CommandList::CopyIndexBuffer(IndexBuffer& _indexBuffer, size_t _numIndicies, DXGI_FORMAT _indexFormat, const void* _indexBufferData)
 {
-
+	size_t indexSizeInBytes = _indexFormat == DXGI_FORMAT_R16_UINT ? 2 : 4;
+	CopyBuffer(_indexBuffer, _numIndicies, indexSizeInBytes, _indexBufferData);
 }
 
 void CommandList::CopyByteAddressBuffer(ByteAddressBuffer& _byteAddressBuffer, size_t _bufferSize, const void* _BufferData)
 {
-
+	CopyBuffer(_byteAddressBuffer, 1, _bufferSize, _BufferData, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 }
 
-void CommandList::CopStructuredBuffer(StructuredBuffer& _structuredBuffer, size_t _numElements, size_t _elementSize, const void* _BufferData)
+void CommandList::CopyStructuredBuffer(StructuredBuffer& _structuredBuffer, size_t _numElements, size_t _elementSize, const void* _BufferData)
 {
-
+	CopyBuffer(_structuredBuffer, _numElements, _elementSize, _BufferData, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 }
 
-void CommandList::StePrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY _primitiveTopology)
+void CommandList::SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY _primitiveTopology)
 {
-
+	m_CommandList->IASetPrimitiveTopology(_primitiveTopology);
 }
 
 void CommandList::LoadTextureFromFile(Texture& _texture, const std::wstring& _fileName, TextureUsage _usage)
@@ -215,10 +216,10 @@ void CommandList::LoadTextureFromFile(Texture& _texture, const std::wstring& _fi
 		}
 
 		//如果是颜色贴图设置为sRGB
-		if (_usage == TextureUsage::Albedo)
+		/*if (_usage == TextureUsage::Albedo)
 		{
 			metadata.format = MakeSRGB(metadata.format);
-		}
+		}*/
 
 		//判断贴图维度
 		D3D12_RESOURCE_DESC desc = {};
@@ -469,6 +470,127 @@ void CommandList::GenerateMips(Texture& _texture)
 
 void CommandList::PanoToCubeMap(Texture& _cubeMap, const Texture& _pano)
 {
+	//如果当前命令列表时复制命令列表
+//检索计算命令列表
+//在计算命令列表上执行该操作
+	if (m_CommandListType == D3D12_COMMAND_LIST_TYPE_COPY)
+	{
+		if (!m_ComputerCommandList)
+		{
+			m_ComputerCommandList = Application::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE)->GetCommandList();
+		}
+		m_ComputerCommandList->PanoToCubeMap(_cubeMap, _pano);
+		return;
+	}
+
+	if (!m_PanoToCubemapPSO)
+	{
+		m_PanoToCubemapPSO = std::make_unique<PanoToCubemapPSO>();
+	}
+
+	auto device = Application::Get().GetDevice();
+
+	auto cubemapResource = _cubeMap.GetResource();
+	if (!cubemapResource)
+	{
+		return;
+	}
+
+	CD3DX12_RESOURCE_DESC cubemapDesc(cubemapResource->GetDesc());
+
+	auto stagingResource = cubemapResource;
+	Texture stagingTexture(stagingResource);
+	//如果传入的资源不支持UAV访问，则生成一个用于生成的中间资源
+	if ((cubemapDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) == 0)
+	{
+		//获取传入资源的描述，修改格式和标志位UAV支持的格式
+		auto stragingDesc = cubemapDesc;
+		stragingDesc.Format = Texture::GetUAVCompatableFormat(cubemapDesc.Format);
+		stragingDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+		//创建资源
+		auto p = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+		ThrowIfFailed(device->CreateCommittedResource(
+			&p,
+			D3D12_HEAP_FLAG_NONE,
+			&stragingDesc,
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			nullptr,
+			IID_PPV_ARGS(&stagingResource)));
+
+		//追踪资源状态
+		ResourceStateTracker::AddGlobalResourceState(stagingResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
+
+		//设置贴图
+		stagingTexture.SetResource(stagingResource);
+		stagingTexture.CreateViews();
+		stagingTexture.SetName(L"PanoToCubemap");
+
+		//将原贴图的资源拷贝到临时资源
+		CopyResource(stagingTexture, _cubeMap);
+	}
+
+	//转变资源状态
+	TransitionBarrier(stagingTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	//设置PSO和根签名
+	m_CommandList->SetPipelineState(m_PanoToCubemapPSO->GetPSO().Get());
+	SetComputerRootSignature(m_PanoToCubemapPSO->GetRootSignature());
+
+	//着色器所需的常量数据
+	PanoToCubemapCB panoToCubemapCB;
+
+	//uav描述符，2D数组
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.Format = Texture::GetUAVCompatableFormat(cubemapDesc.Format);
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+	uavDesc.Texture2DArray.FirstArraySlice = 0;
+	uavDesc.Texture2DArray.ArraySize = 6;
+
+	//开始计算
+	for (uint32_t mipSlics = 0; mipSlics < cubemapDesc.MipLevels;)
+	{
+		//获取需要生成的MIP数量
+		uint32_t numMips = std::min<uint32_t>(5, cubemapDesc.MipLevels - mipSlics);
+		
+		//设置常量数据
+		panoToCubemapCB.FirstMip = mipSlics;
+		panoToCubemapCB.CubemapSize = std::max<uint32_t>(static_cast<uint32_t>(cubemapDesc.Width), cubemapDesc.Height) >> mipSlics;
+		panoToCubemapCB.NumMips = numMips;
+		SetComputer32BitConstants(PanoToCubemapRS::PanoToCubemapCB, panoToCubemapCB);
+
+		//设置SRV
+		SetShaderResourceView(PanoToCubemapRS::SrcTexture, 0, _pano, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+		//设置UAV
+		for (uint32_t mip = 0; mip < numMips; ++mip)
+		{
+			uavDesc.Texture2DArray.MipSlice = mipSlics + mip;
+			SetUnorderedAccessView(PanoToCubemapRS::DstMips, mip, stagingTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0, 0, &uavDesc);
+		}
+
+		//如果需要生成的mip数量小于五个，使用默认资源填充
+		if (numMips < 5)
+		{
+			m_DynamicDescriptorHeap[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]->StageDescriptor(
+				PanoToCubemapRS::DstMips, 
+				panoToCubemapCB.NumMips, 
+				5 - numMips,
+				m_PanoToCubemapPSO->GetDefaultUAV());
+		}
+
+		//执行计算着色器
+		Dispatch(Math::DivideByMultiple(panoToCubemapCB.CubemapSize, 16), Math::DivideByMultiple(panoToCubemapCB.CubemapSize, 16), 6);
+
+		//设置当前的mip层数，以变下一次迭代
+		mipSlics += numMips;
+	}
+
+	//如果临时资源不等于传入的资源，将资源拷贝回去
+	if (stagingResource != cubemapResource)
+	{
+		CopyResource(_cubeMap, stagingTexture);
+	}
 
 }
 
@@ -489,7 +611,7 @@ void CommandList::SetGraphicsDynamicConstantBuffer(uint32_t _rootParameterIndex,
 
 void CommandList::SetGraphics32BitConstants(uint32_t _rootParameterIndex, size_t _numContants, const void* _bufferData)
 {
-
+	m_CommandList->SetGraphicsRoot32BitConstants(_rootParameterIndex, _numContants, _bufferData, 0);
 }
 
 void CommandList::SetComputer32BitConstants(uint32_t _rootParameterIndex, size_t _numContants, const void* _bufferData)
@@ -499,52 +621,105 @@ void CommandList::SetComputer32BitConstants(uint32_t _rootParameterIndex, size_t
 
 void CommandList::SetDynamicVertexBuffer(uint32_t _slot, size_t _numVertices, size_t _vertexSize, const void* _vertexBufferData)
 {
+	//计算需要分配的内存大小
+	size_t bufferSize = _numVertices * _vertexSize;
 
+	//分配内存
+	auto heapAllocation = m_UploadBuffer->Allocate(bufferSize, _vertexSize);
+	//拷贝
+	memcpy(heapAllocation.CPU, _vertexBufferData, bufferSize);
+
+	//vbv
+	D3D12_VERTEX_BUFFER_VIEW vbv = {};
+	vbv.BufferLocation = heapAllocation.GPU;
+	vbv.SizeInBytes = static_cast<UINT>(bufferSize);
+	vbv.StrideInBytes = static_cast<UINT>(_vertexSize);
+
+	m_CommandList->IASetVertexBuffers(_slot, 1, &vbv);
 }
 
 void CommandList::SetVertexBuffer(uint32_t _slot, const VertexBuffer& _vertexBufffer)
 {
+	TransitionBarrier(_vertexBufffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
+	auto vbv = _vertexBufffer.GetVertexBufferView();
+
+	m_CommandList->IASetVertexBuffers(_slot, 1, &vbv);
+
+	TrackResource(_vertexBufffer);
 }
 
 void CommandList::SetIndexBuffer(const IndexBuffer& _indexBuffer)
 {
+	TransitionBarrier(_indexBuffer, D3D12_RESOURCE_STATE_INDEX_BUFFER);
 
+	auto ibv = _indexBuffer.GetIndexBufferView();
+
+	m_CommandList->IASetIndexBuffer(&ibv);
+
+	TrackResource(_indexBuffer);
 }
 
 void CommandList::SetDynamicIndexBuffer(size_t _numIndicies, DXGI_FORMAT _indexFormat, const void* _indexxBufferData)
 {
+	//计算大小
+	size_t indexSizeInByte = _indexFormat == DXGI_FORMAT_R16_UINT ? 2 : 4;
+	size_t bufferSize = _numIndicies * indexSizeInByte;
 
+	//分配内存
+	auto heapAllocation = m_UploadBuffer->Allocate(bufferSize, indexSizeInByte);
+	//拷贝
+	memcpy(heapAllocation.CPU, _indexxBufferData, bufferSize);
+
+	D3D12_INDEX_BUFFER_VIEW ibv = {};
+	ibv.BufferLocation = heapAllocation.GPU;
+	ibv.SizeInBytes = static_cast<UINT>(bufferSize);
+	ibv.Format = _indexFormat;
+
+	m_CommandList->IASetIndexBuffer(&ibv);
 }
 
 void CommandList::SetGraphicsDynamicStructuredBuffer(uint32_t _slot, size_t _numElements, size_t _elementSize, const void* _bufferData)
 {
+	size_t bufferSize = _numElements * _elementSize;
 
+	//分配内存
+	auto heapAllocation = m_UploadBuffer->Allocate(bufferSize, _elementSize);
+	//拷贝
+	memcpy(heapAllocation.CPU, _bufferData, bufferSize);
+
+	m_CommandList->SetGraphicsRootShaderResourceView(_slot, heapAllocation.GPU);
 }
 
 void CommandList::SetViewport(const D3D12_VIEWPORT& _viewport)
 {
-
+	SetViewports({ _viewport });
 }
 
 void CommandList::SetViewports(const std::vector<D3D12_VIEWPORT>& _viewports)
 {
+	assert(_viewports.size() < D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
 
+	m_CommandList->RSSetViewports(static_cast<UINT>(_viewports.size()), _viewports.data());
 }
 
 void CommandList::SetScissorRect(const D3D12_RECT& _rect)
 {
-
+	SetScissorRects({ _rect });
 }
 
 void CommandList::SetScissorRects(const std::vector<D3D12_RECT>& _rects)
 {
+	assert(_rects.size() < D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
 
+	m_CommandList->RSSetScissorRects(static_cast<UINT>(_rects.size()), _rects.data());
 }
 
 void CommandList::SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> _pso)
 {
+	m_CommandList->SetPipelineState(_pso.Get());
 
+	TrackObject(_pso);
 }
 
 void CommandList::SetGraphicsRootSignature(const dx12lib::RootSignature& _rootSignature)
@@ -661,7 +836,7 @@ void CommandList::SetRenderTarget(const RenderTarget& _renderTarget)
 		}
 	}
 
-	const auto depthTexture = _renderTarget.GetTexture(AttachmentPoint::DepthStencil);
+	const auto& depthTexture = _renderTarget.GetTexture(AttachmentPoint::DepthStencil);
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE dsDescriptor(D3D12_DEFAULT);
 	if (depthTexture.GetResource())
@@ -888,7 +1063,66 @@ void CommandList::GenerateMips_sRGB(Texture& _texture)
 
 void CommandList::CopyBuffer(Buffer& _buffer, size_t _numElements, size_t _elementSize, const void* _bufferData, D3D12_RESOURCE_FLAGS _flags /*= D3D12_RESOURCE_FLAG_NONE*/)
 {
+	auto device = Application::Get().GetDevice();
 
+	size_t bufferSize = _numElements * _elementSize;
+
+	ComPtr<ID3D12Resource> d3d12Resource;
+	if (bufferSize == 0)
+	{
+		//这将导致一个空的资源，可能需要设置一个默认的资源
+	}
+	else
+	{
+		//创建一个默认堆中的资源
+		auto p = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+		auto o = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, _flags);
+			ThrowIfFailed(device->CreateCommittedResource(
+				&p,
+				D3D12_HEAP_FLAG_NONE,
+				&o,
+				D3D12_RESOURCE_STATE_COMMON,
+				nullptr,
+				IID_PPV_ARGS(&d3d12Resource)));
+
+		//追踪资源状态
+		ResourceStateTracker::AddGlobalResourceState(d3d12Resource.Get(), D3D12_RESOURCE_STATE_COMMON);
+
+		if (_bufferData != nullptr)
+		{
+			//创建一个上传堆中的资源
+			ComPtr<ID3D12Resource> uploadResource;
+			p = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+			auto i = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
+			ThrowIfFailed(device->CreateCommittedResource(
+				&p,
+				D3D12_HEAP_FLAG_NONE,
+				&i,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr,
+				IID_PPV_ARGS(&uploadResource)));
+
+			D3D12_SUBRESOURCE_DATA subresourceDate = {};
+			subresourceDate.pData = _bufferData;
+			subresourceDate.RowPitch = bufferSize;
+			subresourceDate.SlicePitch = subresourceDate.RowPitch;
+
+			//转换资源状态
+			m_ResourceStateTrack->TransitionResource(d3d12Resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
+			FlushResourceBarriers();
+
+			//将资源拷贝到目标
+			UpdateSubresources(m_CommandList.Get(), d3d12Resource.Get(), uploadResource.Get(), 0, 0, 1, &subresourceDate);
+
+			//确保资源在操作完成钱不被释放
+			TrackObject(uploadResource);
+		}
+		//确保资源在操作完成钱不被释放
+		TrackObject(d3d12Resource);
+	}
+
+	_buffer.SetResource(d3d12Resource);
+	_buffer.CreateViews(_numElements, _elementSize);
 }
 
 void CommandList::BindDescriptorHeaps()

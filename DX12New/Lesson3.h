@@ -51,15 +51,25 @@ private:
 	std::unique_ptr<Mesh> m_Cone;
 	std::unique_ptr<Mesh> m_Torus;
 	std::unique_ptr<Mesh> m_Plane;
+	std::unique_ptr<Mesh> m_SkyBox;
 
 	Texture m_DefaultTexture;
 	Texture m_DirectXTexture;
 	Texture m_EarthTexture;
 	Texture m_MonalisaTexture;
+	Texture m_GraceCathedralTexture;
+	Texture m_GraceCathedralCubemap;
 
-	RenderTarget m_RenderTarget;
+	RenderTarget m_SDRRenderTarget;
+	RenderTarget m_HDRRenderTarget;
 
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PSO;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_SkyPSO;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_HDRPSO;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_SDRPSO;
+
+	dx12lib::RootSignature m_SkyboxRootSignature;
+	dx12lib::RootSignature m_HDRRootSignature;
+	dx12lib::RootSignature m_SDRRootSignature;
 
 	// ”ø⁄…Ë÷√
 	D3D12_VIEWPORT m_Viewport;
@@ -70,6 +80,7 @@ private:
 	{
 		DirectX::XMVECTOR m_InitialCamPos;
 		DirectX::XMVECTOR m_InitialCamRot;
+		float m_InitialFov;
 	};
 	CameraData* m_pAlignedCameraDate;
 

@@ -25,7 +25,7 @@ Mesh::~Mesh()
 
 void Mesh::Draw(CommandList& commandList)
 {
-	commandList.StePrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	commandList.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList.SetVertexBuffer(0, m_VertexBuffer);
 	commandList.SetIndexBuffer(m_IndexBuffer);
 	commandList.DrawIndexed(m_IndexCount);

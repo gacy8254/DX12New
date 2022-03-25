@@ -53,7 +53,7 @@ public:
 	UINT GetCurrentBackBufferIndex() const { return m_CurrentBackBufferIndex; }
 
 	//呈现图像，返回当前的缓冲区序号
-	UINT Present(const Texture& _texture);
+	UINT Present(const Texture& _texture = Texture());
 
 	//获取窗口的渲染目标
 	//此方法应当每一帧都被调用
@@ -144,5 +144,8 @@ private:
 	uint64_t m_FrameCounter;
 
 	std::weak_ptr<Game> m_pGame;
+
+	int m_PreviousMouseX;
+	int m_PreviousMouseY;
 };
 

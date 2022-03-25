@@ -1,5 +1,4 @@
-﻿  CommandList.cpp
-C:\Code\DX12New\DX12New\RootSignature.h(29,50): warning C4099: “std::default_delete<dx12lib::RootSignature>”: 类型名称以前使用“struct”现在使用的是“class”
-C:\Code\DX12New\DX12New\RootSignature.h(29): message : 参见“std::default_delete<dx12lib::RootSignature>”的声明
-C:\Code\DX12New\DX12New\CommandList.cpp(497,95): warning C4267: “参数”: 从“size_t”转换到“UINT”，可能丢失数据
+﻿C:\Code\DX12New\shaders\CommonTool.hlsli(138,27-87): warning X3206: 'DoSpotCone': implicit truncation of vector type
+  
+  compilation object save succeeded; see C:\Code\DX12New\x64\Debug\HDR_PS.cso
   DX12New.vcxproj -> C:\Code\DX12New\x64\Debug\DX12New.exe

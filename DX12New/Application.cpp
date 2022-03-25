@@ -7,6 +7,8 @@
 #include "D3D12LibPCH.h"
 
 
+#include <iostream>
+
 constexpr wchar_t WINDOW_CLASS_NAME[] = L"DX12RenderWindowClass";
 
 using WindowPtr = std::shared_ptr<Window>;

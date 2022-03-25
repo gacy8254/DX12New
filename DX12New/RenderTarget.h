@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <vector>
 #include "Texture.h"
+#include <DirectXMath.h>
 
 // Don't use scoped enums to avoid the explicit cast required to use these as 
 // array indices.
@@ -46,6 +47,8 @@ public:
 	D3D12_RT_FORMAT_ARRAY GetRenderTargetFormats() const;
 
 	DXGI_FORMAT GetDepthStencilFormat() const;
+
+	D3D12_VIEWPORT GetViewport(DirectX::XMFLOAT2 scale = { 1.0f, 1.0f }, DirectX::XMFLOAT2 bias = { 0.0f, 0.0f }, float minDepth = 0.0f, float maxDepth = 1.0f) const;
 
 private:
 	std::vector<Texture> m_Textures;

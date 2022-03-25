@@ -7,6 +7,8 @@
 #include "ResourceStateTracker.h"
 #include "CommandList.h"
 
+#include <iostream>
+
 void Window::Destroy()
 {
 	if (auto pGame = m_pGame.lock())
@@ -242,6 +244,12 @@ void Window::OnKeyReleased(KeyEventArgs& _e)
 
 void Window::OnMouseMoved(MouseMotionEventArgs& _e)
 {
+	_e.RelX = _e.X - m_PreviousMouseX;
+	_e.RelY = _e.Y - m_PreviousMouseY;
+
+	m_PreviousMouseX = _e.X;
+	m_PreviousMouseY = _e.Y;
+
 	if (auto pGame = m_pGame.lock())
 	{
 		pGame->OnMouseMoved(_e);

@@ -96,15 +96,15 @@ public:
 	}
 
 	//将内容复制到GPU中的结构化缓冲区
-	void CopStructuredBuffer(StructuredBuffer& _structuredBuffer, size_t _numElements, size_t _elementSize, const void* _BufferData);
+	void CopyStructuredBuffer(StructuredBuffer& _structuredBuffer, size_t _numElements, size_t _elementSize, const void* _BufferData);
 	template<typename T>
-	void CopStructuredBuffer(StructuredBuffer& _structuredBuffer, const std::vector<T>& _BufferData)
+	void CopyStructuredBuffer(StructuredBuffer& _structuredBuffer, const std::vector<T>& _BufferData)
 	{
-		CopStructuredBuffer(_structuredBuffer, _BufferData.size(), sizeof(T), _BufferData.data());
+		CopyStructuredBuffer(_structuredBuffer, _BufferData.size(), sizeof(T), _BufferData.data());
 	}
 
 	//设置图元拓扑类型
-	void StePrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY _primitiveTopology);
+	void SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY _primitiveTopology);
 
 	//从文件中加载一直贴图
 	void LoadTextureFromFile(Texture& _texture, const std::wstring& _fileName, TextureUsage _usage = TextureUsage::Albedo);
@@ -125,7 +125,7 @@ public:
 	//生成MipMap
 	void GenerateMips(Texture& _texture);
 
-	//从一张全景图生成CUBEMAP
+	//从一张全景图生成CUBEMAP(生成的CUBEMAP，传入的全景图)
 	void PanoToCubeMap(Texture& _cubeMap, const Texture& _pano);
 
 	//设置一个动态常量BUFFER到根签名中的内联描述符
@@ -314,7 +314,7 @@ private:
 	ID3D12DescriptorHeap* m_DescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 
 	//pso
-	//std::unique_ptr<PanoToCubemapPSO> m_PanoToCubemapPSO = nullptr;
+	std::unique_ptr<PanoToCubemapPSO> m_PanoToCubemapPSO = nullptr;
 	std::unique_ptr<GenerateMipsPSO> m_GenerateMipsPSO = nullptr;
 
 	//由命令列表追踪的在运行中的命令队列上的物体,不能被删除

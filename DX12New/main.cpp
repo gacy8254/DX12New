@@ -1,7 +1,9 @@
 #define WIN32_LEAN_AND_MEAN
+#define _CRT_SECURE_NO_WARNINGS
 #include <Windows.h>
 #include <Shlwapi.h>
 #include <dxgidebug.h>
+#include <iostream>
 
 #include "Application.h"
 #include "Lesson3.h"
@@ -17,6 +19,11 @@ void ReportLiveObjects()
 
 int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow)
 {
+	AllocConsole();
+	freopen("conout$", "w", stdout);
+	printf("hello hplonline!-_-\n");
+	freopen("conout$", "w", stderr);
+
 	int retCode = 0;
 
 	//设置项目路径

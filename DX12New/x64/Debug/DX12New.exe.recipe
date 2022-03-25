@@ -10,7 +10,25 @@
       <FullPath>C:\Code\DX12New\x64\Debug\GanerateMips_GS.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Code\DX12New\x64\Debug\PixelShader.cso</FullPath>
+      <FullPath>C:\Code\DX12New\x64\Debug\PanoToCubemap_CS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\HDR_PS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\SDR_PS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\SDR_VS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\SkyBox_VS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\SkyBox_PS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\StandardVS.cso</FullPath>
     </ContentFile>
     <ContentFile>
       <FullPath>C:\Code\DX12New\x64\Debug\VertexShader.cso</FullPath>
