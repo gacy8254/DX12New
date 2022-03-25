@@ -4,11 +4,7 @@
 class VertexBuffer : public Buffer
 {
 public:
-	VertexBuffer(const std::wstring& _name = L"");
-	virtual ~VertexBuffer();
-
-	//从BUFFER类中继承
-	virtual void CreateViews(size_t _numElements, size_t _elementSize) override;
+	
 
 	//获取VBV
 	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() const { return m_VBV; }
@@ -17,10 +13,12 @@ public:
 
 	size_t GetVertexStride() const { return m_VertexStride; }
 
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc /* = nullptr */) const override;
+protected:
+	VertexBuffer(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _resource, size_t _numVertices, size_t _vertexStride);
+	VertexBuffer(Device& _device, size_t _numVertices, size_t _vertexStride);
+	virtual ~VertexBuffer();
 
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc /* = nullptr */) const override;
-
+	void CreateVertexBufferViews();
 private:
 	//顶点数量
 	size_t m_NumVertices;

@@ -44,10 +44,10 @@ void Game::OnUpdate(UpdateEventArgs& _e)
 
 }
 
-void Game::OnRender(RenderEventArgs& _e)
-{
-
-}
+//void Game::OnRender(RenderEventArgs& _e)
+//{
+//
+//}
 
 void Game::OnKeyPressed(KeyEventArgs& _e)
 {

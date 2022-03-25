@@ -7,21 +7,14 @@
 class ByteAddressBuffer : public Buffer
 {
 public:
-	ByteAddressBuffer(const std::wstring& name = L"");
-	ByteAddressBuffer(const D3D12_RESOURCE_DESC& _resDesc, size_t _numElements, size_t _elementSize, const std::wstring& name = L"");
-
 	size_t GetBufferSize() const { return m_BufferSize; }
 
-	virtual void CreateViews(size_t _numElements, size_t _elementSize) override;
+protected:
+	ByteAddressBuffer(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _resource);
+	ByteAddressBuffer(Device& _device, const D3D12_RESOURCE_DESC& _resourceDesc);
 
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc = nullptr) const override { return m_SRV.GetDescriptorHandle(); }
-
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc = nullptr) const override { return m_UAV.GetDescriptorHandle(); }
-
+	virtual ~ByteAddressBuffer() = default;
 private:
 	size_t m_BufferSize;
-
-	DescriptorAllocation m_SRV;
-	DescriptorAllocation m_UAV;
 };
 

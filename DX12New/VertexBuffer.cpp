@@ -1,30 +1,26 @@
 #include "VertexBuffer.h"
 
-VertexBuffer::VertexBuffer(const std::wstring& _name /*= L""*/)
-	:Buffer(_name), m_NumVertices(0), m_VertexStride(0), m_VBV({})
+VertexBuffer::VertexBuffer(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _resource, size_t _numVertices, size_t _vertexStride)
+	:Buffer(_device, _resource),
+	m_NumVertices(_numVertices), m_VertexStride(_vertexStride), m_VBV{}
 {
+	CreateVertexBufferViews();
+}
+
+VertexBuffer::VertexBuffer(Device& _device, size_t _numVertices, size_t _vertexStride)
+	:Buffer(_device, CD3DX12_RESOURCE_DESC::Buffer(_numVertices* _vertexStride)),
+	m_NumVertices(_numVertices), m_VertexStride(_vertexStride), m_VBV{}
+{
+	CreateVertexBufferViews();
 }
 
 VertexBuffer::~VertexBuffer()
 {
 }
 
-void VertexBuffer::CreateViews(size_t _numElements, size_t _elementSize)
+void VertexBuffer::CreateVertexBufferViews()
 {
-	m_NumVertices = _numElements;
-	m_VertexStride = _elementSize;
-
 	m_VBV.BufferLocation = m_Resource->GetGPUVirtualAddress();
 	m_VBV.SizeInBytes = static_cast<UINT>(m_NumVertices * m_VertexStride);
 	m_VBV.StrideInBytes = static_cast<UINT>(m_VertexStride);
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE VertexBuffer::GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc /* = nullptr */) const
-{
-	throw std::exception("VertexBuffer::GetShaderResourceView 不该被调用.");
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE VertexBuffer::GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc /* = nullptr */) const
-{
-	throw std::exception("VertexBuffer::GetUnorderedAccessView 不该被调用.");
 }

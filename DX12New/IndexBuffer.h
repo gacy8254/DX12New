@@ -4,10 +4,9 @@
 class IndexBuffer : public Buffer
 {
 public:
-	IndexBuffer(const std::wstring& _name = L"");
-	virtual ~IndexBuffer();
+	
 
-	virtual void CreateViews(size_t _numElements, size_t _elementSize) override;
+	void CreateIndexBufferViews();
 
 	size_t GetNumIndicies() const { return m_NumIndices; }
 
@@ -15,15 +14,11 @@ public:
 
 	D3D12_INDEX_BUFFER_VIEW GetIndexBufferView() const { return m_IBV; }
 
-	/**
-	* Get the SRV for a resource.
-	*/
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc = nullptr) const override;
 
-	/**
-	* Get the UAV for a (sub)resource.
-	*/
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc = nullptr) const override;
+protected:
+	IndexBuffer(Device& _device, size_t _numIndicies, DXGI_FORMAT _format);
+	IndexBuffer(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _resource, size_t _numIndicies, DXGI_FORMAT _format);
+	virtual ~IndexBuffer() = default;
 
 private:
 	size_t m_NumIndices;

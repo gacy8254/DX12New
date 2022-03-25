@@ -9,12 +9,12 @@
 #include "ThreadSafeQueue.h"
 
 class CommandList;
+class Device;
 
 class CommandQueue
 {
 public:
-	CommandQueue(D3D12_COMMAND_LIST_TYPE _type);
-	virtual ~CommandQueue();
+	
 
 	//获取一个可以直接使用的命令列表，无需重置列表
 	std::shared_ptr<CommandList> GetCommandList();
@@ -35,11 +35,17 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> GetCommandQueue() const;
 
 protected:
+	friend class std::default_delete<CommandQueue>;
+
+	CommandQueue(Device& _device, D3D12_COMMAND_LIST_TYPE _type);
+	virtual ~CommandQueue();
+
 
 private:
 	//释放命令队列上已经完成处理的所有命令列表
 	void ProcessInFlightCommandLists();
 
+	Device& m_Device;
 
 	//保持对正在工作的命令分配器的追踪，第一个值是围栏的值，第二个是正在工作的命令列表的共享指针
 	using CommandAllocatorEntry = std::tuple<uint64_t, std::shared_ptr<CommandList>>;

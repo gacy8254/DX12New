@@ -1,9 +1,10 @@
 #include "DescriptorAllocator.h"
 #include "D3D12LibPCH.h"
 #include "DescriptorAllocatorPage.h"
+#include "Device.h"
 
-DescriptorAllocator::DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptorPerHeap /*= 256*/)
-	:m_Type(_type), m_NumDescriptorPerHeap(_numDescriptorPerHeap)
+DescriptorAllocator::DescriptorAllocator(Device& _device, D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptorPerHeap /*= 256*/)
+	:m_Type(_type), m_NumDescriptorPerHeap(_numDescriptorPerHeap), m_Device(_device)
 {}
 
 DescriptorAllocator::~DescriptorAllocator()
@@ -48,7 +49,7 @@ DescriptorAllocation DescriptorAllocator::Allocate(uint32_t _numDescriptors /*= 
 	return allocation;
 }
 
-void DescriptorAllocator::ReleaseStaleDescriptor(uint64_t _FrameNumber)
+void DescriptorAllocator::ReleaseStaleDescriptor()
 {
 	std::lock_guard<std::mutex> lock(m_AllocationMutex);
 
@@ -56,7 +57,7 @@ void DescriptorAllocator::ReleaseStaleDescriptor(uint64_t _FrameNumber)
 	{
 		auto page = m_HeapPool[i];
 
-		page->ReleaseStaleDescriptors(_FrameNumber);
+		page->ReleaseStaleDescriptors();
 
 		//将可用的页面加入可用堆集合中
 		if (page->NumFreeHandles() > 0)

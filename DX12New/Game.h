@@ -32,7 +32,7 @@ protected:
 	virtual void OnUpdate(UpdateEventArgs& _e);
 
 	//进行渲染
-	virtual void OnRender(RenderEventArgs& _e);
+	//virtual void OnRender(RenderEventArgs& _e);
 
 	//各种输入事件
 	virtual void OnKeyPressed(KeyEventArgs& _e);

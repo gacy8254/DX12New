@@ -32,7 +32,7 @@ public:
 	virtual void OnUpdate(UpdateEventArgs& _e)override;
 
 	//进行渲染
-	virtual void OnRender(RenderEventArgs& _e)override;
+	//virtual void OnRender(RenderEventArgs& _e)override;
 
 	//重写输入函数
 	virtual void OnKeyPressed(KeyEventArgs& _e)override;
@@ -53,12 +53,12 @@ private:
 	std::unique_ptr<Mesh> m_Plane;
 	std::unique_ptr<Mesh> m_SkyBox;
 
-	Texture m_DefaultTexture;
-	Texture m_DirectXTexture;
-	Texture m_EarthTexture;
-	Texture m_MonalisaTexture;
-	Texture m_GraceCathedralTexture;
-	Texture m_GraceCathedralCubemap;
+	//Texture m_DefaultTexture;
+	//Texture m_DirectXTexture;
+	//Texture m_EarthTexture;
+	//Texture m_MonalisaTexture;
+	//Texture m_GraceCathedralTexture;
+	//Texture m_GraceCathedralCubemap;
 
 	RenderTarget m_SDRRenderTarget;
 	RenderTarget m_HDRRenderTarget;

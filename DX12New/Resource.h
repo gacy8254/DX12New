@@ -4,21 +4,13 @@
 
 #include <string>
 #include <memory>
+#include "Device.h"
 
 
 class Resource
 {
-public:
-	Resource(const std::wstring& _name = L"");
-	Resource(const D3D12_RESOURCE_DESC _resourceDesc, const D3D12_CLEAR_VALUE* _clearValue = nullptr, const std::wstring& _name = L"");
-	Resource(Microsoft::WRL::ComPtr<ID3D12Resource> _resource, const std::wstring& _name = L"");
-	Resource(const Resource& _copy);
-	Resource(Resource&& _copy);
-
-	Resource& operator=(const Resource& _other);
-	Resource& operator=(Resource&& _other);
-
-	virtual ~Resource();
+public:	
+	Device& GetDevice() const { return m_Device; }
 
 	//检查资源是否有效
 	bool IsVaild() const { return (m_Resource != nullptr); }
@@ -36,32 +28,26 @@ public:
 		return desc;
 	}
 
-	//重置资源
-	//应当只被CommandList类调用 
-	virtual void SetResource(Microsoft::WRL::ComPtr<ID3D12Resource> _resource, const D3D12_CLEAR_VALUE* _clearValue = nullptr);
-
-	//获取资源的SRV
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc = nullptr) const = 0;
-	//获取资源的UAV
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc = nullptr) const = 0;
-
 	void SetName(const std::wstring& _name);
+	const std::wstring GetName() { return m_Name; }
 
-	//重置底层资源
-	//这在更改交换链大小时很有用
-	virtual void Reset();
-
-	//检车格式支持
+	//检查格式支持
 	bool CheckFormatSupport(D3D12_FORMAT_SUPPORT1 formatSupport) const;
 	bool CheckFormatSupport(D3D12_FORMAT_SUPPORT2 formatSupport) const;
 
 	
 protected:
+	Resource(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _resource, const D3D12_CLEAR_VALUE* _clearValue = nullptr);
+	Resource(Device& _device, const D3D12_RESOURCE_DESC& _resourceDesc, const D3D12_CLEAR_VALUE* _clearValue = nullptr);
+
+	virtual ~Resource() = default;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_Resource = nullptr;
-	std::unique_ptr<D3D12_CLEAR_VALUE> m_ClearValue = nullptr;
 	std::wstring m_Name;
 	D3D12_FEATURE_DATA_FORMAT_SUPPORT m_FormatSupport;
+	std::unique_ptr<D3D12_CLEAR_VALUE> m_ClearValue;
+
+	Device& m_Device;
 
 private:
 	void CheckFeatureSupport();

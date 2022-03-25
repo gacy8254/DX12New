@@ -1122,7 +1122,7 @@ void CommandList::CopyBuffer(Buffer& _buffer, size_t _numElements, size_t _eleme
 	}
 
 	_buffer.SetResource(d3d12Resource);
-	_buffer.CreateViews(_numElements, _elementSize);
+	//_buffer.CreateViews(_numElements, _elementSize);
 }
 
 void CommandList::BindDescriptorHeaps()

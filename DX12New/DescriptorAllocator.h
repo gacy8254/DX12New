@@ -14,21 +14,26 @@
 #include <vector>
 
 class DescriptorAllocatorPage;
+class Device;
 
 class DescriptorAllocator
 {
 public:
-	DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptorPerHeap = 256);
-	virtual ~DescriptorAllocator();
-
 	//从堆中分配多个连续的描述符，默认分配一个，也可以指定数量
 	DescriptorAllocation Allocate(uint32_t _numDescriptors = 1);
 
 	//当一帧结束后，已经无效的描述符奖杯释放
-	void ReleaseStaleDescriptor(uint64_t _FrameNumber);
+	void ReleaseStaleDescriptor();
 
+protected:
+	friend class std::default_delete<DescriptorAllocator>;
+
+	DescriptorAllocator(Device& _device, D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptorPerHeap = 256);
+	virtual ~DescriptorAllocator();
 private:
 	using DescriptorHeapPool = std::vector<std::shared_ptr<DescriptorAllocatorPage>>;
+
+	Device& m_Device;
 
 	//创建新的分配器页面
 	std::shared_ptr<DescriptorAllocatorPage> CreateAllocatorPage();

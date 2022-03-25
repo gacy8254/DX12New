@@ -132,6 +132,42 @@
     <ClCompile Include="BaseCamera.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Device.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Adapter.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="SwapChain.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="PipelineStateStream.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="PipelineStateObject.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ConstantBufferView.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ShaderResourceView.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="UnorderedAccessView.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Visitor.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneNode.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Lesson2.h">
@@ -261,6 +297,48 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="BaseCamera.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Device.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Adapter.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="SwapChain.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="PipelineStateStream.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="PipelineStateObject.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ConstantBufferView.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderResourceView.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="UnorderedAccessView.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="signals.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="optional.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Visitor.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneNode.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

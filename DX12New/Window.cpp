@@ -9,18 +9,10 @@
 
 #include <iostream>
 
-void Window::Destroy()
+void Window::SetWindowTitle(const std::wstring& _title)
 {
-	if (auto pGame = m_pGame.lock())
-	{
-		//告知游戏类，窗口即将呗摧毁
-		//pGame->OnWindowDestroy();
-	}
-	if (m_HWND)
-	{
-		DestroyWindow(m_HWND);
-		m_HWND = nullptr;
-	}
+	m_Title = _title;
+	::SetWindowTextW(m_HWND, m_Title.c_str());
 }
 
 void Window::SetFullScreen(bool _fullScreen)
@@ -68,263 +60,178 @@ void Window::SetFullScreen(bool _fullScreen)
 	}
 }
 
-UINT Window::Present(const Texture& _texture)
-{
-	//获取所需的对象
-	auto commandQueue = Application::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-	auto commandList = commandQueue->GetCommandList();
-
-	auto& backBuffer = m_BackBufferTextures[m_CurrentBackBufferIndex];
-
-	//如果贴图有效
-	//判断贴图是否是超采样贴图，是就拆分子资源
-	//不是就拷贝资源
-	if (_texture.IsVaild())
-	{
-		if (_texture.GetResourceDesc().SampleDesc.Count > 1)
-		{
-			commandList->ResolveSubresource(backBuffer, _texture);
-		}
-		else
-		{
-			commandList->CopyResource(backBuffer, _texture);
-		}
-	}
-
-	RenderTarget rT;
-	rT.AttachTexture(AttachmentPoint::Color0, backBuffer);
-
-	commandList->TransitionBarrier(backBuffer, D3D12_RESOURCE_STATE_PRESENT);
-	commandQueue->ExecuteCommandList(commandList);
-
-	//设置vsync
-	UINT syncInterval = m_VSync ? 1 : 0;
-	UINT presentFlags = m_TearingSupported && !m_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
-	//呈现
-	ThrowIfFailed(m_SwapChain->Present(syncInterval, presentFlags));
-
-	m_FenceValue[m_CurrentBackBufferIndex] = commandQueue->Signal();
-	m_FrameValue[m_CurrentBackBufferIndex] = Application::GetFrameCount();
-
-	//更新后台缓冲区的序号
-	m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
-
-	commandQueue->WaitForFenceValue(m_FrameValue[m_CurrentBackBufferIndex]);
-
-	return m_CurrentBackBufferIndex;
-}
-
-const RenderTarget& Window::GetRenderTarget() const
-{
-	m_RenderTarget.AttachTexture(AttachmentPoint::Color0, m_BackBufferTextures[m_CurrentBackBufferIndex]);
-	return m_RenderTarget;
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE Window::GetCurrentRTV() const
-{
-	return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_RTVHeap->GetCPUDescriptorHandleForHeapStart(), m_CurrentBackBufferIndex, m_RTVDescriptorSize);
-}
-
 Window::Window(HWND _hwnd, const std::wstring& _windowName, int _width, int _height, bool _vsync)
-	:m_HWND(_hwnd), m_WindowName(_windowName), m_Width(_width), m_Height(_height), m_VSync(_vsync), m_FrameCounter(0), m_FenceValue{0}, m_FrameValue{0}
+	:m_HWND(_hwnd), 
+	m_WindowName(_windowName), 
+	m_Width(_width), 
+	m_Height(_height), 
+	m_Title(_windowName),
+	m_PreviousMouseX(0), 
+	m_PreviousMouseY(0), 
+	m_FullScreen(false),
+	m_IsMinimized(false), 
+	m_IsMaximized(false),
+	m_bInClientRect(false), 
+	m_bHasKeyboradFocus(false)
 {
-	Application& app = Application::Get();
-
-	m_TearingSupported = app.IsTearingSupported();
-
-	//创建交换链
-	m_SwapChain = CreateSwapChain();
-	
-	for (int i = 0; i < m_BufferCount; i++)
-	{
-		m_BackBufferTextures[i].SetName(L"BackBuffer[" + std::to_wstring(i) + L"]");
-	}
-
-	//更新RTV
-	UpdateRTVs();
+	m_DPIscaling = ::GetDpiForWindow(_hwnd) / 96.0f;
 }
 
 Window::~Window()
 {
-	assert(!m_HWND && "在销毁窗口前就已经使用Application销毁了窗口");
-}
-
-Microsoft::WRL::ComPtr<IDXGISwapChain4> Window::CreateSwapChain()
-{
-	Application& app = Application::Get();
-
-	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain4;
-	Microsoft::WRL::ComPtr<IDXGIFactory4> dxgiFactory4;
-
-	UINT createFactoryFlags = 0;
-#if defined(_DEBUG)
-	createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
-#endif
-
-	ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory4)));
-
-	DXGI_SWAP_CHAIN_DESC1 desc = {};
-	desc.Width = m_Width;
-	desc.Height = m_Height;
-	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	desc.Stereo = FALSE;
-	desc.SampleDesc = { 1, 0 };
-	desc.BufferCount = m_BufferCount;
-	desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	desc.Scaling = DXGI_SCALING_STRETCH;
-	desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-	desc.Flags = m_TearingSupported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
-
-
-	ID3D12CommandQueue* pCommandQueue = app.GetCommandQueue()->GetCommandQueue().Get();
-	Microsoft::WRL::ComPtr<IDXGISwapChain1> swapChain1;
-	ThrowIfFailed(dxgiFactory4->CreateSwapChainForHwnd(
-		pCommandQueue,
-		m_HWND,
-		&desc,
-		nullptr,
-		nullptr, &swapChain1));
-
-	//关闭ALT+ENTER全屏的功能
-	ThrowIfFailed(dxgiFactory4->MakeWindowAssociation(m_HWND, DXGI_MWA_NO_ALT_ENTER));
-	ThrowIfFailed(swapChain1.As(&swapChain4));
-
-	m_CurrentBackBufferIndex = swapChain4->GetCurrentBackBufferIndex();
-
-	return swapChain4;
-}
-
-void Window::RegisterCallBacks(std::shared_ptr<Game> _pGame)
-{
-	m_pGame = _pGame;
+	::DestroyWindow(m_HWND);
 }
 
 void Window::OnUpdate(UpdateEventArgs& _e)
 {
-	m_UpdateClock.Tick();
+	m_Timer.Tick();
 
-	if (auto pGame = m_pGame.lock())
-	{
-		m_FrameCounter++;
-
-		UpdateEventArgs updateEvent(m_UpdateClock.GetDeltaSeconds(), m_UpdateClock.GetTotalSeconds(), _e.FrameCount);
-		pGame->OnUpdate(updateEvent);
-	}
+	_e.DeltaTime = m_Timer.ElapsedSeconds();
+	_e.TotalTime = m_Timer.TotalSeconds();
+	
+	Update(_e);
 }
 
-void Window::OnRender(RenderEventArgs& _e)
+void Window::OnClose(WindowCloseEventArgs& _e)
 {
-	m_RenderClock.Tick();
+	Close(_e);
+}
 
-	if (auto pGame = m_pGame.lock())
-	{
-		m_FrameCounter++;
+void Window::OnRestored(ResizeEventArgs& _e)
+{
+	Maximized(_e);
+}
 
-		RenderEventArgs renderEvent(m_RenderClock.GetDeltaSeconds(), m_RenderClock.GetTotalSeconds(), _e.FrameCount);
-		pGame->OnRender(renderEvent);
-	}
+void Window::OnMinimized(ResizeEventArgs& _e)
+{
+	Minimized(_e);
+}
+
+void Window::OnMaximized(ResizeEventArgs& _e)
+{
+	Restored(_e);
+}
+
+void Window::OnDPIScaaleChanged(DPIScaleEventArgs& _e)
+{
+	m_DPIscaling = _e.DPIScale;
+	DPIScaleChanged(_e);
+}
+
+void Window::OnKetboardFocus(EventArgs& _e)
+{
+	m_bHasKeyboradFocus = true;
+	KeyboardFocus(_e);
+}
+
+void Window::OnKetboardBlur(EventArgs& _e)
+{
+	m_bHasKeyboradFocus = false;
+	KeyboardBlur(_e);
+}
+
+void Window::OnMouseEnter(MouseMotionEventArgs& _e)
+{
+	TRACKMOUSEEVENT trackMouseEvent = {};
+	trackMouseEvent.cbSize = sizeof(TRACKMOUSEEVENT);
+	trackMouseEvent.hwndTrack = m_HWND;
+	trackMouseEvent.dwFlags = TME_LEAVE;
+	TrackMouseEvent(&trackMouseEvent);
+
+	m_bInClientRect = true;
+	MouseEnter(_e);
+}
+
+void Window::OnMouseLeave(EventArgs& _e)
+{
+	m_bInClientRect = false;
+	MouseLeave(_e);
+}
+
+void Window::OnMouseFocus(EventArgs& _e)
+{
+	MouseFocus(_e);
+}
+
+void Window::OnMouseBlur(EventArgs& _e)
+{
+	MouseBlur(_e);
 }
 
 void Window::OnKeyPressed(KeyEventArgs& _e)
 {
-	if (auto pGame = m_pGame.lock())
-	{
-		pGame->OnKeyPressed(_e);
-	}
+	KeyPressed(_e);
 }
 
 void Window::OnKeyReleased(KeyEventArgs& _e)
 {
-	if (auto pGame = m_pGame.lock())
-	{
-		pGame->OnKeyReleased(_e);
-	}
+	KeyReleased(_e);
 }
 
 void Window::OnMouseMoved(MouseMotionEventArgs& _e)
 {
+	if (!m_bInClientRect)
+	{
+		m_PreviousMouseX = _e.X;
+		m_PreviousMouseY = _e.Y;
+		m_bInClientRect = true;
+		//鼠标进入窗口
+		OnMouseEnter(_e);
+	}
+
 	_e.RelX = _e.X - m_PreviousMouseX;
 	_e.RelY = _e.Y - m_PreviousMouseY;
 
 	m_PreviousMouseX = _e.X;
 	m_PreviousMouseY = _e.Y;
 
-	if (auto pGame = m_pGame.lock())
-	{
-		pGame->OnMouseMoved(_e);
-	}
+	MouseMoved(_e);
 }
 
 void Window::OnMouseButtonPressed(MouseButtonEventArgs& _e)
 {
-	if (auto pGame = m_pGame.lock())
-	{
-		pGame->OnMouseButtonPressed(_e);
-	}
+	MouseButtonPressed(_e);
 }
 
 void Window::OnMouseButtonReleased(MouseButtonEventArgs& _e)
 {
-	if (auto pGame = m_pGame.lock())
-	{
-		pGame->OnMouseButtonReleased(_e);
-	}
+	MouseButtonReleased(_e);
 }
 
 void Window::OnMouseWheel(MouseWheelEventArgs& _e)
 {
-	if (auto pGame = m_pGame.lock())
-	{
-		pGame->OnMouseWheel(_e);
-	}
+	MouseWheel(_e);
 }
 
 void Window::OnResize(ResizeEventArgs& _e)
 {
-	if (m_Width != _e.Width || m_Height != _e.Height)
+
+	m_Width = _e.Width;
+	m_Height = _e.Height;
+
+	//非最大最小化
+	if ((m_IsMinimized || m_IsMaximized) && _e.State == WindowState::Restored)
 	{
-		m_Width = _e.Width;
-		m_Height = _e.Height;
-
-		//刷新GPU
-		Application::Get().Flush();
-
-		//释放所有引用
-		m_RenderTarget.AttachTexture(AttachmentPoint::Color0, Texture());
-
-		for (int i = 0; i < m_BufferCount; i++)
-		{
-			ResourceStateTracker::RemoveGlobalResourceState(m_BackBufferTextures[i].GetResource().Get());
-			m_BackBufferTextures[i].Reset();
-		}
-
-		DXGI_SWAP_CHAIN_DESC desc = {};
-		ThrowIfFailed(m_SwapChain->GetDesc(&desc));
-		ThrowIfFailed(m_SwapChain->ResizeBuffers(m_BufferCount, m_Width, m_Height, desc.BufferDesc.Format, desc.Flags));
-
-		m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
-
-		UpdateRTVs();
+		m_IsMaximized = false;
+		m_IsMinimized = false;
+		OnRestored(_e);
+	}
+	//最小化
+	if (!m_IsMinimized && _e.State == WindowState::Minimized)
+	{
+		m_IsMinimized = true;
+		m_IsMaximized = false;
+		OnMinimized(_e);
+	}
+	//最大化
+	if (!m_IsMaximized && _e.State == WindowState::Maximized)
+	{
+		m_IsMinimized = false;
+		m_IsMaximized = true;
+		OnMaximized(_e);
 	}
 
-	if (auto pGame = m_pGame.lock())
-	{
-		pGame->OnResize(_e);
-	}
+	Resize(_e);
 }
 
-void Window::UpdateRTVs()
-{
-	for (int i = 0; i < m_BufferCount; i++)
-	{
-		Microsoft::WRL::ComPtr<ID3D12Resource> backbuffer;
-		ThrowIfFailed(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)));
-
-		ResourceStateTracker::AddGlobalResourceState(backbuffer.Get(), D3D12_RESOURCE_STATE_COMMON);
-
-		m_BackBufferTextures[i].SetResource(backbuffer);
-		m_BackBufferTextures[i].CreateViews();
-	}
-}
 

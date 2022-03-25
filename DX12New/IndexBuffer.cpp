@@ -1,33 +1,26 @@
 #include "IndexBuffer.h"
 #include <cassert>
 
-IndexBuffer::IndexBuffer(const std::wstring& _name /*= L""*/)
-	:Buffer(_name)
+IndexBuffer::IndexBuffer(Device& _device, size_t _numIndicies, DXGI_FORMAT _format)
+	:Buffer(_device, CD3DX12_RESOURCE_DESC::Buffer(_numIndicies * (_format == DXGI_FORMAT_R16_UINT ? 2 : 4))),
+	m_NumIndices(_numIndicies), m_IndexFormat(_format), m_IBV{}
 {
+	assert(_format == DXGI_FORMAT_R16_UINT || _format == DXGI_FORMAT_R32_UINT);
+	CreateIndexBufferViews();
 }
 
-IndexBuffer::~IndexBuffer()
+IndexBuffer::IndexBuffer(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _resource, size_t _numIndicies, DXGI_FORMAT _format)
+	:Buffer(_device, _resource), m_NumIndices(_numIndicies), m_IndexFormat(_format), m_IBV{}
 {
+	assert(_format == DXGI_FORMAT_R16_UINT || _format == DXGI_FORMAT_R32_UINT);
+	CreateIndexBufferViews();
 }
 
-void IndexBuffer::CreateViews(size_t _numElements, size_t _elementSize)
+void IndexBuffer::CreateIndexBufferViews()
 {
-	assert(_elementSize == 2 || _elementSize == 4 && "索引必须为16位或32位整数");
-
-	m_NumIndices = _numElements;
-	m_IndexFormat = (_elementSize == 2) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
+	UINT bufferSize = m_NumIndices * (m_IndexFormat == DXGI_FORMAT_R16_UINT ? 2 : 4);
 
 	m_IBV.BufferLocation = m_Resource->GetGPUVirtualAddress();
-	m_IBV.SizeInBytes = static_cast<UINT>(_elementSize * _numElements);
+	m_IBV.SizeInBytes = bufferSize;
 	m_IBV.Format = m_IndexFormat;
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE IndexBuffer::GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc /*= nullptr*/) const
-{
-	throw std::exception("IndexBuffer::GetShaderResourceView 不该被调用.");
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE IndexBuffer::GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc /*= nullptr*/) const
-{
-	throw std::exception("IndexBuffer::GetUnorderedAccessView 不该被调用.");
 }

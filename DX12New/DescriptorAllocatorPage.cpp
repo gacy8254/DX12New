@@ -85,11 +85,11 @@ void DescriptorAllocatorPage::Free(DescriptorAllocation&& _descriptorHandle, uin
 	m_StaleDescriptors.emplace(offset, _descriptorHandle.GetNumHandles(), _frameNumber);
 }
 
-void DescriptorAllocatorPage::ReleaseStaleDescriptors(uint64_t _frameNumber)
+void DescriptorAllocatorPage::ReleaseStaleDescriptors()
 {
 	std::lock_guard<std::mutex> lock(m_AllocationMutex);
 
-	while (!m_StaleDescriptors.empty() && m_StaleDescriptors.front().Frame <= _frameNumber)
+	while (!m_StaleDescriptors.empty())
 	{
 		auto& staleDescriptor = m_StaleDescriptors.front();
 

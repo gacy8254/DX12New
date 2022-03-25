@@ -4,12 +4,13 @@
 #include"ResourceStateTracker.h"
 #include "Application.h"
 #include "CommandList.h"
+#include "Device.h"
 #include <DirectXTex.h>
 
-CommandQueue::CommandQueue(D3D12_COMMAND_LIST_TYPE _type)
-	: m_fenceValue(0), m_CommandListType(_type), m_bProcessInFlightCommandLists(true)
+CommandQueue::CommandQueue(Device& _device, D3D12_COMMAND_LIST_TYPE _type)
+	: m_fenceValue(0), m_CommandListType(_type), m_bProcessInFlightCommandLists(true), m_Device(_device)
 {
-	auto device = Application::Get().GetDevice();
+	auto device = m_Device.GetD3D12Device();
 
 	D3D12_COMMAND_QUEUE_DESC desc = {};
 	desc.Type = _type;

@@ -1,34 +1,40 @@
 #pragma once
 
-#include <chrono>
+#include <memory> // for std:unique_ptr
 
-class HighResolutionClock
+class HighResolutionTimer
 {
 public:
-	HighResolutionClock();
+    HighResolutionTimer();
+    ~HighResolutionTimer();
 
-	void Tick();
+    /**
+     * Tick the high resolution timer.
+     */
+    void Tick();
 
-	//重置计时器
-	void Reset();
+    /**
+     * Reset the elapsed and total time.
+     */
+    void Reset();
 
-	double GetDeltaNanoseconds() const  { return m_DeltaTime.count() * 1.0; }
-	double GetDeltaMicroseconds() const { return m_DeltaTime.count() * 1e-3; }
-	double GetDeltaMilliseconds() const { return m_DeltaTime.count() * 1e-6; }
-	double GetDeltaSeconds() const		{ return m_DeltaTime.count() * 1e-9; }
+    /**
+     * Get the elapsed time between ticks.
+     */
+    double ElapsedSeconds() const;
+    double ElapsedMilliseconds() const;
+    double ElapsedMicroseconds() const;
+    double ElapsedNanoseconds() const;
 
-	double GetTotalNanoseconds() const { return m_TotalTime.count() * 1.0; }
-	double GetTotalMicroseconds() const { return m_TotalTime.count() * 1e-3; }
-	double GetTotalMilliSeconds() const { return m_TotalTime.count() * 1e-6; }
-	double GetTotalSeconds() const { return m_TotalTime.count() * 1e-9; }
-
+    /**
+     * Get the total time since the timer was started (or reset).
+     */
+    double TotalSeconds() const;
+    double TotalMilliseconds() const;
+    double TotalMicroseconds() const;
+    double TotalNanoseconds() const;
 
 private:
-	//初始的时间点
-	std::chrono::high_resolution_clock::time_point m_T0;
-	//时间间隔
-	std::chrono::high_resolution_clock::duration m_DeltaTime;
-	//总时间
-	std::chrono::high_resolution_clock::duration m_TotalTime;
+    class impl;
+    std::unique_ptr<impl> pImpl;
 };
-

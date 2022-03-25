@@ -32,7 +32,7 @@ public:
 	void Free(DescriptorAllocation&& _descriptorHandle, uint64_t _frameNumber);
 
 	//将已经废弃的描述符重新加入堆中
-	void ReleaseStaleDescriptors(uint64_t _frameNumber);
+	void ReleaseStaleDescriptors();
 
 protected:
 

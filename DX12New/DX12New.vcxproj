@@ -118,7 +118,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Code\DX12New\DX12New\HLSL;C:\Code\DX12New\packages\directxtex_uwp.2022.3.1.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Code\assimp\Build\include;C:\Code\assimp\include;C:\Code\DX12New\DX12New\HLSL;C:\Code\DX12New\packages\directxtex_uwp.2022.3.1.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -145,6 +145,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Adapter.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="BaseCamera.cpp" />
     <ClCompile Include="Buffer.cpp" />
@@ -153,12 +154,15 @@
     <ClCompile Include="CommandList.cpp" />
     <ClCompile Include="CommandQueue.cpp" />
     <ClCompile Include="ConstantBuffer.cpp" />
+    <ClCompile Include="ConstantBufferView.cpp" />
     <ClCompile Include="DescriptorAllocation.cpp" />
     <ClCompile Include="DescriptorAllocator.cpp" />
     <ClCompile Include="DescriptorAllocatorPage.cpp" />
+    <ClCompile Include="Device.cpp" />
     <ClCompile Include="DynamicDescriptorHeap.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="GenerateMipsPSO.cpp" />
+    <ClCompile Include="GUI.cpp" />
     <ClCompile Include="HighResolutionClock.cpp" />
     <ClCompile Include="IndexBuffer.cpp" />
     <ClCompile Include="KeyCodes.cpp" />
@@ -170,18 +174,27 @@
     <ClCompile Include="Matrix.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="PanoToCubemapPSO.cpp" />
+    <ClCompile Include="PipelineStateObject.cpp" />
+    <ClCompile Include="PipelineStateStream.cpp" />
     <ClCompile Include="RenderTarget.cpp" />
     <ClCompile Include="Resource.cpp" />
     <ClCompile Include="ResourceStateTracker.cpp" />
     <ClCompile Include="RootSignature.cpp" />
+    <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="SceneNode.cpp" />
+    <ClCompile Include="ShaderResourceView.cpp" />
     <ClCompile Include="StructuredBuffer.cpp" />
+    <ClCompile Include="SwapChain.cpp" />
     <ClCompile Include="Texture.cpp" />
+    <ClCompile Include="UnorderedAccessView.cpp" />
     <ClCompile Include="UploadBuffer.cpp" />
     <ClCompile Include="Vector.cpp" />
     <ClCompile Include="VertexBuffer.cpp" />
+    <ClCompile Include="Visitor.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Adapter.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="BaseCamera.h" />
     <ClInclude Include="Buffer.h" />
@@ -190,16 +203,19 @@
     <ClInclude Include="CommandList.h" />
     <ClInclude Include="CommandQueue.h" />
     <ClInclude Include="ConstantBuffer.h" />
+    <ClInclude Include="ConstantBufferView.h" />
     <ClInclude Include="D3D12LibPCH.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="Defines.h" />
     <ClInclude Include="DescriptorAllocation.h" />
     <ClInclude Include="DescriptorAllocator.h" />
     <ClInclude Include="DescriptorAllocatorPage.h" />
+    <ClInclude Include="Device.h" />
     <ClInclude Include="DynamicDescriptorHeap.h" />
     <ClInclude Include="Event.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="GenerateMipsPSO.h" />
+    <ClInclude Include="GUI.h" />
     <ClInclude Include="helpers.h" />
     <ClInclude Include="HighResolutionClock.h" />
     <ClInclude Include="HLSL\GanerateMips_GS.h" />
@@ -212,18 +228,28 @@
     <ClInclude Include="Material.h" />
     <ClInclude Include="Matrix.h" />
     <ClInclude Include="Mesh.h" />
+    <ClInclude Include="optional.hpp" />
     <ClInclude Include="PanoToCubemapPSO.h" />
+    <ClInclude Include="PipelineStateObject.h" />
+    <ClInclude Include="PipelineStateStream.h" />
     <ClInclude Include="RenderTarget.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="ResourceStateTracker.h" />
     <ClInclude Include="RootSignature.h" />
+    <ClInclude Include="Scene.h" />
+    <ClInclude Include="SceneNode.h" />
+    <ClInclude Include="ShaderResourceView.h" />
+    <ClInclude Include="signals.hpp" />
     <ClInclude Include="StructuredBuffer.h" />
+    <ClInclude Include="SwapChain.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="TextureUsage.hpp" />
     <ClInclude Include="ThreadSafeQueue.h" />
+    <ClInclude Include="UnorderedAccessView.h" />
     <ClInclude Include="UploadBuffer.h" />
     <ClInclude Include="Vector.h" />
     <ClInclude Include="VertexBuffer.h" />
+    <ClInclude Include="Visitor.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>
