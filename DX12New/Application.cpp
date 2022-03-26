@@ -6,8 +6,8 @@
 #include "Application.h"
 #include "D3D12LibPCH.h"
 
-
 #include <iostream>
+
 
 constexpr wchar_t WINDOW_CLASS_NAME[] = L"DX12RenderWindowClass";
 
@@ -41,33 +41,33 @@ static void RemoveWindow(HWND _hWnd)
 }
 
 // 将消息ID转换成鼠标按键ID
-MouseButtonEventArgs::MouseButton DecodeMouseButton(UINT messageID)
+static MouseButton DecodeMouseButton(UINT messageID)
 {
-	MouseButtonEventArgs::MouseButton mouseButton = MouseButtonEventArgs::None;
-	//switch (messageID)
-	//{
-	//case WM_LBUTTONDOWN:
-	//case WM_LBUTTONUP:
-	//case WM_LBUTTONDBLCLK:
-	//{
-	//	mouseButton = MouseButtonEventArgs::Left;
-	//}
-	//break;
-	//case WM_RBUTTONDOWN:
-	//case WM_RBUTTONUP:
-	//case WM_RBUTTONDBLCLK:
-	//{
-	//	mouseButton = MouseButtonEventArgs::Right;
-	//}
-	//break;
-	//case WM_MBUTTONDOWN:
-	//case WM_MBUTTONUP:
-	//case WM_MBUTTONDBLCLK:
-	//{
-	//	mouseButton = MouseButtonEventArgs::Middel;
-	//}
-	//break;
-	//}
+	MouseButton mouseButton;// = MouseButtonEventArgs::None;
+	switch (messageID)
+	{
+	case WM_LBUTTONDOWN:
+	case WM_LBUTTONUP:
+	case WM_LBUTTONDBLCLK:
+	{
+		mouseButton = MouseButton::Left;
+	}
+	break;
+	case WM_RBUTTONDOWN:
+	case WM_RBUTTONUP:
+	case WM_RBUTTONDBLCLK:
+	{
+		mouseButton = MouseButton::Right;
+	}
+	break;
+	case WM_MBUTTONDOWN:
+	case WM_MBUTTONUP:
+	case WM_MBUTTONDBLCLK:
+	{
+		mouseButton = MouseButton::Middle;
+	}
+	break;
+	}
 
 	return mouseButton;
 }
@@ -246,7 +246,7 @@ static LRESULT CALLBACK WndProc(HWND _hwnd, UINT _message, WPARAM _wParam, LPARA
 	//{
 	//	return ::DefWindowProcW(_hwnd, _message, _wParam, _lParam);
 	//}
-	//return 0;
+	return 0;
 }
 
 void Application::Create(HINSTANCE _hInst)

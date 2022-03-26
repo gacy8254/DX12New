@@ -12,16 +12,6 @@
 class Texture : public Resource
 {
 public:
-    TextureUsage GetTextureUsage() const
-    {
-        return m_TextureUsage;
-    }
-
-    void SetTextureUsage(TextureUsage textureUsage)
-    {
-        m_TextureUsage = textureUsage;
-    }
-
     /**
      * Resize the texture.
      */
@@ -41,6 +31,10 @@ public:
      * Get the DSV for the texture.
      */
     virtual D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE GetUnorderedAccessView(uint32_t _mip) const;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE GetShaderResourceView() const;;
 
     bool CheckSRVSupport()
     {
@@ -78,7 +72,7 @@ public:
 
 protected:
     Texture(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _resource, const D3D12_CLEAR_VALUE* _clearValue = nullptr);
-    Texture(Device& _device, const D3D12_RESOURCE_DESC* _resourceDesc, const D3D12_CLEAR_VALUE* _clearValue = nullptr);
+    Texture(Device& _device, const D3D12_RESOURCE_DESC& _resourceDesc, const D3D12_CLEAR_VALUE* _clearValue = nullptr);
 
     virtual ~Texture();
 
@@ -87,6 +81,4 @@ private:
     DescriptorAllocation m_DepthStencilView;
     DescriptorAllocation m_ShaderResourceView;
     DescriptorAllocation m_UnorderAccessView;
-
-    TextureUsage m_TextureUsage;
 };

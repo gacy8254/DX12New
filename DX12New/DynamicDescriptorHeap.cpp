@@ -125,6 +125,30 @@ void DynamicDescriptorHeap::CommitStagedDescriptorsForDispatch(CommandList& _com
 	CommitStagedDescriptors(_commandList, &ID3D12GraphicsCommandList::SetComputeRootDescriptorTable);
 }
 
+void DynamicDescriptorHeap::StageInlineCBV(uint32_t _rootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS _bufferLocation)
+{
+	assert(_rootParameterIndex < MaxDescriptorTables);
+
+	m_InlineCBV[_rootParameterIndex] = _bufferLocation;
+	m_StaleCBVBitMask |= (1 << _rootParameterIndex);
+}
+
+void DynamicDescriptorHeap::StageInlineUAV(uint32_t _rootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS _bufferLocation)
+{
+	assert(_rootParameterIndex < MaxDescriptorTables);
+
+	m_InlineCBV[_rootParameterIndex] = _bufferLocation;
+	m_StaleUAVBitMask |= (1 << _rootParameterIndex);
+}
+
+void DynamicDescriptorHeap::StageInlineSRV(uint32_t _rootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS _bufferLocation)
+{
+	assert(_rootParameterIndex < MaxDescriptorTables);
+
+	m_InlineCBV[_rootParameterIndex] = _bufferLocation;
+	m_StaleSRVBitMask |= (1 << _rootParameterIndex);
+}
+
 D3D12_GPU_DESCRIPTOR_HANDLE DynamicDescriptorHeap::CopyDescriptor(CommandList& _commandList, D3D12_CPU_DESCRIPTOR_HANDLE _cpuHandle)
 {
 	//如果当前的描述符句柄为空，或者空闲的描述符数量不满足要求就重新请求一个新的描述符堆
@@ -157,14 +181,16 @@ D3D12_GPU_DESCRIPTOR_HANDLE DynamicDescriptorHeap::CopyDescriptor(CommandList& _
 	return hGPU;
 }
 
-void DynamicDescriptorHeap::ParseRootSignature(const dx12lib::RootSignature& _rootSignature)
+void DynamicDescriptorHeap::ParseRootSignature(const std::shared_ptr<RootSignature>& _rootSignature)
 {
+	assert(_rootSignature);
+
 	m_StaleDescriptorTableBitMake = 0;
 
-	const auto& rootSignatureDesc = _rootSignature.GetRootSignatureDesc();
+	const auto& rootSignatureDesc = _rootSignature->GetRootSignatureDesc();
 
 	//根据描述符类型获取根签名中的描述符表掩码值
-	m_DescriptorTableBitMask = _rootSignature.GteDescriptorTableBitMask(m_DescriptorType);
+	m_DescriptorTableBitMask = _rootSignature->GteDescriptorTableBitMask(m_DescriptorType);
 	uint32_t descriptorTableBitMask = m_DescriptorTableBitMask;
 
 	uint32_t currentOffset = 0;
@@ -173,7 +199,7 @@ void DynamicDescriptorHeap::ParseRootSignature(const dx12lib::RootSignature& _ro
 	while (_BitScanForward(&rootIndex, descriptorTableBitMask) && rootIndex < rootSignatureDesc.NumParameters)
 	{
 		//获取描述符的数量
-		uint32_t numDescriptors = _rootSignature.GetNumDescriptors(rootIndex);
+		uint32_t numDescriptors = _rootSignature->GetNumDescriptors(rootIndex);
 
 		//更新描述符表缓存中对应的描述符表
 		DescriptorTableCache& descriptorTableCache = m_DescriptorTableCache[rootIndex];

@@ -34,11 +34,22 @@ public:
 	//将描述符绑定到计算管线  ID3D12GraphicsCommandList::SetComputeRootDescriptorTable
 	void CommitStagedDescriptorsForDispatch(CommandList& _commandList);
 
+	//提交一个内联CBV描述符
+	void StageInlineCBV(uint32_t _rootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS _bufferLocation);
+
+	//提交一个内联UAV描述符
+	void StageInlineUAV(uint32_t _rootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS _bufferLocation);
+
+	//提交一个内联SRV描述符
+	void StageInlineSRV(uint32_t _rootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS _bufferLocation);
+
+
+
 	//将单个CPU可见描述符拷贝到GPU可见描述符堆
 	D3D12_GPU_DESCRIPTOR_HANDLE CopyDescriptor(CommandList& _commandList, D3D12_CPU_DESCRIPTOR_HANDLE _cpuHandle);
 
 	//分析根签名
-	void ParseRootSignature(const dx12lib::RootSignature& _rootSignature);
+	void ParseRootSignature(const std::shared_ptr<RootSignature>& _rootSignature);
 
 	//重置描述符堆和缓存，仅当命令列表完成处理后使用
 	void Reset();
@@ -71,6 +82,15 @@ private:
 		//其实地址
 		D3D12_CPU_DESCRIPTOR_HANDLE* BaseDescriptor = nullptr;
 	};
+
+	//内联描述符
+	D3D12_GPU_VIRTUAL_ADDRESS m_InlineCBV[MaxDescriptorTables];
+	D3D12_GPU_VIRTUAL_ADDRESS m_InlineSRV[MaxDescriptorTables];
+	D3D12_GPU_VIRTUAL_ADDRESS m_InlineUAV[MaxDescriptorTables];
+
+	uint32_t m_StaleCBVBitMask;
+	uint32_t m_StaleUAVBitMask;
+	uint32_t m_StaleSRVBitMask;
 
 	//堆的类型
 	D3D12_DESCRIPTOR_HEAP_TYPE m_DescriptorType;

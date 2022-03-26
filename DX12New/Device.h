@@ -97,7 +97,7 @@ public:
 
     //创建一个根签名
     //@param 根签名的描述信息
-    std::shared_ptr<dx12lib::RootSignature> CreateRootSignature(const D3D12_ROOT_SIGNATURE_DESC1& _rootSignatureDesc);
+    std::shared_ptr<RootSignature> CreateRootSignature(const D3D12_ROOT_SIGNATURE_DESC1& _rootSignatureDesc);
 
     //创建一个pso
     //@param pso的描述信息

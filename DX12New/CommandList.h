@@ -25,11 +25,15 @@ class RootSignature;
 class Texture;
 class UploadBuffer;
 class VertexBuffer;
+class Device;
+class PipelineStateObject;
+class ShaderResourceView;
+class UnorderedAccessView;
 
 class CommandList
 {
 public:
-	CommandList(D3D12_COMMAND_LIST_TYPE);
+	CommandList(Device& _device, D3D12_COMMAND_LIST_TYPE _type);
 	virtual ~CommandList();
 
 	//获取命令列表的类型
@@ -43,13 +47,13 @@ public:
 	//要转换的状态
 	//要转换的子资源,默认情况下转换所有子资源
 	//强制清除所有障碍
-	void TransitionBarrier(const Resource& _resource, D3D12_RESOURCE_STATES _state, UINT _subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, bool _flushBarriers = false);
+	void TransitionBarrier(const std::shared_ptr<Resource>& _resource, D3D12_RESOURCE_STATES _state, UINT _subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, bool _flushBarriers = false);
 	void TransitionBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> _resource, D3D12_RESOURCE_STATES _state, UINT _subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, bool _flushBarriers = false);
 
 	//添加一个UAV屏障,确保对资源的写入已经完成
 	//要转换的资源
 	//强制清除所有障碍
-	void UAVBarrier(const Resource& _resource, bool _flushBarriers = false);
+	void UAVBarrier(const std::shared_ptr<Resource>& _resource, bool _flushBarriers = false);
 	void UAVBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> _resource, bool _flushBarriers = false);
 
 	//添加一个别名屏障
@@ -62,71 +66,71 @@ public:
 	void FlushResourceBarriers();
 
 	//复制一个资源
-	void CopyResource(Resource& _dstRes, const Resource& _srcRes);
+	void CopyResource(const std::shared_ptr<Resource>& _dstRes, const std::shared_ptr<Resource>& _srcRes);
 	void CopyResource(Microsoft::WRL::ComPtr<ID3D12Resource> _dstRes, Microsoft::WRL::ComPtr<ID3D12Resource> _srcRes);
 
 	//将一个多重采样资源解析为非多重采样的资源
 	void ResolveSubresource(Resource& _detRes, const Resource& _srcRes, uint32_t _detSubresource = 0, uint32_t _srcSubresource = 0);
 
 	//将内容拷贝到GPU中的顶点缓冲区
-	void CopyVertexBuffer(VertexBuffer& _vertexBuffer, size_t _numVertices, size_t _vertexStride, const void* _vertexBufferData);
+	std::shared_ptr<VertexBuffer> CopyVertexBuffer(size_t _numVertices, size_t _vertexStride, const void* _vertexBufferData);
 	template<typename T>
-	void CopyVertexBuffer(VertexBuffer& _vertexBuffer, const std::vector<T>& _vertexBufferData)
+	std::shared_ptr<VertexBuffer> CopyVertexBuffer(const std::vector<T>& _vertexBufferData)
 	{
-		CopyVertexBuffer(_vertexBuffer, _vertexBufferData.size(), sizeof(T), _vertexBufferData.data());
+		return CopyVertexBuffer(_vertexBufferData.size(), sizeof(T), _vertexBufferData.data());
 	}
 
 	//将内容拷贝到GPU中的索引缓冲区
-	void CopyIndexBuffer(IndexBuffer& _indexBuffer, size_t _numIndicies, DXGI_FORMAT _indexFormat, const void* _indexBufferData);
+	std::shared_ptr<IndexBuffer> CopyIndexBuffer(size_t _numIndicies, DXGI_FORMAT _indexFormat, const void* _indexBufferData);
 	template<typename T>
-	void CopyIndexBuffer(IndexBuffer& _indexBuffer, const std::vector<T>& _indexBufferData)
+	std::shared_ptr<IndexBuffer> CopyIndexBuffer(IndexBuffer& _indexBuffer, const std::vector<T>& _indexBufferData)
 	{
 		assert(sizeof(T) == 2 || sizeof(T) == 4);
 
 		DXGI_FORMAT indexFormat = (sizeof(T) == 2) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
-		CopyIndexBuffer(_indexBuffer, _indexBufferData.size(), indexFormat, _indexBufferData.data());
+		return CopyIndexBuffer(_indexBufferData.size(), indexFormat, _indexBufferData.data());
 	}
 
 	//将内容复制到GPU中的字节地址缓冲区
-	void CopyByteAddressBuffer(ByteAddressBuffer& _byteAddressBuffer, size_t _bufferSize, const void* _BufferData);
+	std::shared_ptr<ByteAddressBuffer> CopyByteAddressBuffer(size_t _bufferSize, const void* _BufferData);
 	template<typename T>
-	void CopyByteAddressBuffer(ByteAddressBuffer& _byteAddressBuffer, const T& _BufferData)
+	std::shared_ptr<ByteAddressBuffer> CopyByteAddressBuffer(const T& _BufferData)
 	{
-		CopyByteAddressBuffer(_byteAddressBuffer, sizeof(T), &_BufferData);
+		return CopyByteAddressBuffer(sizeof(T), &_BufferData);
 	}
 
 	//将内容复制到GPU中的结构化缓冲区
-	void CopyStructuredBuffer(StructuredBuffer& _structuredBuffer, size_t _numElements, size_t _elementSize, const void* _BufferData);
+	std::shared_ptr<StructuredBuffer> CopyStructuredBuffer(size_t _numElements, size_t _elementSize, const void* _BufferData);
 	template<typename T>
-	void CopyStructuredBuffer(StructuredBuffer& _structuredBuffer, const std::vector<T>& _BufferData)
+	std::shared_ptr<StructuredBuffer> CopyStructuredBuffer(const std::vector<T>& _BufferData)
 	{
-		CopyStructuredBuffer(_structuredBuffer, _BufferData.size(), sizeof(T), _BufferData.data());
+		return (_BufferData.size(), sizeof(T), _BufferData.data());
 	}
 
 	//设置图元拓扑类型
 	void SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY _primitiveTopology);
 
 	//从文件中加载一直贴图
-	void LoadTextureFromFile(Texture& _texture, const std::wstring& _fileName, TextureUsage _usage = TextureUsage::Albedo);
+	std::shared_ptr<Texture> LoadTextureFromFile(const std::wstring& _fileName, bool _sRGB = false);
 
 	//像素数据不能直接复制到目标纹理资源
 	//需要在上传堆中创建一个中间缓冲区
 	//现将资源拷贝到中间缓冲区，然后再命令列表上发出将数据拷贝到目标的GPU命令
 	//只有执行了命令后资源才会被拷贝到目标区域
 	//之后才能使用纹理
-	void CopyTextureSubresource(Texture& _texture, uint32_t _firstSubresource, uint32_t _numSubresource, D3D12_SUBRESOURCE_DATA* _subresourceData);
+	void CopyTextureSubresource(const std::shared_ptr<Texture>& _texture, uint32_t _firstSubresource, uint32_t _numSubresource, D3D12_SUBRESOURCE_DATA* _subresourceData);
 
 	//清空一张贴图
-	void ClearTexture(const Texture& _texture, const float _clearColor[4]);
+	void ClearTexture(const std::shared_ptr<Texture>& _texture, const float _clearColor[4]);
 
 	//清空深度模板贴图
-	void ClearDepthStencilTexture(const Texture& _texture, D3D12_CLEAR_FLAGS _clearFlags, float _depth = 1.0f, uint8_t _stencil = 0);
+	void ClearDepthStencilTexture(const std::shared_ptr<Texture>& _texture, D3D12_CLEAR_FLAGS _clearFlags, float _depth = 1.0f, uint8_t _stencil = 0);
 
 	//生成MipMap
-	void GenerateMips(Texture& _texture);
+	void GenerateMips(const std::shared_ptr<Texture>& _texture);
 
 	//从一张全景图生成CUBEMAP(生成的CUBEMAP，传入的全景图)
-	void PanoToCubeMap(Texture& _cubeMap, const Texture& _pano);
+	void PanoToCubeMap(const std::shared_ptr<Texture>& _cubeMap, const std::shared_ptr<Texture>& _pano);
 
 	//设置一个动态常量BUFFER到根签名中的内联描述符
 	//SetGraphics32BitConstants函数也可以用于更新动态常量缓冲区数据,但只适合小于16个32位常量的数据
@@ -157,7 +161,8 @@ public:
 	}
 
 	//设置顶点缓冲到渲染管线
-	void SetVertexBuffer(uint32_t _slot, const VertexBuffer& _vertexBufffer);
+	void SetVertexBuffer(uint32_t _slot, const std::vector<std::shared_ptr<VertexBuffer>>& _vertexBufffer);
+	void SetVertexBuffer(uint32_t _slot, const std::shared_ptr<VertexBuffer>& _vertexBufffer);
 	//设置一个动态顶点缓冲到渲染管线
 	void SetDynamicVertexBuffer(uint32_t _slot, size_t _numVertices, size_t _vertexSize, const void* _vertexBufferData);
 	template<typename T>
@@ -167,7 +172,7 @@ public:
 	}
 
 	//设置索引缓冲到渲染管线
-	void SetIndexBuffer(const IndexBuffer& _indexBuffer);
+	void SetIndexBuffer(const std::shared_ptr<IndexBuffer>& _indexBuffer);
 	//设置一个动态索引缓冲到渲染管线
 	void SetDynamicIndexBuffer(size_t _numIndicies, DXGI_FORMAT _indexFormat, const void* _indexxBufferData);
 	template<typename T>
@@ -196,45 +201,95 @@ public:
 	void SetScissorRects(const std::vector<D3D12_RECT>& _rects);
 
 	//设置PSO
-	void SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> _pso);
+	void SetPipelineState(const std::shared_ptr<PipelineStateObject>& _pso);
 
 	//设置根签名
-	void SetGraphicsRootSignature(const dx12lib::RootSignature& _rootSignature);
-	void SetComputerRootSignature(const dx12lib::RootSignature& _rootSignature);
+	void SetGraphicsRootSignature(const std::shared_ptr<RootSignature>& _rootSignature);
+	void SetComputerRootSignature(const std::shared_ptr<RootSignature>& _rootSignature);
 
-	//设置SRV
-	//根参数索引(必须是描述符表)
-	//描述符的偏移量
-	//资源
-	//需要转换的资源状态
-	//子资源索引
-	//子资源数量
-	//SRV描述
+	//设置一个内联SRV
+	//@Param 根参数索引
+	//@Param BUffer类
+	//@Param 需要转换的资源状态
+	//@Param 偏移量
+	void SetShaderResourceView(
+		uint32_t _rootParameterIndex,
+		const std::shared_ptr<Buffer>& _buffer,
+		D3D12_RESOURCE_STATES _stateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+		size_t _bufferOffset = 0);
+
+	//设置一个SRV
+	//@Param 根参数索引
+	//@Param 描述符偏移量
+	//@Param 要设置的STV
+	//@Param 需要转换的资源状态
+	//@Param 第一个子资源索引
+	//@Param 子资源数量，默认全部
 	void SetShaderResourceView(
 		uint32_t _rootParameterIndex,
 		uint32_t _descriptorOffset,
-		const Resource& _resource,
+		const std::shared_ptr<ShaderResourceView>& _srv,
 		D3D12_RESOURCE_STATES _stateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
 		UINT _firstSubresource = 0,
-		UINT _numSubresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-		const D3D12_SHADER_RESOURCE_VIEW_DESC* _srv = nullptr);
+		UINT _numSubresources = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
-	//设置UAV
-	//根参数索引
-	//描述符的偏移量
-	//资源
-	//需要转换的资源状态
-	//子资源索引
-	//子资源数量
-	//UAV描述
-	void SetUnorderedAccessView(
+	//设置一个默认SRV（使用一个纹理资源）
+	//@Param 根参数索引
+	//@Param 描述符偏移量
+	//@Param 要设置的纹理
+	//@Param 需要转换的资源状态
+	//@Param 第一个子资源索引
+	//@Param 子资源数量，默认全部
+	void SetShaderResourceView(
 		uint32_t _rootParameterIndex,
 		uint32_t _descriptorOffset,
-		const Resource& _resource,
-		D3D12_RESOURCE_STATES _stateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		const std::shared_ptr<Texture>& _srv,
+		D3D12_RESOURCE_STATES _stateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
 		UINT _firstSubresource = 0,
-		UINT _numSubresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-		const D3D12_UNORDERED_ACCESS_VIEW_DESC* _uav = nullptr);
+		UINT _numSubresources = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+
+
+		//设置一个内联UAV
+		//@Param 根参数索引
+		//@Param BUffer类
+		//@Param 需要转换的资源状态
+		//@Param 偏移量
+		void SetUnorderedAccessView(
+			uint32_t _rootParameterIndex,
+			const std::shared_ptr<Buffer>& _buffer,
+			D3D12_RESOURCE_STATES _stateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			size_t _bufferOffset = 0);
+
+		//设置UAV
+		//@Param 根参数索引
+		//@Param 描述符偏移量
+		//@Param 要设置的UAV
+		//@Param 需要转换的资源状态
+		//@Param 第一个子资源索引
+		//@Param 子资源数量，默认全部
+		void SetUnorderedAccessView(
+			uint32_t _rootParameterIndex,
+			uint32_t _descriptorOffset,
+			const std::shared_ptr<UnorderedAccessView>& _uav,
+			D3D12_RESOURCE_STATES _stateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			UINT _firstSubresource = 0,
+			UINT _numSubresources = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+
+		//设置UAV（使用一个纹理资源指定的MIP）
+		//@Param 根参数索引
+		//@Param 描述符偏移量
+		//@Param 要设置的纹理
+		//@Param mip层级
+		//@Param 需要转换的资源状态
+		//@Param 第一个子资源索引
+		//@Param 子资源数量，默认全部
+		void SetUnorderedAccessView(
+			uint32_t _rootParameterIndex,
+			uint32_t _descriptorOffset,
+			const std::shared_ptr<Texture>& _texture, UINT _mip,
+			D3D12_RESOURCE_STATES _stateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			UINT _firstSubresource = 0,
+			UINT _numSubresources = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
 	//设置渲染目标
 	void SetRenderTarget(const RenderTarget& _renderTarget);
@@ -269,16 +324,16 @@ public:
 	std::shared_ptr<CommandList> GetGenerateMipsCommandList() const { return m_ComputerCommandList; }
 
 private:
-	void TrackObject(Microsoft::WRL::ComPtr<ID3D12Object> _object);
-	void TrackResource(const Resource& _res);
+	void TrackResource(Microsoft::WRL::ComPtr<ID3D12Object> _object);
+	void TrackResource(const std::shared_ptr<Resource>& _res);
 
 	//生成mips
-	void GenerateMips_UAV(Texture& _texture, DXGI_FORMAT _format);
+	void GenerateMips_UAV(const std::shared_ptr<Texture>& _texture, bool _isRGB);
 	void GenerateMips_BGR(Texture& _texture);
 	void GenerateMips_sRGB(Texture& _texture);
 
 	//将内容从CPU拷贝到GPU当中
-	void CopyBuffer(Buffer& _buffer, size_t _numElements, size_t _elementSize, const void* _bufferData, D3D12_RESOURCE_FLAGS _flags = D3D12_RESOURCE_FLAG_NONE);
+	Microsoft::WRL::ComPtr<ID3D12Resource> CopyBuffer(size_t _bufferSzie, const void* _bufferData, D3D12_RESOURCE_FLAGS _flags = D3D12_RESOURCE_FLAG_NONE);
 
 	//将当前的描述符堆绑定到命令列表
 	void BindDescriptorHeaps();
@@ -288,6 +343,8 @@ private:
 
 	//列表的类型
 	D3D12_COMMAND_LIST_TYPE m_CommandListType;
+
+	Device& m_Device;
 
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> m_CommandList;
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_CommandAllocator;
@@ -312,6 +369,8 @@ private:
 
 	//追踪当前绑定的描述符堆,如果它们与当前绑定的描述符堆不同,更改描述符堆
 	ID3D12DescriptorHeap* m_DescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+
+	ID3D12PipelineState* m_PSO;
 
 	//pso
 	std::unique_ptr<PanoToCubemapPSO> m_PanoToCubemapPSO = nullptr;

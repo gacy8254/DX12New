@@ -3,19 +3,12 @@
 #include "GanerateMips_GS.h"
 #include "Application.h"
 #include "helpers.h"
+#include "Device.h"
+#include "PipelineStateObject.h"
 
-
-GenerateMipsPSO::GenerateMipsPSO()
+GenerateMipsPSO::GenerateMipsPSO(Device& _device)
 {
-	auto device = Application::Get().GetDevice();
-
-	//获取支持的最高版本
-	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
-	featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
-	if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
-	{
-		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-	}
+	auto device = _device.GetD3D12Device();
 
 	//创建两个描述附表根参数
 	//输入Mip
@@ -41,7 +34,7 @@ GenerateMipsPSO::GenerateMipsPSO()
 	//根签名描述
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc(GenerateMips::NumRootParameters, rootParameters, 1, &linearClampSampler);
 
-	m_RootSiganture.SetRootSignatureDesc(rootSignatureDesc.Desc_1_1, featureData.HighestVersion);
+	m_RootSiganture = _device.CreateRootSignature(rootSignatureDesc.Desc_1_1);
 
 	//创建PSO
 	struct PipelineStateStream 
@@ -51,12 +44,10 @@ GenerateMipsPSO::GenerateMipsPSO()
 	}pipelineStateStream;
 
 	//设置根签名和着色器
-	pipelineStateStream.pRootSignature = m_RootSiganture.GetRootSignature().Get();
+	pipelineStateStream.pRootSignature = m_RootSiganture->GetRootSignature().Get();
 	pipelineStateStream.CS = { g_GanerateMips_GS, sizeof(g_GanerateMips_GS) };
 
-	D3D12_PIPELINE_STATE_STREAM_DESC PSOStreamDesc = { sizeof(pipelineStateStream), &pipelineStateStream };
-
-	ThrowIfFailed(device->CreatePipelineState(&PSOStreamDesc, IID_PPV_ARGS(&m_PSO)));
+	m_PSO = _device.CreatePipelineStateObject(pipelineStateStream);
 
 	//分配描述符
 	m_DefaultUAV = Application::Get().AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);

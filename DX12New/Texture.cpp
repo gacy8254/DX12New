@@ -5,6 +5,9 @@
 #include "Application.h"
 #include "helpers.h"
 #include "ResourceStateTracker.h"
+#include "ShaderResourceView.h"
+#include "UnorderedAccessView.h"
+#include "DescriptorAllocation.h"
 
 Texture::Texture(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _resource, const D3D12_CLEAR_VALUE* _clearValue /*= nullptr*/)
 	:Resource(_device, _resource, _clearValue)
@@ -12,7 +15,7 @@ Texture::Texture(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _resour
 	CreateViews();
 }
 
-Texture::Texture(Device& _device, const D3D12_RESOURCE_DESC* _resourceDesc, const D3D12_CLEAR_VALUE* _clearValue /*= nullptr*/)
+Texture::Texture(Device& _device, const D3D12_RESOURCE_DESC& _resourceDesc, const D3D12_CLEAR_VALUE* _clearValue /*= nullptr*/)
 	: Resource(_device, _resourceDesc, _clearValue)
 {
 	CreateViews();
@@ -138,7 +141,7 @@ void Texture::CreateViews()
 			for (int i = 0 ; i< desc.MipLevels;  i++)
 			{
 				auto uavDesc = GetUAVDesc(desc, i);
-				device->CreateUnorderedAccessView(m_Resource.Get(), nullptr, m_UnorderAccessView.GetDescriptorHandle());
+				device->CreateUnorderedAccessView(m_Resource.Get(), nullptr, &uavDesc, m_UnorderAccessView.GetDescriptorHandle(i));
 			}
 			
 		}
@@ -150,9 +153,9 @@ D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetShaderResourceView() const
 	return m_ShaderResourceView.GetDescriptorHandle();
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetUnorderedAccessView() const
+D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetUnorderedAccessView(uint32_t _mip) const
 {
-	return m_UnorderAccessView.GetDescriptorHandle();
+	return m_UnorderAccessView.GetDescriptorHandle(_mip);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetRenderTargetView() const

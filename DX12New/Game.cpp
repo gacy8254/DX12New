@@ -26,7 +26,7 @@ bool Game::Init()
 	//调用Application类创建窗口
 	m_pWindow = Application::Get().CreateRenderWindow(m_Name, m_Width, m_Height, m_VSync);
 	//注册回调函数
-	m_pWindow->RegisterCallBacks(shared_from_this());
+	//m_pWindow->RegisterCallBacks(shared_from_this());
 	//显示窗口
 	m_pWindow->Show();
 

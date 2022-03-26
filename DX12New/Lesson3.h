@@ -67,9 +67,9 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_HDRPSO;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_SDRPSO;
 
-	dx12lib::RootSignature m_SkyboxRootSignature;
-	dx12lib::RootSignature m_HDRRootSignature;
-	dx12lib::RootSignature m_SDRRootSignature;
+	//RootSignature m_SkyboxRootSignature;
+	//RootSignature m_HDRRootSignature;
+	//RootSignature m_SDRRootSignature;
 
 	// ”ø⁄…Ë÷√
 	D3D12_VIEWPORT m_Viewport;

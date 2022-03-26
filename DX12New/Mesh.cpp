@@ -6,8 +6,6 @@
 #include "VertexBuffer.h"
 #include "Visitor.h"
 
-using namespace dx12lib;
-
 Mesh::Mesh()
 	: m_PrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST)
 {}

@@ -15,11 +15,15 @@
 #include "VertexBuffer.h"
 #include "DynamicDescriptorHeap.h"
 #include "D3D12LibPCH.h"
+#include "Device.h"
+#include "PipelineStateObject.h"
+#include "ShaderResourceView.h"
+#include "UnorderedAccessView.h"
 
 using namespace DirectX;
 
-CommandList::CommandList(D3D12_COMMAND_LIST_TYPE _type)
-	:m_CommandListType(_type)
+CommandList::CommandList(Device& _device, D3D12_COMMAND_LIST_TYPE _type)
+	:m_CommandListType(_type), m_Device(_device)
 {
 	auto device = Application::Get().GetDevice();
 
@@ -46,12 +50,22 @@ CommandList::~CommandList()
 
 }
 
-void CommandList::TransitionBarrier(const Resource& _resource, D3D12_RESOURCE_STATES _state, UINT _subresource /*= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES*/, bool _flushBarriers /*= false*/)
+void CommandList::TransitionBarrier(const std::shared_ptr<Resource>& _resource, 
+	D3D12_RESOURCE_STATES _state, 
+	UINT _subresource /*= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES*/, 
+	bool _flushBarriers /*= false*/)
 {
-	TransitionBarrier(_resource.GetResource(), _state, _subresource, _flushBarriers);
+	if (_resource)
+	{
+		TransitionBarrier(_resource->GetResource(), _state, _subresource, _flushBarriers);
+	}
+	
 }
 
-void CommandList::TransitionBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> _resource, D3D12_RESOURCE_STATES _state, UINT _subresource /*= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES*/, bool _flushBarriers /*= false*/)
+void CommandList::TransitionBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> _resource, 
+	D3D12_RESOURCE_STATES _state, 
+	UINT _subresource /*= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES*/, 
+	bool _flushBarriers /*= false*/)
 {
 	//获取资源
 	//创建一个资源屏障
@@ -70,9 +84,10 @@ void CommandList::TransitionBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> _reso
 	}
 }
 
-void CommandList::UAVBarrier(const Resource& _resource, bool _flushBarriers /*= false*/)
+void CommandList::UAVBarrier(const std::shared_ptr<Resource>& _resource, bool _flushBarriers /*= false*/)
 {
-	UAVBarrier(_resource.GetResource(), _flushBarriers);
+	auto resource = _resource ? _resource->GetResource() : nullptr;
+	UAVBarrier(resource, _flushBarriers);
 }
 
 void CommandList::UAVBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> _resource, bool _flushBarriers /*= false*/)
@@ -109,25 +124,18 @@ void CommandList::FlushResourceBarriers()
 	m_ResourceStateTrack->FlushResourceBarrier(*this);
 }
 
-void CommandList::CopyResource(Resource& _dstRes, const Resource& _srcRes)
+void CommandList::CopyResource(const std::shared_ptr<Resource>& _dstRes, const std::shared_ptr<Resource>& _srcRes)
 {
-	//分别将目标和来源资源转换到相应的状态
-	TransitionBarrier(_dstRes, D3D12_RESOURCE_STATE_COPY_DEST);
-	TransitionBarrier(_srcRes, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	assert(_dstRes && _srcRes);
 
-	//执行资源转换
-	FlushResourceBarriers();
-
-	//复制资源
-	m_CommandList->CopyResource(_dstRes.GetResource().Get(), _srcRes.GetResource().Get());
-
-	//追踪资源
-	TrackResource(_dstRes);
-	TrackResource(_srcRes);
+	CopyResource(_dstRes->GetResource(), _srcRes->GetResource());
 }
 
 void CommandList::CopyResource(Microsoft::WRL::ComPtr<ID3D12Resource> _dstRes, Microsoft::WRL::ComPtr<ID3D12Resource> _srcRes)
 {
+	assert(_dstRes);
+	assert(_srcRes);
+
 	TransitionBarrier(_dstRes, D3D12_RESOURCE_STATE_COPY_DEST);
 	TransitionBarrier(_srcRes, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
@@ -135,8 +143,8 @@ void CommandList::CopyResource(Microsoft::WRL::ComPtr<ID3D12Resource> _dstRes, M
 
 	m_CommandList->CopyResource(_dstRes.Get(), _srcRes.Get());
 
-	TrackObject(_dstRes);
-	TrackObject(_srcRes);
+	TrackResource(_dstRes);
+	TrackResource(_srcRes);
 }
 
 void CommandList::ResolveSubresource(Resource& _detRes, const Resource& _srcRes, uint32_t _detSubresource /*= 0*/, uint32_t _srcSubresource /*= 0*/)
@@ -144,25 +152,40 @@ void CommandList::ResolveSubresource(Resource& _detRes, const Resource& _srcRes,
 
 }
 
-void CommandList::CopyVertexBuffer(VertexBuffer& _vertexBuffer, size_t _numVertices, size_t _vertexStride, const void* _vertexBufferData)
+std::shared_ptr<VertexBuffer> CommandList::CopyVertexBuffer(size_t _numVertices, size_t _vertexStride, const void* _vertexBufferData)
 {
-	CopyBuffer(_vertexBuffer, _numVertices, _vertexStride, _vertexBufferData);
+	auto resource = CopyBuffer(_numVertices * _vertexStride, _vertexBufferData);
+	std::shared_ptr<VertexBuffer> buffer = m_Device.CreateVertexBuffer(resource, _numVertices, _vertexStride);
+
+	return buffer;
 }
 
-void CommandList::CopyIndexBuffer(IndexBuffer& _indexBuffer, size_t _numIndicies, DXGI_FORMAT _indexFormat, const void* _indexBufferData)
+std::shared_ptr<IndexBuffer> CommandList::CopyIndexBuffer(size_t _numIndicies, DXGI_FORMAT _indexFormat, const void* _indexBufferData)
 {
 	size_t indexSizeInBytes = _indexFormat == DXGI_FORMAT_R16_UINT ? 2 : 4;
-	CopyBuffer(_indexBuffer, _numIndicies, indexSizeInBytes, _indexBufferData);
+	auto resource = CopyBuffer(_numIndicies * indexSizeInBytes, _indexBufferData);
+	std::shared_ptr<IndexBuffer> buffer = m_Device.CreateIndexBuffer(resource, _numIndicies, _indexFormat);
+
+	return buffer;
 }
 
-void CommandList::CopyByteAddressBuffer(ByteAddressBuffer& _byteAddressBuffer, size_t _bufferSize, const void* _BufferData)
+std::shared_ptr<ByteAddressBuffer> CommandList::CopyByteAddressBuffer(size_t _bufferSize, const void* _BufferData)
 {
-	CopyBuffer(_byteAddressBuffer, 1, _bufferSize, _BufferData, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	auto resource = CopyBuffer(_bufferSize, _BufferData, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	std::shared_ptr<ByteAddressBuffer> byteAdressBuffer = m_Device.CreateByteAddressBuffer(resource);
+
+	return byteAdressBuffer;
 }
 
-void CommandList::CopyStructuredBuffer(StructuredBuffer& _structuredBuffer, size_t _numElements, size_t _elementSize, const void* _BufferData)
+std::shared_ptr<StructuredBuffer> CommandList::CopyStructuredBuffer(size_t _numElements, size_t _elementSize, const void* _BufferData)
 {
-	CopyBuffer(_structuredBuffer, _numElements, _elementSize, _BufferData, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	size_t bufferSize = _elementSize * _numElements;
+	auto resource = CopyBuffer(bufferSize, _BufferData, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	std::shared_ptr<StructuredBuffer> structuredBuffer = m_Device.CreateStructuredBuffer(resource, _numElements, _elementSize);
+
+	return structuredBuffer;
 }
 
 void CommandList::SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY _primitiveTopology)
@@ -170,9 +193,10 @@ void CommandList::SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY _primitiveTopology
 	m_CommandList->IASetPrimitiveTopology(_primitiveTopology);
 }
 
-void CommandList::LoadTextureFromFile(Texture& _texture, const std::wstring& _fileName, TextureUsage _usage)
+std::shared_ptr<Texture> CommandList::LoadTextureFromFile(const std::wstring& _fileName, bool _sRGB)
 {
-	auto device = Application::Get().GetDevice();
+	auto device = m_Device.GetD3D12Device();
+	std::shared_ptr<Texture> _texture;
 
 	fs::path filePath(_fileName);
 	if (!fs::exists(filePath))
@@ -185,17 +209,13 @@ void CommandList::LoadTextureFromFile(Texture& _texture, const std::wstring& _fi
 	auto iter = ms_TextureCache.find(_fileName);
 	if (iter != ms_TextureCache.end())
 	{
-		_texture.SetTextureUsage(_usage);
-		_texture.SetResource(iter->second);
-		_texture.CreateViews();
-		_texture.SetName(_fileName);
+		_texture = m_Device.CreateTexture(iter->second);
 	}
 	else
 	{
 		//没有加载过
 		TexMetadata metadata;
 		ScratchImage scratchImage;
-		Microsoft::WRL::ComPtr<ID3D12Resource> textureResource;
 
 		//根据文件格式读取贴图内容
 		if (filePath.extension() == ".dds")
@@ -216,10 +236,10 @@ void CommandList::LoadTextureFromFile(Texture& _texture, const std::wstring& _fi
 		}
 
 		//如果是颜色贴图设置为sRGB
-		/*if (_usage == TextureUsage::Albedo)
+		if (_sRGB)
 		{
 			metadata.format = MakeSRGB(metadata.format);
-		}*/
+		}
 
 		//判断贴图维度
 		D3D12_RESOURCE_DESC desc = {};
@@ -239,6 +259,8 @@ void CommandList::LoadTextureFromFile(Texture& _texture, const std::wstring& _fi
 			break;
 		}
 
+		Microsoft::WRL::ComPtr<ID3D12Resource> textureResource;
+
 		//创建资源
 		auto p = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 		ThrowIfFailed(device->CreateCommittedResource(
@@ -249,14 +271,11 @@ void CommandList::LoadTextureFromFile(Texture& _texture, const std::wstring& _fi
 			nullptr,
 			IID_PPV_ARGS(&textureResource)));
 
+		_texture = m_Device.CreateTexture(textureResource);
+		_texture->SetName(_fileName);
+
 		//更新到全局资源状态追踪器中
 		ResourceStateTracker::AddGlobalResourceState(textureResource.Get(), D3D12_RESOURCE_STATE_COMMON);
-
-		//设置贴图属性
-		_texture.SetTextureUsage(_usage);
-		_texture.SetResource(textureResource);
-		_texture.CreateViews();
-		_texture.SetName(_fileName);
 
 		//查找纹理的子资源，例如Mipmaps
 		std::vector<D3D12_SUBRESOURCE_DATA> subResources(scratchImage.GetImageCount());
@@ -280,13 +299,17 @@ void CommandList::LoadTextureFromFile(Texture& _texture, const std::wstring& _fi
 		//将贴图加入到贴图缓存中
 		ms_TextureCache[_fileName] = textureResource.Get();
 	}
+
+	return _texture;
 }
 
-void CommandList::CopyTextureSubresource(Texture& _texture, uint32_t _firstSubresource, uint32_t _numSubresource, D3D12_SUBRESOURCE_DATA* _subresourceData)
+void CommandList::CopyTextureSubresource(const std::shared_ptr<Texture>& _texture, uint32_t _firstSubresource, uint32_t _numSubresource, D3D12_SUBRESOURCE_DATA* _subresourceData)
 {
-	auto device = Application::Get().GetDevice();
+	assert(_texture);
+
+	auto device = m_Device.GetD3D12Device();
 	//GPU中的目标地址
-	auto destinationResource = _texture.GetResource();
+	auto destinationResource = _texture->GetResource();
 
 	if (destinationResource)
 	{
@@ -312,29 +335,38 @@ void CommandList::CopyTextureSubresource(Texture& _texture, uint32_t _firstSubre
 		//将像素数据复制到目标纹理
 		UpdateSubresources(m_CommandList.Get(), destinationResource.Get(), intermediateResource.Get(), 0, _firstSubresource, _numSubresource, _subresourceData);
 
-		TrackObject(intermediateResource);
-		TrackObject(destinationResource);
+		TrackResource(intermediateResource);
+		TrackResource(destinationResource);
 	}
 }
 
-void CommandList::ClearTexture(const Texture& _texture, const float _clearColor[4])
+void CommandList::ClearTexture(const std::shared_ptr<Texture>& _texture, const float _clearColor[4])
 {
-	TransitionBarrier(_texture, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	m_CommandList->ClearRenderTargetView(_texture.GetRenderTargetView(), _clearColor, 0, nullptr);
+	assert(_texture);
+
+	TransitionBarrier(_texture, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, true);
+	m_CommandList->ClearRenderTargetView(_texture->GetRenderTargetView(), _clearColor, 0, nullptr);
 
 	TrackResource(_texture);
 }
 
-void CommandList::ClearDepthStencilTexture(const Texture& _texture, D3D12_CLEAR_FLAGS _clearFlags, float _depth /*= 1.0f*/, uint8_t _stencil /*= 0*/)
+void CommandList::ClearDepthStencilTexture(const std::shared_ptr<Texture>& _texture, D3D12_CLEAR_FLAGS _clearFlags, float _depth /*= 1.0f*/, uint8_t _stencil /*= 0*/)
 {
-	TransitionBarrier(_texture, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-	m_CommandList->ClearDepthStencilView(_texture.GetDepthStencilView(), _clearFlags, _depth, _stencil, 0, nullptr);
+	assert(_texture);
+
+	TransitionBarrier(_texture, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, true);
+	m_CommandList->ClearDepthStencilView(_texture->GetDepthStencilView(), _clearFlags, _depth, _stencil, 0, nullptr);
 
 	TrackResource(_texture);
 }
 
-void CommandList::GenerateMips(Texture& _texture)
+void CommandList::GenerateMips(const std::shared_ptr<Texture>& _texture)
 {
+	if (!_texture)
+	{
+		return;
+	}
+
 	//如果当前命令列表时复制命令列表
 	//检索计算命令列表
 	//在计算命令列表上执行该操作
@@ -347,8 +379,9 @@ void CommandList::GenerateMips(Texture& _texture)
 		m_ComputerCommandList->GenerateMips(_texture);
 		return;
 	}
+
 	//获取资源
-	auto resource = _texture.GetResource();
+	auto resource = _texture->GetResource();
 
 	//如果底层资源无效，返回
 	if (!resource)
@@ -377,7 +410,7 @@ void CommandList::GenerateMips(Texture& _texture)
 
 	//检查是否支持UAV加载和存储纹理
 	//如果不支持，生成一个支持的临时资源
-	if (!_texture.CheckUAVSupport() || (resDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) == 0)
+	if (!_texture->CheckUAVSupport() || (resDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) == 0)
 	{
 		auto device = Application::Get().GetDevice();
 
@@ -413,7 +446,7 @@ void CommandList::GenerateMips(Texture& _texture)
 		ThrowIfFailed(device->CreateHeap(&heapDesc, IID_PPV_ARGS(&heap)));
 
 		//追踪资源，确保资源在命令队列上执行之前不被释放
-		TrackObject(heap);
+		TrackResource(heap);
 
 		//创建与原始资源描述匹配的放置资源
 		//用于将原始资源复制到兼容UAV的资源
@@ -428,7 +461,7 @@ void CommandList::GenerateMips(Texture& _texture)
 		ResourceStateTracker::AddGlobalResourceState(aliasResource.Get(), D3D12_RESOURCE_STATE_COMMON);
 
 		//追踪资源
-		TrackObject(aliasResource);
+		TrackResource(aliasResource);
 
 		//创建一个兼容UAV的资源，和别名资源在同一个堆中
 		ThrowIfFailed(device->CreatePlacedResource(heap.Get(),
@@ -442,7 +475,7 @@ void CommandList::GenerateMips(Texture& _texture)
 		ResourceStateTracker::AddGlobalResourceState(uavResource.Get(), D3D12_RESOURCE_STATE_COMMON);
 
 		//追踪资源
-		TrackObject(uavResource);
+		TrackResource(uavResource);
 
 		//添加一个别名屏障，使别名资源处于活动状态
 		AliasingBarrier(nullptr, aliasResource);
@@ -455,8 +488,8 @@ void CommandList::GenerateMips(Texture& _texture)
 	}
 
 	//使用一个UAV兼容的资源生成Mips
-	Texture t(uavResource, _texture.GetTextureUsage());
-	GenerateMips_UAV(t, resDesc.Format);
+	auto t = m_Device.CreateTexture(uavResource);
+	GenerateMips_UAV(t, Texture::IsSRGBFormat(resDesc.Format));
 
 	if (aliasResource)
 	{
@@ -468,8 +501,9 @@ void CommandList::GenerateMips(Texture& _texture)
 	}
 }
 
-void CommandList::PanoToCubeMap(Texture& _cubeMap, const Texture& _pano)
+void CommandList::PanoToCubeMap(const std::shared_ptr<Texture>& _cubeMap, const std::shared_ptr<Texture>& _pano)
 {
+	assert(_cubeMap && _pano);
 	//如果当前命令列表时复制命令列表
 //检索计算命令列表
 //在计算命令列表上执行该操作
@@ -485,12 +519,10 @@ void CommandList::PanoToCubeMap(Texture& _cubeMap, const Texture& _pano)
 
 	if (!m_PanoToCubemapPSO)
 	{
-		m_PanoToCubemapPSO = std::make_unique<PanoToCubemapPSO>();
+		m_PanoToCubemapPSO = std::make_unique<PanoToCubemapPSO>(m_Device);
 	}
 
-	auto device = Application::Get().GetDevice();
-
-	auto cubemapResource = _cubeMap.GetResource();
+	auto cubemapResource = _cubeMap->GetResource();
 	if (!cubemapResource)
 	{
 		return;
@@ -499,7 +531,7 @@ void CommandList::PanoToCubeMap(Texture& _cubeMap, const Texture& _pano)
 	CD3DX12_RESOURCE_DESC cubemapDesc(cubemapResource->GetDesc());
 
 	auto stagingResource = cubemapResource;
-	Texture stagingTexture(stagingResource);
+	auto stagingTexture = m_Device.CreateTexture(stagingResource);
 	//如果传入的资源不支持UAV访问，则生成一个用于生成的中间资源
 	if ((cubemapDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) == 0)
 	{
@@ -507,6 +539,8 @@ void CommandList::PanoToCubeMap(Texture& _cubeMap, const Texture& _pano)
 		auto stragingDesc = cubemapDesc;
 		stragingDesc.Format = Texture::GetUAVCompatableFormat(cubemapDesc.Format);
 		stragingDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+		auto device = m_Device.GetD3D12Device();
 
 		//创建资源
 		auto p = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
@@ -522,9 +556,8 @@ void CommandList::PanoToCubeMap(Texture& _cubeMap, const Texture& _pano)
 		ResourceStateTracker::AddGlobalResourceState(stagingResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
 
 		//设置贴图
-		stagingTexture.SetResource(stagingResource);
-		stagingTexture.CreateViews();
-		stagingTexture.SetName(L"PanoToCubemap");
+		stagingTexture = m_Device.CreateTexture(stagingResource);
+		stagingTexture->SetName(L"PanoToCubemap");
 
 		//将原贴图的资源拷贝到临时资源
 		CopyResource(stagingTexture, _cubeMap);
@@ -534,7 +567,7 @@ void CommandList::PanoToCubeMap(Texture& _cubeMap, const Texture& _pano)
 	TransitionBarrier(stagingTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	//设置PSO和根签名
-	m_CommandList->SetPipelineState(m_PanoToCubemapPSO->GetPSO().Get());
+	SetPipelineState(m_PanoToCubemapPSO->GetPSO());
 	SetComputerRootSignature(m_PanoToCubemapPSO->GetRootSignature());
 
 	//着色器所需的常量数据
@@ -546,6 +579,9 @@ void CommandList::PanoToCubeMap(Texture& _cubeMap, const Texture& _pano)
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
 	uavDesc.Texture2DArray.FirstArraySlice = 0;
 	uavDesc.Texture2DArray.ArraySize = 6;
+
+	auto srv = m_Device.CreateShaderResourceView(_pano);
+	SetShaderResourceView(PanoToCubemapRS::SrcTexture, 0, srv, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 	//开始计算
 	for (uint32_t mipSlics = 0; mipSlics < cubemapDesc.MipLevels;)
@@ -559,14 +595,14 @@ void CommandList::PanoToCubeMap(Texture& _cubeMap, const Texture& _pano)
 		panoToCubemapCB.NumMips = numMips;
 		SetComputer32BitConstants(PanoToCubemapRS::PanoToCubemapCB, panoToCubemapCB);
 
-		//设置SRV
-		SetShaderResourceView(PanoToCubemapRS::SrcTexture, 0, _pano, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
 		//设置UAV
 		for (uint32_t mip = 0; mip < numMips; ++mip)
 		{
 			uavDesc.Texture2DArray.MipSlice = mipSlics + mip;
-			SetUnorderedAccessView(PanoToCubemapRS::DstMips, mip, stagingTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0, 0, &uavDesc);
+
+			auto uav = m_Device.CreateUnorderedAccessView(stagingTexture, nullptr, &uavDesc);
+
+			SetUnorderedAccessView(PanoToCubemapRS::DstMips, mip, uav, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0, 0);
 		}
 
 		//如果需要生成的mip数量小于五个，使用默认资源填充
@@ -638,26 +674,39 @@ void CommandList::SetDynamicVertexBuffer(uint32_t _slot, size_t _numVertices, si
 	m_CommandList->IASetVertexBuffers(_slot, 1, &vbv);
 }
 
-void CommandList::SetVertexBuffer(uint32_t _slot, const VertexBuffer& _vertexBufffer)
+void CommandList::SetVertexBuffer(uint32_t _slot, const std::vector<std::shared_ptr<VertexBuffer>>& _vertexBufffer)
 {
-	TransitionBarrier(_vertexBufffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+	std::vector<D3D12_VERTEX_BUFFER_VIEW> views;
+	views.reserve(_vertexBufffer.size());
 
-	auto vbv = _vertexBufffer.GetVertexBufferView();
+	for (auto vb :_vertexBufffer)
+	{
+		if (vb)
+		{
+			TransitionBarrier(vb, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+			TrackResource(vb);
 
-	m_CommandList->IASetVertexBuffers(_slot, 1, &vbv);
+			views.push_back(vb->GetVertexBufferView());
 
-	TrackResource(_vertexBufffer);
+		}
+	}
+	m_CommandList->IASetVertexBuffers(_slot, views.size(), views.data());
 }
 
-void CommandList::SetIndexBuffer(const IndexBuffer& _indexBuffer)
+void CommandList::SetVertexBuffer(uint32_t _slot, const std::shared_ptr<VertexBuffer>& _vertexBufffer)
 {
-	TransitionBarrier(_indexBuffer, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+	SetVertexBuffer(_slot, { _vertexBufffer });
+}
 
-	auto ibv = _indexBuffer.GetIndexBufferView();
-
-	m_CommandList->IASetIndexBuffer(&ibv);
-
-	TrackResource(_indexBuffer);
+void CommandList::SetIndexBuffer(const std::shared_ptr<IndexBuffer>& _indexBuffer)
+{
+	if (_indexBuffer)
+	{
+		TransitionBarrier(_indexBuffer, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+		TrackResource(_indexBuffer);
+		auto y = _indexBuffer->GetIndexBufferView();
+		m_CommandList->IASetIndexBuffer(&y);
+	}
 }
 
 void CommandList::SetDynamicIndexBuffer(size_t _numIndicies, DXGI_FORMAT _indexFormat, const void* _indexxBufferData)
@@ -715,16 +764,25 @@ void CommandList::SetScissorRects(const std::vector<D3D12_RECT>& _rects)
 	m_CommandList->RSSetScissorRects(static_cast<UINT>(_rects.size()), _rects.data());
 }
 
-void CommandList::SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> _pso)
+void CommandList::SetPipelineState(const std::shared_ptr<PipelineStateObject>& _pso)
 {
-	m_CommandList->SetPipelineState(_pso.Get());
+	assert(_pso);
 
-	TrackObject(_pso);
+	auto pso = _pso->GetD3D12PipelineState().Get();
+
+	if (m_PSO != pso)
+	{
+		m_PSO = pso;
+		m_CommandList->SetPipelineState(pso);
+		TrackResource(pso);
+	}
 }
 
-void CommandList::SetGraphicsRootSignature(const dx12lib::RootSignature& _rootSignature)
+void CommandList::SetGraphicsRootSignature(const std::shared_ptr<RootSignature>& _rootSignature)
 {
-	auto rs = _rootSignature.GetRootSignature().Get();
+	assert(_rootSignature);
+
+	auto rs = _rootSignature->GetRootSignature().Get();
 	if (m_RootSignature != rs)
 	{
 		m_RootSignature = rs;
@@ -736,14 +794,16 @@ void CommandList::SetGraphicsRootSignature(const dx12lib::RootSignature& _rootSi
 
 		m_CommandList->SetGraphicsRootSignature(m_RootSignature);
 
-		TrackObject(m_RootSignature);
+		TrackResource(m_RootSignature);
 	}
 }
 
 
-void CommandList::SetComputerRootSignature(const dx12lib::RootSignature& _rootSignature)
+void CommandList::SetComputerRootSignature(const std::shared_ptr<RootSignature>& _rootSignature)
 {
-	auto rs = _rootSignature.GetRootSignature().Get();
+	assert(_rootSignature);
+
+	auto rs = _rootSignature->GetRootSignature().Get();
 	if (m_RootSignature != rs)
 	{
 		m_RootSignature = rs;
@@ -755,65 +815,162 @@ void CommandList::SetComputerRootSignature(const dx12lib::RootSignature& _rootSi
 
 		m_CommandList->SetComputeRootSignature(m_RootSignature);
 
-		TrackObject(m_RootSignature);
+		TrackResource(m_RootSignature);
 	}
+}
+		
+void CommandList::SetShaderResourceView(
+	uint32_t _rootParameterIndex, 
+	uint32_t _descriptorOffset, 
+	const std::shared_ptr<ShaderResourceView>& _srv, 
+	D3D12_RESOURCE_STATES _stateAfter /*= D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE*/, 
+	UINT _firstSubresource /*= 0*/, 
+	UINT _numSubresources /*= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES*/)
+{
+	assert(_srv);
+
+	auto resource = _srv->GetResource();
+	if (resource)
+	{
+		if (_numSubresources < D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+		{
+			for (uint32_t i = 0; i < _numSubresources; i++)
+			{
+				TransitionBarrier(resource, _stateAfter, _firstSubresource + i);
+			}
+		}
+		else
+		{
+			TransitionBarrier(resource, _stateAfter);
+		}
+
+		TrackResource(resource);
+	}
+	m_DynamicDescriptorHeap[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];// ->StageDescriptor(_rootParameterIndex, _descriptorOffset, 1, _srv->GetDescriptorHandle());
+	
 }
 
 void CommandList::SetShaderResourceView(
 	uint32_t _rootParameterIndex, 
 	uint32_t _descriptorOffset, 
-	const Resource& _resource, 
+	const std::shared_ptr<Texture>& _texture, 
 	D3D12_RESOURCE_STATES _stateAfter /*= D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE*/, 
 	UINT _firstSubresource /*= 0*/, 
-	UINT _numSubresource /*= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES*/, 
-	const D3D12_SHADER_RESOURCE_VIEW_DESC* _srv /*= nullptr*/)
+	UINT _numSubresources /*= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES*/)
+{
+	if (_texture)
+	{
+		if (_numSubresources < D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+		{
+			for (uint32_t i = 0; i < _numSubresources; i++)
+			{
+				TransitionBarrier(_texture, _stateAfter, _firstSubresource + i);
+			}
+		}
+		else
+		{
+			TransitionBarrier(_texture, _stateAfter);
+		}
+
+		TrackResource(_texture);
+
+		m_DynamicDescriptorHeap[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];// ->StageDescriptor(_rootParameterIndex, _descriptorOffset, 1, _texture->GetShaderResourceView());
+
+	}
+}
+
+void CommandList::SetShaderResourceView(uint32_t _rootParameterIndex, 
+	const std::shared_ptr<Buffer>& _buffer, 
+	D3D12_RESOURCE_STATES _stateAfter /*= D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE*/, 
+	size_t _bufferOffset /*= 0*/)
 {
 	//先转换资源的状态
-	if (_numSubresource < D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+	if (_buffer)
 	{
-		for (uint32_t i = 0; i < _numSubresource; ++i)
-		{
-			TransitionBarrier(_resource, _stateAfter, _firstSubresource + i);
-		}
-	}
-	else
-	{
-		TransitionBarrier(_resource, _stateAfter);
-	}
+		auto resource = _buffer->GetResource();
+		TransitionBarrier(resource, _stateAfter);
 
-	//暂存资源
-	m_DynamicDescriptorHeap[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]->StageDescriptor(_rootParameterIndex, _descriptorOffset, 1, _resource.GetShaderResourceView(_srv));
+		//暂存资源
+		m_DynamicDescriptorHeap[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]->StageInlineSRV(_rootParameterIndex, resource->GetGPUVirtualAddress() + _bufferOffset);
 
-	//追踪资源
-	TrackResource(_resource);
+		//追踪资源
+		TrackResource(resource);
+	}
 }
 
 void CommandList::SetUnorderedAccessView(uint32_t _rootParameterIndex, 
+	const std::shared_ptr<Buffer>& _buffer, 
+	D3D12_RESOURCE_STATES _stateAfter /*= D3D12_RESOURCE_STATE_UNORDERED_ACCESS*/, 
+	size_t _bufferOffset /*= 0*/)
+{
+	if (_buffer)
+	{
+		auto d3d12Resource = _buffer->GetResource();
+		TransitionBarrier(d3d12Resource, _stateAfter);
+
+		m_DynamicDescriptorHeap[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]->StageInlineUAV(_rootParameterIndex, d3d12Resource->GetGPUVirtualAddress() + _bufferOffset);
+
+		TrackResource(_buffer);
+	}
+}
+
+
+void CommandList::SetUnorderedAccessView(uint32_t _rootParameterIndex, 
 	uint32_t _descriptorOffset, 
-	const Resource& _resource, 
+	const std::shared_ptr<Texture>& _texture, UINT _mip, 
 	D3D12_RESOURCE_STATES _stateAfter /*= D3D12_RESOURCE_STATE_UNORDERED_ACCESS*/, 
 	UINT _firstSubresource /*= 0*/, 
-	UINT _numSubresource /*= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES*/, 
-	const D3D12_UNORDERED_ACCESS_VIEW_DESC* _uav /*= nullptr*/)
+	UINT _numSubresources /*= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES*/)
 {
-	//先转换资源的状态
-	if (_numSubresource < D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+	if (_texture)
 	{
-		for (uint32_t i = 0; i < _numSubresource; ++i)
+		if (_numSubresources < D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
 		{
-			TransitionBarrier(_resource, _stateAfter, _firstSubresource + i);
+			for (uint32_t i = 0; i < _numSubresources; ++i)
+			{
+				TransitionBarrier(_texture, _stateAfter, _firstSubresource + i);
+			}
 		}
+		else
+		{
+			TransitionBarrier(_texture, _stateAfter);
+		}
+
+		TrackResource(_texture);
+
+		m_DynamicDescriptorHeap[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]->StageDescriptor(_rootParameterIndex, _descriptorOffset, 1, _texture->GetUnorderedAccessView(_mip));
 	}
-	else
+}
+
+void CommandList::SetUnorderedAccessView(
+	uint32_t _rootParameterIndex, 
+	uint32_t _descriptorOffset, 
+	const std::shared_ptr<UnorderedAccessView>& _uav, 
+	D3D12_RESOURCE_STATES _stateAfter /*= D3D12_RESOURCE_STATE_UNORDERED_ACCESS*/, 
+	UINT _firstSubresource /*= 0*/, 
+	UINT _numSubresources /*= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES*/)
+{
+	assert(_uav);
+
+	auto resource = _uav->GetResource();
+	if (resource)
 	{
-		TransitionBarrier(_resource, _stateAfter);
+		if (_numSubresources < D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+		{
+			for (uint32_t i = 0; i < _numSubresources; ++i)
+			{
+				TransitionBarrier(resource, _stateAfter, _firstSubresource + i);
+			}
+		}
+		else
+		{
+			TransitionBarrier(resource, _stateAfter);
+		}
+
+		TrackResource(resource);
 	}
 
-	//暂存资源
-	m_DynamicDescriptorHeap[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]->StageDescriptor(_rootParameterIndex, _descriptorOffset, 1, _resource.GetUnorderedAccessView(_uav));
-
-	//追踪资源
-	TrackResource(_resource);
+	m_DynamicDescriptorHeap[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]->StageDescriptor(_rootParameterIndex, _descriptorOffset, 1, _uav->GetDescriptorHandle());
 }
 
 void CommandList::SetRenderTarget(const RenderTarget& _renderTarget)
@@ -825,24 +982,24 @@ void CommandList::SetRenderTarget(const RenderTarget& _renderTarget)
 
 	for (int i = 0; i < 8; i++)
 	{
-		auto& texture = textures[i];
+		auto texture = textures[i];
 
-		if (texture.IsVaild())
+		if (texture)
 		{
 			TransitionBarrier(texture, D3D12_RESOURCE_STATE_RENDER_TARGET);
-			rtDescriptor.push_back(texture.GetRenderTargetView());
+			rtDescriptor.push_back(texture->GetRenderTargetView());
 
 			TrackResource(texture);
 		}
 	}
 
-	const auto& depthTexture = _renderTarget.GetTexture(AttachmentPoint::DepthStencil);
+	auto depthTexture = _renderTarget.GetTexture(AttachmentPoint::DepthStencil);
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE dsDescriptor(D3D12_DEFAULT);
-	if (depthTexture.GetResource())
+	if (depthTexture)
 	{
 		TransitionBarrier(depthTexture, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-		dsDescriptor = depthTexture.GetDepthStencilView();
+		dsDescriptor = depthTexture->GetDepthStencilView();
 
 		TrackResource(depthTexture);
 	}
@@ -953,40 +1110,42 @@ void CommandList::SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE _type, ID3D12Desc
 	}
 }
 
-void CommandList::TrackObject(Microsoft::WRL::ComPtr<ID3D12Object> _object)
+void CommandList::TrackResource(Microsoft::WRL::ComPtr<ID3D12Object> _object)
 {
 	m_TrackedObjects.push_back(_object);
 }
 
-void CommandList::TrackResource(const Resource& _res)
+void CommandList::TrackResource(const std::shared_ptr<Resource>& _res)
 {
-	TrackObject(_res.GetResource());
+	assert(_res);
+	TrackResource(_res->GetResource());
 }
 
-void CommandList::GenerateMips_UAV(Texture& _texture, DXGI_FORMAT _format)
+void CommandList::GenerateMips_UAV(const std::shared_ptr<Texture>& _texture, bool _isRGB)
 {
 	//检查PSO是否存在，没有就创建一个
 	if (!m_GenerateMipsPSO)
 	{
-		m_GenerateMipsPSO = std::make_unique<GenerateMipsPSO>();
+		m_GenerateMipsPSO = std::make_unique<GenerateMipsPSO>(m_Device);
 	}
 
 	//设置PSO和根签名
-	m_CommandList->SetPipelineState(m_GenerateMipsPSO->GetPSO().Get());
-	auto root = m_GenerateMipsPSO->GetRootSignature();
-	SetComputerRootSignature(root);
+	SetPipelineState(m_GenerateMipsPSO->GetPSO());
+	SetComputerRootSignature(m_GenerateMipsPSO->GetRootSignature());
 
 	GenerateMipsCB generateMipsCB;
-	generateMipsCB.IsSRGB = Texture::IsSRGBFormat(_format);
+	generateMipsCB.IsSRGB = _isRGB;
 
-	auto res = _texture.GetResource();
-	auto resDesc = _texture.GetResourceDesc();
+	auto res = _texture->GetResource();
+	auto resDesc = _texture->GetResourceDesc();
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Format = _format;
+	srvDesc.Format =_isRGB ? Texture::GetSRGBFormat(resDesc.Format) : resDesc.Format;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = resDesc.MipLevels;
+
+	auto srv = m_Device.CreateShaderResourceView(_texture, &srvDesc);
 
 	for (uint32_t srcMip = 0; srcMip < resDesc.MipLevels - 1u;)
 	{
@@ -1021,7 +1180,7 @@ void CommandList::GenerateMips_UAV(Texture& _texture, DXGI_FORMAT _format)
 		SetComputer32BitConstants(GenerateMips::GenerateMipsCB, generateMipsCB);
 
 		//设置SRV
-		SetShaderResourceView(GenerateMips::SrcMip, 0, _texture, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, srcMip, 1, &srvDesc);
+		SetShaderResourceView(GenerateMips::SrcMip, 0, srv, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, srcMip, 1);
 
 		//设置UAV
 		for (uint32_t mip = 0; mip < mipCount; mip++)
@@ -1031,7 +1190,8 @@ void CommandList::GenerateMips_UAV(Texture& _texture, DXGI_FORMAT _format)
 			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 			uavDesc.Texture2D.MipSlice = srcMip + mip + 1;
 
-			SetUnorderedAccessView(GenerateMips::OutMip, mip, _texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, srcMip + mip + 1, 1, &uavDesc);
+			auto uav = m_Device.CreateUnorderedAccessView(_texture, nullptr, &uavDesc);
+			SetUnorderedAccessView(GenerateMips::OutMip, mip, uav, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, srcMip + mip + 1, 1);
 		}
 
 		//如果生成的MIPS数小于4，则未使用的mip都应该使用默认UAV填充
@@ -1061,14 +1221,12 @@ void CommandList::GenerateMips_sRGB(Texture& _texture)
 
 }
 
-void CommandList::CopyBuffer(Buffer& _buffer, size_t _numElements, size_t _elementSize, const void* _bufferData, D3D12_RESOURCE_FLAGS _flags /*= D3D12_RESOURCE_FLAG_NONE*/)
+Microsoft::WRL::ComPtr<ID3D12Resource> CommandList::CopyBuffer(size_t _bufferSzie, const void* _bufferData, D3D12_RESOURCE_FLAGS _flags /*= D3D12_RESOURCE_FLAG_NONE*/)
 {
-	auto device = Application::Get().GetDevice();
-
-	size_t bufferSize = _numElements * _elementSize;
+	auto device = m_Device.GetD3D12Device();
 
 	ComPtr<ID3D12Resource> d3d12Resource;
-	if (bufferSize == 0)
+	if (_bufferSzie == 0)
 	{
 		//这将导致一个空的资源，可能需要设置一个默认的资源
 	}
@@ -1076,7 +1234,7 @@ void CommandList::CopyBuffer(Buffer& _buffer, size_t _numElements, size_t _eleme
 	{
 		//创建一个默认堆中的资源
 		auto p = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-		auto o = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, _flags);
+		auto o = CD3DX12_RESOURCE_DESC::Buffer(_bufferSzie, _flags);
 			ThrowIfFailed(device->CreateCommittedResource(
 				&p,
 				D3D12_HEAP_FLAG_NONE,
@@ -1093,7 +1251,7 @@ void CommandList::CopyBuffer(Buffer& _buffer, size_t _numElements, size_t _eleme
 			//创建一个上传堆中的资源
 			ComPtr<ID3D12Resource> uploadResource;
 			p = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-			auto i = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
+			auto i = CD3DX12_RESOURCE_DESC::Buffer(_bufferSzie);
 			ThrowIfFailed(device->CreateCommittedResource(
 				&p,
 				D3D12_HEAP_FLAG_NONE,
@@ -1104,7 +1262,7 @@ void CommandList::CopyBuffer(Buffer& _buffer, size_t _numElements, size_t _eleme
 
 			D3D12_SUBRESOURCE_DATA subresourceDate = {};
 			subresourceDate.pData = _bufferData;
-			subresourceDate.RowPitch = bufferSize;
+			subresourceDate.RowPitch = _bufferSzie;
 			subresourceDate.SlicePitch = subresourceDate.RowPitch;
 
 			//转换资源状态
@@ -1115,14 +1273,13 @@ void CommandList::CopyBuffer(Buffer& _buffer, size_t _numElements, size_t _eleme
 			UpdateSubresources(m_CommandList.Get(), d3d12Resource.Get(), uploadResource.Get(), 0, 0, 1, &subresourceDate);
 
 			//确保资源在操作完成钱不被释放
-			TrackObject(uploadResource);
+			TrackResource(uploadResource);
 		}
 		//确保资源在操作完成钱不被释放
-		TrackObject(d3d12Resource);
+		TrackResource(d3d12Resource);
 	}
 
-	_buffer.SetResource(d3d12Resource);
-	//_buffer.CreateViews(_numElements, _elementSize);
+	return d3d12Resource;
 }
 
 void CommandList::BindDescriptorHeaps()

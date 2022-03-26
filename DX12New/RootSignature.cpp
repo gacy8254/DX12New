@@ -1,8 +1,9 @@
 #include "RootSignature.h"
 #include "D3D12LibPCH.h"
 #include "Application.h"
+#include "Device.h"
 
-uint32_t dx12lib::RootSignature::GteDescriptorTableBitMask(D3D12_DESCRIPTOR_HEAP_TYPE _type) const
+uint32_t RootSignature::GteDescriptorTableBitMask(D3D12_DESCRIPTOR_HEAP_TYPE _type) const
 {
 	uint32_t bitMask = 0;
 	switch (_type)
@@ -17,29 +18,18 @@ uint32_t dx12lib::RootSignature::GteDescriptorTableBitMask(D3D12_DESCRIPTOR_HEAP
 	return bitMask;
 }
 
-uint32_t dx12lib::RootSignature::GetNumDescriptors(uint32_t _rootIndex) const
+uint32_t RootSignature::GetNumDescriptors(uint32_t _rootIndex) const
 {
 	assert(_rootIndex < 32);
 	return m_NumDescriptorPerTable[_rootIndex];
 }
 
-dx12lib::RootSignature::RootSignature(const D3D12_ROOT_SIGNATURE_DESC1& _rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION _rootSignatureVersion)
-	:m_NumDescriptorPerTable{0}, m_RootSignatureDesc{}
+RootSignature::~RootSignature()
 {
-	SetRootSignatureDesc(_rootSignatureDesc, _rootSignatureVersion);
+	Destroy();
 }
 
-dx12lib::RootSignature::RootSignature()
-	: m_NumDescriptorPerTable{ 0 }, m_RootSignatureDesc{}
-{
-}
-
-dx12lib::RootSignature::~RootSignature()
-{
-
-}
-
-void dx12lib::RootSignature::Destroy()
+void RootSignature::Destroy()
 {
 	for (UINT i = 0; i < m_RootSignatureDesc.NumParameters; i++)
 	{
@@ -58,15 +48,18 @@ void dx12lib::RootSignature::Destroy()
 	m_RootSignatureDesc.pStaticSamplers = nullptr;
 	m_RootSignatureDesc.NumStaticSamplers = 0;
 
+	m_SmaplerTableBitMask = 0;
+	m_DescriptorTableBitMask = 0;
+
 	memset(m_NumDescriptorPerTable, 0, sizeof(m_NumDescriptorPerTable));
 }
 
-void dx12lib::RootSignature::SetRootSignatureDesc(const D3D12_ROOT_SIGNATURE_DESC1& _rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION _rootSignatureVersion)
+void RootSignature::SetRootSignatureDesc(const D3D12_ROOT_SIGNATURE_DESC1& _rootSignatureDesc)
 {
 	//确保先前分配的根签名描述已经被清理
 	Destroy();
 
-	auto device = Application::Get().GetDevice();
+	auto device = m_Device.GetD3D12Device();
 
 	//根参数的数量
 	UINT numParameters = _rootSignatureDesc.NumParameters;
@@ -143,10 +136,22 @@ void dx12lib::RootSignature::SetRootSignatureDesc(const D3D12_ROOT_SIGNATURE_DES
 	Microsoft::WRL::ComPtr<ID3DBlob> rootSignatureBlob;
 	Microsoft::WRL::ComPtr<ID3DBlob> errorBlob;
 
+	D3D_ROOT_SIGNATURE_VERSION highestVersion = m_Device.GetHighestRootSignatureVersion();
+
 	//序列化
-	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&versionRootSignatureDesc, _rootSignatureVersion, &rootSignatureBlob, &errorBlob));
+	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&versionRootSignatureDesc, highestVersion, &rootSignatureBlob, &errorBlob));
 
 	//创建根签名
 	ThrowIfFailed(device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)));
 
+}
+
+RootSignature::RootSignature(Device& _device, const D3D12_ROOT_SIGNATURE_DESC1& _rootSignatureDesc)
+	:m_Device(_device),
+	m_RootSignatureDesc{},
+	m_NumDescriptorPerTable{0},
+	m_SmaplerTableBitMask(0),
+	m_DescriptorTableBitMask(0)
+{
+	SetRootSignatureDesc(_rootSignatureDesc);
 }

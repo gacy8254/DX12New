@@ -56,7 +56,7 @@ std::shared_ptr<CommandList> CommandQueue::GetCommandList()
 	}
 	else
 	{
-		commandList = std::make_shared<CommandList>(m_CommandListType);
+		commandList = std::make_shared<CommandList>(m_Device, m_CommandListType);
 	}
 
 	return commandList;

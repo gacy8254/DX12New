@@ -24,21 +24,23 @@ namespace PanoToCubemapRS
 	};
 }
 
+class PipelineStateObject;
+class Device;
 
 class PanoToCubemapPSO
 {
 public:
-	PanoToCubemapPSO();
+	PanoToCubemapPSO(Device& _device);
 
-	const dx12lib::RootSignature& GetRootSignature() const { return m_RootSignature; }
+	std::shared_ptr<RootSignature> GetRootSignature() const { return m_RootSignature; }
 
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> GetPSO() const { return m_PSO; }
+	std::shared_ptr<PipelineStateObject> GetPSO() const { return m_PSO; }
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetDefaultUAV() const { return m_DefaultUAV.GetDescriptorHandle(); }
 
 private:
-	dx12lib::RootSignature m_RootSignature;
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PSO;
+	std::shared_ptr<RootSignature> m_RootSignature;
+	std::shared_ptr<PipelineStateObject> m_PSO;
 
 	DescriptorAllocation m_DefaultUAV;
 
