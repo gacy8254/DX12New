@@ -47,6 +47,15 @@ using namespace Microsoft::WRL;
 #include <thread>
 #include <vector>
 
+// Assimp header files.
+#include <assimp/Exporter.hpp>
+#include <assimp/Importer.hpp>
+#include <assimp/ProgressHandler.hpp>
+#include <assimp/anim.h>
+#include <assimp/mesh.h>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+
 #if defined( __cpp_lib_filesystem )
 namespace fs = std::filesystem;
 #else

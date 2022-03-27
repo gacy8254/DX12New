@@ -9,12 +9,12 @@
 
 class RootSignature;
 class CommandList;
-
+class Device;
 
 class DynamicDescriptorHeap
 {
 public:
-	DynamicDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptor = 1024);
+	DynamicDescriptorHeap(Device& _device, D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptor = 1024);
 
 	virtual ~DynamicDescriptorHeap();
 
@@ -29,6 +29,12 @@ public:
 	//将描述符提交到GPU可见的描述符堆
 	//不应该直接调用该方法
 	void CommitStagedDescriptors(CommandList& _commandList, std::function<void(ID3D12GraphicsCommandList*, UINT, D3D12_GPU_DESCRIPTOR_HANDLE)> _setFunc);
+	//提交一个内联描述符
+	void CommitInlineDescriptor(CommandList& _commandList, 
+		const D3D12_GPU_VIRTUAL_ADDRESS* _bufferLocation, 
+		uint32_t& _bitMask, 
+		std::function<void(ID3D12GraphicsCommandList*, UINT, D3D12_GPU_VIRTUAL_ADDRESS)> _setFunc);
+
 	//将描述符绑定到图形管线  ID3D12GraphicsCommandList::SetGraphicsRootDescriptorTable
 	void CommitStagedDescriptorsForDraw(CommandList& _commandList);
 	//将描述符绑定到计算管线  ID3D12GraphicsCommandList::SetComputeRootDescriptorTable
@@ -62,6 +68,9 @@ private:
 
 	//计算需要复制到GPU描述符堆的CPU描述符数量
 	uint32_t ComputerStaleDescriptorCount()const;
+
+
+	Device& m_Device;
 
 	//根签名中可以存在的描述符表的最大数量
 	static const uint32_t MaxDescriptorTables = 32;

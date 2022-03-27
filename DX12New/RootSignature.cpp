@@ -1,6 +1,5 @@
 #include "RootSignature.h"
 #include "D3D12LibPCH.h"
-#include "Application.h"
 #include "Device.h"
 
 uint32_t RootSignature::GteDescriptorTableBitMask(D3D12_DESCRIPTOR_HEAP_TYPE _type) const

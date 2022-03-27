@@ -60,6 +60,11 @@ public:
 
     bool HasAlpha() const;
 
+    /**
+   * Check the number of bits per pixel.
+   */
+    size_t BitsPerPixel() const;
+
     static bool IsUAVCompatibleFormat(DXGI_FORMAT format);
     static bool IsSRGBFormat(DXGI_FORMAT format);
     static bool IsBGRFormat(DXGI_FORMAT format);

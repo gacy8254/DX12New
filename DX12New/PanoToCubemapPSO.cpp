@@ -1,6 +1,5 @@
 #include "PanoToCubemapPSO.h"
 #include "D3D12LibPCH.h"
-#include "Application.h"
 #include "d3dx12.h"
 #include "PanoToCubemap_CS.h"
 #include "Device.h"

@@ -1,12 +1,11 @@
 #include "DescriptorAllocatorPage.h"
 #include "D3D12LibPCH.h"
+#include "Device.h"
 
-#include "Application.h"
-
-DescriptorAllocatorPage::DescriptorAllocatorPage(D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptorPerHeap)
-	:m_Type(_type), m_NumDescriptorsInHeap(_numDescriptorPerHeap)
+DescriptorAllocatorPage::DescriptorAllocatorPage(Device& _device, D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptorPerHeap)
+	:m_Type(_type), m_NumDescriptorsInHeap(_numDescriptorPerHeap), m_Device(_device)
 {
-	auto device = Application::Get().GetDevice();
+	auto device = m_Device.GetD3D12Device();
 
 	//¶ÑµÄÃèÊö
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};

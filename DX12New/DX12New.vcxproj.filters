@@ -120,9 +120,6 @@
     <ClCompile Include="Lesson3.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Mesh.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Vector.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -132,40 +129,52 @@
     <ClCompile Include="BaseCamera.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Device.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Adapter.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="SwapChain.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="GUI.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="PipelineStateStream.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="PipelineStateObject.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="ConstantBufferView.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ShaderResourceView.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="UnorderedAccessView.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Visitor.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Scene.cpp">
+    <ClCompile Include="Lesson5.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Adapter.cpp">
+      <Filter>Common\Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="Device.cpp">
+      <Filter>Common\Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="Mesh.cpp">
+      <Filter>Common\Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="PipelineStateObject.cpp">
+      <Filter>Common\Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="ShaderResourceView.cpp">
+      <Filter>Common\Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="SwapChain.cpp">
+      <Filter>Common\Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="UnorderedAccessView.cpp">
+      <Filter>Common\Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="VertexType.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="MeshHelper.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="SceneNode.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -275,9 +284,6 @@
     <ClInclude Include="Lesson3.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Mesh.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="TextureUsage.hpp">
       <Filter>Common\Head</Filter>
     </ClInclude>
@@ -299,31 +305,10 @@
     <ClInclude Include="BaseCamera.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Device.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Adapter.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="SwapChain.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="GUI.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="PipelineStateStream.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="PipelineStateObject.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ConstantBufferView.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ShaderResourceView.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="UnorderedAccessView.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="signals.hpp">
@@ -335,10 +320,43 @@
     <ClInclude Include="Visitor.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Scene.h">
+    <ClInclude Include="Lesson5.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Adapter.h">
+      <Filter>Common\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="Device.h">
+      <Filter>Common\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="Mesh.h">
+      <Filter>Common\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="PipelineStateObject.h">
+      <Filter>Common\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderResourceView.h">
+      <Filter>Common\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="SwapChain.h">
+      <Filter>Common\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="UnorderedAccessView.h">
+      <Filter>Common\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="ConstantBufferView.h">
+      <Filter>Common\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="VertexType.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MeshHelper.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="SceneNode.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

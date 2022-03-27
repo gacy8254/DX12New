@@ -111,7 +111,7 @@ protected:
 
 	friend class Application;
 
-	Window(HWND _hwnd, const std::wstring& _windowName, int _width, int _height, bool _vsync);
+	Window(HWND _hwnd, const std::wstring& _windowName, int _width, int _height);
 	virtual ~Window();
 
 	//更新和绘制函数仅仅会被Application调用
@@ -133,9 +133,9 @@ protected:
 	virtual void OnDPIScaaleChanged(DPIScaleEventArgs& _e);
 
 	//键盘聚焦在窗口
-	virtual void OnKetboardFocus(EventArgs& _e);
+	virtual void OnKeyboardFocus(EventArgs& _e);
 	//丢失键盘
-	virtual void OnKetboardBlur(EventArgs& _e);
+	virtual void OnKeyboardBlur(EventArgs& _e);
 
 	//鼠标进入窗口
 	virtual void OnMouseEnter(MouseMotionEventArgs& _e);

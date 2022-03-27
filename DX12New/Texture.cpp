@@ -1,8 +1,5 @@
 #include "D3D12LibPCH.h"
-
 #include "Texture.h"
-
-#include "Application.h"
 #include "helpers.h"
 #include "ResourceStateTracker.h"
 #include "ShaderResourceView.h"
@@ -52,7 +49,6 @@ void Texture::Resize(uint32_t width, uint32_t height, uint32_t depthOrArraySize)
 		m_Resource->SetName(m_Name.c_str());
 
 		ResourceStateTracker::AddGlobalResourceState(m_Resource.Get(), D3D12_RESOURCE_STATE_COMMON);
-
 		CreateViews();
 	}
 }
@@ -223,6 +219,12 @@ bool Texture::HasAlpha() const
 	}
 
 	return hasAlpha;
+}
+
+size_t Texture::BitsPerPixel() const
+{
+	auto format = GetResourceDesc().Format;
+	return DirectX::BitsPerPixel(format);
 }
 
 bool Texture::IsUAVCompatibleFormat(DXGI_FORMAT format)

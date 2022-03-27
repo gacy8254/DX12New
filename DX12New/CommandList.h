@@ -7,8 +7,14 @@
 #include <mutex>
 #include <vector>
 
+#include "Scene.h"
+
 #include "TextureUsage.hpp"
 #include "RootSignature.h"
+#include "Mesh.h"
+#include "MeshHelper.h"
+#include "SceneNode.h"
+#include <functional>
 
 class Buffer;
 class ByteAddressBuffer;
@@ -35,6 +41,9 @@ class CommandList
 public:
 	CommandList(Device& _device, D3D12_COMMAND_LIST_TYPE _type);
 	virtual ~CommandList();
+
+	using VertexCollection = std::vector<VertexPositionNormalTangentBitangentTexture>;
+	using IndexCollection = std::vector<uint16_t>;
 
 	//获取命令列表的类型
 	D3D12_COMMAND_LIST_TYPE GetCommandListType() const { return m_CommandListType; }
@@ -70,7 +79,7 @@ public:
 	void CopyResource(Microsoft::WRL::ComPtr<ID3D12Resource> _dstRes, Microsoft::WRL::ComPtr<ID3D12Resource> _srcRes);
 
 	//将一个多重采样资源解析为非多重采样的资源
-	void ResolveSubresource(Resource& _detRes, const Resource& _srcRes, uint32_t _detSubresource = 0, uint32_t _srcSubresource = 0);
+	void ResolveSubresource(const std::shared_ptr<Resource>& _detRes, const std::shared_ptr<Resource>& _srcRes, uint32_t _detSubresource = 0, uint32_t _srcSubresource = 0);
 
 	//将内容拷贝到GPU中的顶点缓冲区
 	std::shared_ptr<VertexBuffer> CopyVertexBuffer(size_t _numVertices, size_t _vertexStride, const void* _vertexBufferData);
@@ -83,7 +92,7 @@ public:
 	//将内容拷贝到GPU中的索引缓冲区
 	std::shared_ptr<IndexBuffer> CopyIndexBuffer(size_t _numIndicies, DXGI_FORMAT _indexFormat, const void* _indexBufferData);
 	template<typename T>
-	std::shared_ptr<IndexBuffer> CopyIndexBuffer(IndexBuffer& _indexBuffer, const std::vector<T>& _indexBufferData)
+	std::shared_ptr<IndexBuffer> CopyIndexBuffer(const std::vector<T>& _indexBufferData)
 	{
 		assert(sizeof(T) == 2 || sizeof(T) == 4);
 
@@ -112,6 +121,11 @@ public:
 
 	//从文件中加载一直贴图
 	std::shared_ptr<Texture> LoadTextureFromFile(const std::wstring& _fileName, bool _sRGB = false);
+
+	//从文件中加载场景
+	std::shared_ptr<Scene> LoadSceneFromFile(const std::wstring& _fileName, const std::function<bool(float)>& _loadingProgress);
+
+	std::shared_ptr<Scene> LoadSceneFromString(const std::string& _sceneString, const std::string& _format);
 
 	//像素数据不能直接复制到目标纹理资源
 	//需要在上传堆中创建一个中间缓冲区
@@ -324,6 +338,12 @@ public:
 	std::shared_ptr<CommandList> GetGenerateMipsCommandList() const { return m_ComputerCommandList; }
 
 private:
+	friend class MeshHelper;
+
+	//创建场景
+	std::shared_ptr<Scene> CreateScene(const VertexCollection& _vertices, const IndexCollection& _indicies);
+
+	//追踪资源
 	void TrackResource(Microsoft::WRL::ComPtr<ID3D12Object> _object);
 	void TrackResource(const std::shared_ptr<Resource>& _res);
 

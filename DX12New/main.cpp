@@ -3,45 +3,47 @@
 #include <Windows.h>
 #include <Shlwapi.h>
 #include <dxgidebug.h>
-#include <iostream>
+
+#include <shellapi.h>
+#include <memory>
 
 #include "Application.h"
-#include "Lesson3.h"
-
-void ReportLiveObjects()
-{
-	IDXGIDebug1* dxgiDebug;
-	DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug));
-
-	dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_IGNORE_INTERNAL);
-	dxgiDebug->Release();
-}
+#include "Device.h"
+#include "Lesson5.h"
 
 int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow)
 {
-	AllocConsole();
-	freopen("conout$", "w", stdout);
-	printf("hello hplonline!-_-\n");
-	freopen("conout$", "w", stderr);
+#if defined(_DEBUG)
+	Device::EnableDebufLayer();
+#endif
+	//设置项目路径
+	WCHAR path[MAX_PATH];
+	int argc = 0;
+	LPWSTR* argv = ::CommandLineToArgvW(lpCmdLine, &argc);
+
+	if (argv)
+	{
+		for (int i = 0; i < argc; i++)
+		{
+			if (::wcscmp(argv[i], L"-wd") == 0)
+			{
+				::wcscpy_s(path, argv[++i]);
+				::SetCurrentDirectoryW(path);
+			}
+		}
+		::LocalFree(argv);
+	}
 
 	int retCode = 0;
 
-	//设置项目路径
-	WCHAR path[MAX_PATH];
-	HMODULE hModule = GetModuleHandleW(NULL);
-	if (GetModuleFileNameW(hModule, path, MAX_PATH) > 0)
-	{
-		PathRemoveFileSpecW(path);
-		SetCurrentDirectoryW(path);
-	}
-
 	Application::Create(hInstance);
-	std::shared_ptr<Lesson3> demo = std::make_shared<Lesson3>(L"Learning DX12", 1280, 720, true);
-	retCode = Application::Get().Run(demo);
-
+	{
+		std::unique_ptr<Lesson5> demo = std::make_unique<Lesson5>(L"Learning DX12", 1280, 720);
+		retCode = demo->Run();
+	}
 	Application::Destroy();
 
-	atexit(&ReportLiveObjects);
+	atexit(&Device::ReportLiveObjects);
 
 	return retCode;
 }

@@ -36,6 +36,12 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h> // For HRESULT
 
+#include <string>
+#include <locale.h>
+#include <comutil.h>
+
+#pragma comment(lib, "comsuppw.lib")
+
   // From DXSampleHelper.h 
   // Source: https://github.com/Microsoft/DirectX-Graphics-Samples
 inline void ThrowIfFailed(HRESULT hr)
@@ -313,7 +319,39 @@ constexpr const T& Clamp(const T& _val, const T& _min, const T& _max)
 	return _val < _min ? _min : _val > _max ? _max : _val;
 }
 
+// Convert a multi-byte character string (UTF-8) to a wide (UTF-16) encoded string.
+inline std::wstring ConvertString( const std::string& string )
+{
+	_bstr_t t = string.c_str();
+	wchar_t* pwchar = (wchar_t*)t;
+	std::wstring result = pwchar;
+	return result;
 
+}
+
+// Converts a wide (UTF-16) encoded string into a multi-byte (UTF-8) character string.
+inline std::string ConvertString( const std::wstring& wstring )
+{
+	_bstr_t t = wstring.c_str();
+	char* pchar = (char*)t;
+	std::string result = pchar;
+	return result;
+}
+
+inline std::wstring to_wstring( const std::string& s )
+{
+    return ConvertString( s );
+}
+
+inline const std::wstring& to_wstring( const std::wstring& s )
+{
+    return s;
+}
+
+inline std::wstring to_wstring( char c )
+{
+    return to_wstring( std::string( 1, c ) );
+}
 
 #define STR1(x) #x
 #define STR(x) STR1(x)

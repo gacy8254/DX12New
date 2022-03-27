@@ -60,7 +60,7 @@ void Window::SetFullScreen(bool _fullScreen)
 	}
 }
 
-Window::Window(HWND _hwnd, const std::wstring& _windowName, int _width, int _height, bool _vsync)
+Window::Window(HWND _hwnd, const std::wstring& _windowName, int _width, int _height)
 	:m_HWND(_hwnd), 
 	m_WindowName(_windowName), 
 	m_Width(_width), 
@@ -80,6 +80,7 @@ Window::Window(HWND _hwnd, const std::wstring& _windowName, int _width, int _hei
 Window::~Window()
 {
 	::DestroyWindow(m_HWND);
+	std::cout << "´°¿ÚÀàÎö¹¹" << std::endl;
 }
 
 void Window::OnUpdate(UpdateEventArgs& _e)
@@ -118,13 +119,13 @@ void Window::OnDPIScaaleChanged(DPIScaleEventArgs& _e)
 	DPIScaleChanged(_e);
 }
 
-void Window::OnKetboardFocus(EventArgs& _e)
+void Window::OnKeyboardFocus(EventArgs& _e)
 {
 	m_bHasKeyboradFocus = true;
 	KeyboardFocus(_e);
 }
 
-void Window::OnKetboardBlur(EventArgs& _e)
+void Window::OnKeyboardBlur(EventArgs& _e)
 {
 	m_bHasKeyboradFocus = false;
 	KeyboardBlur(_e);

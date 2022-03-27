@@ -78,6 +78,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -118,14 +120,14 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Code\assimp\Build\include;C:\Code\assimp\include;C:\Code\DX12New\DX12New\HLSL;C:\Code\DX12New\packages\directxtex_uwp.2022.3.1.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Code\DX12New\include;C:\Code\DX12New\gainput\lib\include;C:\Code\DX12New\DX12New\HLSL;C:\Code\DX12New\packages\directxtex_uwp.2022.3.1.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;Shlwapi.lib;D3DCompiler.lib;DirectXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Code\DX12New\packages\directxtex_uwp.2022.3.1.1\native\lib\ARM\Debug;C:\Code\DX12New\packages\directxtex_uwp.2022.3.1.1\native\lib\ARM64\Debug;C:\Code\DX12New\packages\directxtex_uwp.2022.3.1.1\native\lib\Win32\Debug;C:\Code\DX12New\packages\directxtex_uwp.2022.3.1.1\native\lib\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;Shlwapi.lib;D3DCompiler.lib;DirectXTex.lib;gainput-d.lib;zlibstaticd.lib;assimp-vc142-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Code\DX12New\lib;C:\Code\DX12New\gainput;C:\Code\DX12New\packages\directxtex_uwp.2022.3.1.1\native\lib\ARM\Debug;C:\Code\DX12New\packages\directxtex_uwp.2022.3.1.1\native\lib\ARM64\Debug;C:\Code\DX12New\packages\directxtex_uwp.2022.3.1.1\native\lib\Win32\Debug;C:\Code\DX12New\packages\directxtex_uwp.2022.3.1.1\native\lib\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -168,11 +170,13 @@
     <ClCompile Include="KeyCodes.cpp" />
     <ClCompile Include="Lesson2.cpp" />
     <ClCompile Include="Lesson3.cpp" />
+    <ClCompile Include="Lesson5.cpp" />
     <ClCompile Include="Light.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Matrix.cpp" />
     <ClCompile Include="Mesh.cpp" />
+    <ClCompile Include="MeshHelper.cpp" />
     <ClCompile Include="PanoToCubemapPSO.cpp" />
     <ClCompile Include="PipelineStateObject.cpp" />
     <ClCompile Include="PipelineStateStream.cpp" />
@@ -190,6 +194,7 @@
     <ClCompile Include="UploadBuffer.cpp" />
     <ClCompile Include="Vector.cpp" />
     <ClCompile Include="VertexBuffer.cpp" />
+    <ClCompile Include="VertexType.cpp" />
     <ClCompile Include="Visitor.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
@@ -224,10 +229,12 @@
     <ClInclude Include="KeyCodes.h" />
     <ClInclude Include="Lesson2.h" />
     <ClInclude Include="Lesson3.h" />
+    <ClInclude Include="Lesson5.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Matrix.h" />
     <ClInclude Include="Mesh.h" />
+    <ClInclude Include="MeshHelper.h" />
     <ClInclude Include="optional.hpp" />
     <ClInclude Include="PanoToCubemapPSO.h" />
     <ClInclude Include="PipelineStateObject.h" />
@@ -249,6 +256,7 @@
     <ClInclude Include="UploadBuffer.h" />
     <ClInclude Include="Vector.h" />
     <ClInclude Include="VertexBuffer.h" />
+    <ClInclude Include="VertexType.h" />
     <ClInclude Include="Visitor.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>

@@ -1,8 +1,5 @@
 #include "DescriptorAllocation.h"
-
 #include "D3D12LibPCH.h"
-
-#include "Application.h"
 #include "DescriptorAllocatorPage.h"
 
 DescriptorAllocation::DescriptorAllocation()
@@ -47,7 +44,7 @@ void DescriptorAllocation::Free()
 {
 	if (!IsNull() && m_Page)
 	{
-		Application::GetFrameCount();
+		//Application::GetFrameCount();
 		//m_Page->Free(std::move(*this), Application::GetFrameCount());
 
 		m_Descriptor.ptr = 0;

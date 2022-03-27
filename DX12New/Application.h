@@ -1,104 +1,132 @@
 #pragma once
+
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+
 #include <d3d12.h>
 #include <dxgi1_6.h>
-#include <wrl.h>
-
+#include <thread>  
 #include <memory>
 #include <string>
+#include <type_traits>
+#include <mutex> 
+#include <limits> 
+#include <cstdint>  
+
+#include <gainput/gainput.h>
 
 #include "DescriptorAllocation.h"
+#include "Event.h"
+
+#ifdef CreateWindow
+#undef CreateWindow
+#endif
+
 
 class Window;
 class Game;
 class CommandQueue;
 class DescriptorAllocator;
 
+using WndProcEvent = Delegate<LRESULT(HWND _hWnd, UINT _msg, WPARAM _wParam, LPARAM _lParam)>;
+
 class Application
 {
 public:
-	static void Create(HINSTANCE _hInst);
+	static Application& Create(HINSTANCE _hInst);
 
 	static void Destroy();
 
 	static Application& Get();
 
-	//检查是否支持VSync
-	bool IsTearingSupported() const { return m_TearingSupported; }
+	//获取键盘的设备ID
+	gainput::DeviceId GetKeyboardId() const { return m_KeyboardDevice; }
+
+	//获取鼠标的设备ID
+	gainput::DeviceId GetMouseId() const { return m_MouseDevice; }
+
+	//获取一个输入设备
+	template<class T>
+	T* GetDevice(gainput::DeviceId _deviceId) const
+	{
+		static_assert(std::is_base_of_v<gainput::InputDevice, T>);
+		return static_cast<T*>(m_InputManager.GetDevice(_deviceId));
+	}
+
+	//创建一个输入图
+	std::shared_ptr<gainput::InputMap> CreateInputMap(const char* _name = nullptr);
+
+	//开始执行,返回错误代码
+	int32_t Run();
+
+	//通知输入管理器,窗口大小改变
+	//这是gainput标准化鼠标输入所必须的
+	//只在单个窗口刷新大小时调用
+	void SetDisplaySize(int _width, int _height);
+
+	//处理输入事件
+	void ProcessInput();
+
+	//停止程序
+	void Stop();
+
+	//要支持热加载修改过的文件,可以注册一个路径,用于监听文件修改通知
+	//文件更改通知通过Application::FileChange设置
+	//void RegisterDirectoryChangeListener(const std::wstring& _dir, bool _recursive = true);
 
 	//创建一个渲染窗口实例
 	//_windowName 该名称将出现在窗口的标题栏中，该名称应该是唯一的
 	//返回创建的窗口实例
-	std::shared_ptr<Window> CreateRenderWindow(const std::wstring& _windowName, int _width, int _height, bool _vSync = true);
+	std::shared_ptr<Window> CreateWindow(const std::wstring& _windowName, int _width, int _height);
 
-	//分配一个CPU可见描述符
-	DescriptorAllocation AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptor = 1);
-
-	//销毁窗口
-	void DestroyWindow(const std::wstring& _windowName);
-	void DestroyWindow(std::shared_ptr<Window> _window);
 	//通过名字获取窗口实例
-	std::shared_ptr<Window> GetWindowByName(const std::wstring& _windowName);
+	std::shared_ptr<Window> GetWindowByName(const std::wstring& _windowName) const;
 
-	//运行程序循环和消息处理
-	//返回错误代码
-	int Run(std::shared_ptr<Game> pGame);
+	//当消息发送到窗口时调用
+	WndProcEvent WndProcHandler;
 
-	//请求退出并关闭所有窗口
-	void Quit(int _exitCode = 0);
+	//当文件修改时调用
+	FileChangeEvent FileChanged;
 
-	//获取设备
-	Microsoft::WRL::ComPtr<ID3D12Device2> GetDevice() const { return m_Device; }
-
-	//获取队列，有效的Type有
-	//D3D12_COMMAND_LIST_TYPE_DIRECT : Can be used for draw, dispatch, or copy commands.
-	//D3D12_COMMAND_LIST_TYPE_COMPUTE : Can be used for dispatch or copy commands.
-	//D3D12_COMMAND_LIST_TYPE_COPY : Can be used for copy commands.
-	std::shared_ptr<CommandQueue> GetCommandQueue(D3D12_COMMAND_LIST_TYPE _type = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
-
-	//刷新队列
-	void Flush();
-
-	//创建 描述符堆
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(UINT _numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE _type);
-	//获取描述符的大小
-	UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE _type) const;
-
-	static uint64_t GetFrameCount();
+	//程序结束时调用
+	Event Exit;
 
 protected:
+	friend LRESULT CALLBACK WndProc(HWND _hwnd, UINT _message, WPARAM _wParam, LPARAM _lParam);
+
 	//创建应用程序实例
 	Application(HINSTANCE _hIns);
 
 	virtual ~Application();
 
-	//初始化
-	void Init();
+	//检测到文件修改
+	//virtual void OnFileChange(FileChangedEventArgs& _e);
 
-	Microsoft::WRL::ComPtr<IDXGIAdapter4> GetAdapter(bool _useWarp);
-	Microsoft::WRL::ComPtr<ID3D12Device2> CreateDevice(Microsoft::WRL::ComPtr<IDXGIAdapter4> _adapter);
+	//窗口消息处理器
+	virtual LRESULT OnWndProc(HWND _hWnd, UINT _msg, WPARAM _wParam, LPARAM _lParam);
 
-	//检查是否支持VSync
-	bool CheckTearingSupport();
+	virtual void OnExit(EventArgs& _e);
 
 private:
-	friend LRESULT CALLBACK WndProc(HWND _hwnd, UINT _message, WPARAM _wParam, LPARAM _lParam);
+	Application(const Application&) = delete;
+	Application(Application&&) = delete;
+	Application& operator=(Application&) = delete;
+	Application& operator=(Application&&) = delete;
 
-	Application(const Application& copy) = delete;
-	Application& operator=(const Application& other) = delete;
+	//目录更改侦听器线程入口点函数
+	//void CheckFileChanges();
 
 	HINSTANCE m_HIntance;
 
-	Microsoft::WRL::ComPtr<ID3D12Device2> m_Device = nullptr;
-	Microsoft::WRL::ComPtr<IDXGIAdapter4> m_Adapter = nullptr;
+	//输入设备管理
+	gainput::InputManager m_InputManager;
+	gainput::DeviceId     m_KeyboardDevice;
+	gainput::DeviceId     m_MouseDevice;
 
-	std::shared_ptr<CommandQueue> m_DirectCommandQueue;
-	std::shared_ptr<CommandQueue> m_ComputeCommandQueue;
-	std::shared_ptr<CommandQueue> m_CopyCommandQueue;
+	//当程序运行时为真
+	std::atomic_bool m_bIsRuning;
+	//是否应当退出程序
+	std::atomic_bool m_RequestQuit;
 
-	std::unique_ptr<DescriptorAllocator> m_DescriptorAllocators[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
-
-	bool m_TearingSupported = false;
-
-	static uint64_t ms_FrameCount;
 };
 

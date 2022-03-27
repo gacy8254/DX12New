@@ -1,15 +1,13 @@
 #include "UploadBuffer.h"
-
 #include"D3D12LibPCH.h"
-#include "Application.h"
 #include "helpers.h"
-
+#include "Device.h"
 #include "d3dx12.h"
 
-#include <new>
+//#include <new>
 
-UploadBuffer::UploadBuffer(size_t pageSize /*= _2MB*/)
-	:m_PageSize(pageSize)
+UploadBuffer::UploadBuffer(Device& _device, size_t pageSize /*= _2MB*/)
+	:m_PageSize(pageSize), m_Device(_device)
 {
 }
 
@@ -60,17 +58,17 @@ std::shared_ptr<UploadBuffer::Page> UploadBuffer::RequestPage()
 	//如果没有可用的内存页，就创建一个新的内存页，加入内存页池中
 	else
 	{
-		page = std::make_shared<Page>(m_PageSize);
+		page = std::make_shared<Page>(m_Device, m_PageSize);
 		m_PagePool.push_back(page);
 	}
 
 	return page;
 }
 
-UploadBuffer::Page::Page(size_t _sizeInBytes)
-	:m_PageSize(_sizeInBytes), m_Offset(0), m_CPUPtr(nullptr), m_GPUPtr(D3D12_GPU_VIRTUAL_ADDRESS(0))
+UploadBuffer::Page::Page(Device& _device, size_t _sizeInBytes)
+	:m_PageSize(_sizeInBytes), m_Offset(0), m_CPUPtr(nullptr), m_GPUPtr(D3D12_GPU_VIRTUAL_ADDRESS(0)), m_Device(_device)
 {
-	auto device = Application::Get().GetDevice();
+	auto device = m_Device.GetD3D12Device();
 
 	//创建一个上传堆中的资源
 	auto p = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
@@ -102,6 +100,7 @@ bool UploadBuffer::Page::HasSpace(size_t _sizeInBytes, size_t _alignment) const
 	size_t alignedOffset = Math::AlignUp(m_Offset, _alignment);
 
 	return alignedOffset + alignedSize <= m_PageSize;
+	return true;
 }
 
 UploadBuffer::Allocation UploadBuffer::Page::Allocate(size_t _sizeInBytes, size_t _alignment)

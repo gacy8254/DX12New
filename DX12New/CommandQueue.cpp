@@ -2,7 +2,6 @@
 
 #include "D3D12LibPCH.h"
 #include"ResourceStateTracker.h"
-#include "Application.h"
 #include "CommandList.h"
 #include "Device.h"
 #include <DirectXTex.h>
@@ -120,9 +119,9 @@ uint64_t CommandQueue::ExecuteCommandList(const std::vector<std::shared_ptr<Comm
 	//提交所有生成Mips的命令列表
 	if (generateMipsCommandLists.size() > 0)
 	{
-		auto computeQueue = Application::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
-		computeQueue->Wait(*this);
-		computeQueue->ExecuteCommandList(generateMipsCommandLists);
+		auto& computeQueue = m_Device.GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+		computeQueue.Wait(*this);
+		computeQueue.ExecuteCommandList(generateMipsCommandLists);
 	}
 
 	return fenceValue;

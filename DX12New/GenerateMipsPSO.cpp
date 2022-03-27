@@ -1,7 +1,6 @@
 #include "GenerateMipsPSO.h"
 #include "D3D12LibPCH.h"
 #include "GanerateMips_GS.h"
-#include "Application.h"
 #include "helpers.h"
 #include "Device.h"
 #include "PipelineStateObject.h"
@@ -50,7 +49,7 @@ GenerateMipsPSO::GenerateMipsPSO(Device& _device)
 	m_PSO = _device.CreatePipelineStateObject(pipelineStateStream);
 
 	//∑÷≈‰√Ë ˆ∑˚
-	m_DefaultUAV = Application::Get().AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
+	m_DefaultUAV = _device.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
 
 	//¥¥Ω®UAV
 	for (UINT i = 0; i < 4; ++i)

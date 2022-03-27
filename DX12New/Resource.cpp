@@ -1,6 +1,5 @@
 #include "Resource.h"
 #include "D3D12LibPCH.h"
-#include "Application.h"
 #include "ResourceStateTracker.h"
 
 Resource::Resource(Device& _device, const D3D12_RESOURCE_DESC& _resourceDesc, const D3D12_CLEAR_VALUE* _clearValue /*= nullptr*/)

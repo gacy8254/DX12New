@@ -19,13 +19,24 @@
 #include "PipelineStateObject.h"
 #include "ShaderResourceView.h"
 #include "UnorderedAccessView.h"
+#include "Material.h"
 
 using namespace DirectX;
+
+class MakeUploadBuffer : public UploadBuffer
+{
+public:
+	MakeUploadBuffer(Device& device, size_t pageSize = _2MB)
+		: UploadBuffer(device, pageSize)
+	{}
+
+	virtual ~MakeUploadBuffer() {}
+};
 
 CommandList::CommandList(Device& _device, D3D12_COMMAND_LIST_TYPE _type)
 	:m_CommandListType(_type), m_Device(_device)
 {
-	auto device = Application::Get().GetDevice();
+	auto device = m_Device.GetD3D12Device();
 
 	//创建命令列表和分配器
 	ThrowIfFailed(device->CreateCommandAllocator(m_CommandListType, IID_PPV_ARGS(&m_CommandAllocator)));
@@ -33,14 +44,14 @@ CommandList::CommandList(Device& _device, D3D12_COMMAND_LIST_TYPE _type)
 	ThrowIfFailed(device->CreateCommandList(0, m_CommandListType, m_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_CommandList)));
 
 	//创建上传堆
-	m_UploadBuffer = std::make_unique<UploadBuffer>();
+	m_UploadBuffer = std::make_unique<MakeUploadBuffer>(m_Device);
 	//创建资源跟踪器
 	m_ResourceStateTrack = std::make_unique<ResourceStateTracker>();
 
 	//创建动态描述符堆
 	for (int i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
 	{
-		m_DynamicDescriptorHeap[i] = std::make_unique<DynamicDescriptorHeap>(static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(i));
+		m_DynamicDescriptorHeap[i] = std::make_unique<DynamicDescriptorHeap>(_device, static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(i));
 		m_DescriptorHeaps[i] = nullptr;
 	}
 }
@@ -135,7 +146,7 @@ void CommandList::CopyResource(Microsoft::WRL::ComPtr<ID3D12Resource> _dstRes, M
 {
 	assert(_dstRes);
 	assert(_srcRes);
-
+	auto d = _srcRes->GetDesc();
 	TransitionBarrier(_dstRes, D3D12_RESOURCE_STATE_COPY_DEST);
 	TransitionBarrier(_srcRes, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
@@ -147,9 +158,19 @@ void CommandList::CopyResource(Microsoft::WRL::ComPtr<ID3D12Resource> _dstRes, M
 	TrackResource(_srcRes);
 }
 
-void CommandList::ResolveSubresource(Resource& _detRes, const Resource& _srcRes, uint32_t _detSubresource /*= 0*/, uint32_t _srcSubresource /*= 0*/)
+void CommandList::ResolveSubresource(const std::shared_ptr<Resource>& _detRes, const std::shared_ptr<Resource>& _srcRes, uint32_t _detSubresource /*= 0*/, uint32_t _srcSubresource /*= 0*/)
 {
+	assert(_detRes && _srcRes);
 
+	TransitionBarrier(_detRes, D3D12_RESOURCE_STATE_RESOLVE_DEST, _detSubresource);
+	TransitionBarrier(_srcRes, D3D12_RESOURCE_STATE_RESOLVE_SOURCE, _srcSubresource);
+
+	FlushResourceBarriers();
+
+	m_CommandList->ResolveSubresource(_detRes->GetResource().Get(), _detSubresource, _srcRes->GetResource().Get(), _srcSubresource, _detRes->GetResourceDesc().Format);
+
+	TrackResource(_detRes);
+	TrackResource(_srcRes);
 }
 
 std::shared_ptr<VertexBuffer> CommandList::CopyVertexBuffer(size_t _numVertices, size_t _vertexStride, const void* _vertexBufferData)
@@ -303,6 +324,27 @@ std::shared_ptr<Texture> CommandList::LoadTextureFromFile(const std::wstring& _f
 	return _texture;
 }
 
+std::shared_ptr<Scene> CommandList::LoadSceneFromFile(const std::wstring& _fileName, const std::function<bool(float)>& _loadingProgress)
+{
+	std::shared_ptr<Scene> scene = std::make_shared<Scene>();
+
+	if (scene->LoadSceneFromFile(*this, _fileName, _loadingProgress))
+	{
+		return scene;
+	}
+
+	return nullptr;
+}
+
+std::shared_ptr<Scene> CommandList::LoadSceneFromString(const std::string& _sceneString, const std::string& _format)
+{
+	auto scene = std::make_shared<Scene>();
+
+	scene->LoadSceneFromString(*this, _sceneString, _format);
+
+	return scene;
+}
+
 void CommandList::CopyTextureSubresource(const std::shared_ptr<Texture>& _texture, uint32_t _firstSubresource, uint32_t _numSubresource, D3D12_SUBRESOURCE_DATA* _subresourceData)
 {
 	assert(_texture);
@@ -374,7 +416,7 @@ void CommandList::GenerateMips(const std::shared_ptr<Texture>& _texture)
 	{
 		if (!m_ComputerCommandList)
 		{
-			m_ComputerCommandList = Application::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE)->GetCommandList();
+			m_ComputerCommandList = m_Device.GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE).GetCommandList();
 		}
 		m_ComputerCommandList->GenerateMips(_texture);
 		return;
@@ -412,7 +454,7 @@ void CommandList::GenerateMips(const std::shared_ptr<Texture>& _texture)
 	//如果不支持，生成一个支持的临时资源
 	if (!_texture->CheckUAVSupport() || (resDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) == 0)
 	{
-		auto device = Application::Get().GetDevice();
+		auto device = m_Device.GetD3D12Device();
 
 		auto aliasDesc = resDesc;
 
@@ -511,7 +553,7 @@ void CommandList::PanoToCubeMap(const std::shared_ptr<Texture>& _cubeMap, const 
 	{
 		if (!m_ComputerCommandList)
 		{
-			m_ComputerCommandList = Application::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE)->GetCommandList();
+			m_ComputerCommandList = m_Device.GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE).GetCommandList();
 		}
 		m_ComputerCommandList->PanoToCubeMap(_cubeMap, _pano);
 		return;
@@ -846,7 +888,7 @@ void CommandList::SetShaderResourceView(
 
 		TrackResource(resource);
 	}
-	m_DynamicDescriptorHeap[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];// ->StageDescriptor(_rootParameterIndex, _descriptorOffset, 1, _srv->GetDescriptorHandle());
+	m_DynamicDescriptorHeap[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]->StageDescriptor(_rootParameterIndex, _descriptorOffset, 1, _srv->GetDescriptorHandle());
 	
 }
 
@@ -1110,6 +1152,33 @@ void CommandList::SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE _type, ID3D12Desc
 	}
 }
 
+std::shared_ptr<Scene> CommandList::CreateScene(const VertexCollection& _vertices, const IndexCollection& _indicies)
+{
+	if (_vertices.empty())
+	{
+		return nullptr;
+	}
+
+	auto vertexBuffer = CopyVertexBuffer(_vertices);
+	std::shared_ptr<IndexBuffer> indexBuffer = CopyIndexBuffer(_indicies);
+
+	auto mesh = std::make_shared<Mesh>();
+
+	auto material = std::make_shared<Material>(Material::White);
+
+	mesh->SetVertexBuffer(0, vertexBuffer);
+	mesh->SetIndexBuffer(indexBuffer);
+	mesh->SetMaterial(material);
+
+	auto node = std::make_shared<SceneNode>();
+	node->AddMesh(mesh);
+
+	auto scene = std::make_shared<Scene>();
+	scene->SetRootNode(node);
+
+	return scene;
+}
+
 void CommandList::TrackResource(Microsoft::WRL::ComPtr<ID3D12Object> _object)
 {
 	m_TrackedObjects.push_back(_object);
@@ -1155,7 +1224,7 @@ void CommandList::GenerateMips_UAV(const std::shared_ptr<Texture>& _texture, boo
 		uint32_t dstWidth = static_cast<uint32_t>(srcWidth >> 1);
 		uint32_t desHeight = srcHeight >> 1;
 
-		//SrcDimension是一个位掩码，用于只是源MIP的宽度或高度是否为奇数
+		//SrcDimension是一个位掩码，用于指示源MIP的宽度或高度是否为奇数
 		generateMipsCB.SrcDimension = (srcHeight & 1) << 1 | (srcWidth & 1);
 
 		//当前迭代生成的Mip级别数，最大为4

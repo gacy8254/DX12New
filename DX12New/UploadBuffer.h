@@ -7,6 +7,7 @@
 #include <memory>
 #include <deque>
 
+class Device;
 
 class UploadBuffer
 {
@@ -19,7 +20,7 @@ public:
 	};
 
 	//参数pageSize是用于分配给内存页的大小
-	explicit UploadBuffer(size_t pageSize = _2MB);
+	explicit UploadBuffer(Device& _device, size_t pageSize = _2MB);
 
 	virtual ~UploadBuffer();
 
@@ -39,7 +40,7 @@ public:
 private:
 	struct Page
 	{
-		Page(size_t _sizeInBytes);
+		Page(Device& _device, size_t _sizeInBytes);
 		~Page();
 
 		//检查是否有足够的内存去分配，如果不够就退出当前内存页并创建新的内存页
@@ -55,6 +56,8 @@ private:
 	private:
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_Resource = nullptr;
 
+		Device& m_Device;
+
 		//基础指针,指向分配内存的起始地址
 		void* m_CPUPtr;
 		D3D12_GPU_VIRTUAL_ADDRESS m_GPUPtr;
@@ -69,6 +72,8 @@ private:
 
 	//请求分配一个可用的内存页，如果没有就创建一个新的并加入内存页池
 	std::shared_ptr<Page> RequestPage();
+
+	Device& m_Device;
 
 	//所有的内存页
 	PagePool m_PagePool;

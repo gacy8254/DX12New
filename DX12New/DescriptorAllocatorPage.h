@@ -10,11 +10,12 @@
 #include <mutex>
 #include <queue>
 
+class Device;
 
 class DescriptorAllocatorPage :public std::enable_shared_from_this<DescriptorAllocatorPage>
 {
 public:
-	DescriptorAllocatorPage(D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptorPerHeap);
+	
 
 	D3D12_DESCRIPTOR_HEAP_TYPE GetHeapType() const { return m_Type; }
 
@@ -35,7 +36,8 @@ public:
 	void ReleaseStaleDescriptors();
 
 protected:
-
+	DescriptorAllocatorPage(Device& _device, D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptorPerHeap);
+	virtual ~DescriptorAllocatorPage() = default;
 	//计算到指定句柄的偏移量，用于在释放描述符时确定描述符的位置
 	uint32_t ComputerOffset(D3D12_CPU_DESCRIPTOR_HANDLE _handle);
 
@@ -103,5 +105,7 @@ private:
 	uint32_t m_NumFreeHandles;
 
 	std::mutex m_AllocationMutex;
+
+	Device& m_Device;
 };
 

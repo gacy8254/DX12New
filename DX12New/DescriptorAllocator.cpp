@@ -3,6 +3,16 @@
 #include "DescriptorAllocatorPage.h"
 #include "Device.h"
 
+struct MakeAllocatorPage : public DescriptorAllocatorPage
+{
+public:
+	MakeAllocatorPage(Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors)
+		: DescriptorAllocatorPage(device, type, numDescriptors)
+	{}
+
+	virtual ~MakeAllocatorPage() {}
+};
+
 DescriptorAllocator::DescriptorAllocator(Device& _device, D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptorPerHeap /*= 256*/)
 	:m_Type(_type), m_NumDescriptorPerHeap(_numDescriptorPerHeap), m_Device(_device)
 {}
@@ -70,7 +80,7 @@ void DescriptorAllocator::ReleaseStaleDescriptor()
 std::shared_ptr<DescriptorAllocatorPage> DescriptorAllocator::CreateAllocatorPage()
 {
 	//创建一个新的页面
-	auto newPage = std::make_shared<DescriptorAllocatorPage>(m_Type, m_NumDescriptorPerHeap);
+	auto newPage = std::make_shared<MakeAllocatorPage>(m_Device, m_Type, m_NumDescriptorPerHeap);
 
 	//将页面加入池中
 	m_HeapPool.emplace_back(newPage);

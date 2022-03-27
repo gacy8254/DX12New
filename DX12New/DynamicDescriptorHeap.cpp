@@ -1,20 +1,23 @@
 #include "DynamicDescriptorHeap.h"
-
+#include "Device.h"
 #include "D3D12LibPCH.h"
-#include "Application.h"
 #include "RootSignature.h"
 #include "CommandList.h"
 
-DynamicDescriptorHeap::DynamicDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptor /*= 1024*/)
+DynamicDescriptorHeap::DynamicDescriptorHeap(Device& _device, D3D12_DESCRIPTOR_HEAP_TYPE _type, uint32_t _numDescriptor /*= 1024*/)
 	:m_DescriptorType(_type), 
 	m_NumDescriptorPerHeap(_numDescriptor),
 	m_DescriptorTableBitMask(0),
 	m_StaleDescriptorTableBitMake(0), 
 	m_CurrentCPUDescriptorHandle(D3D12_DEFAULT),
 	m_CurrentGPUDescriptorHandle(D3D12_DEFAULT),
-	m_NumFreeHandles(0)
+	m_NumFreeHandles(0),
+	m_Device(_device),
+	m_StaleCBVBitMask(0),
+	m_StaleUAVBitMask(0),
+	m_StaleSRVBitMask(0)
 {
-	m_DescriptorHandleIncrementSize = Application::Get().GetDescriptorHandleIncrementSize(_type);
+	m_DescriptorHandleIncrementSize = m_Device.GetDescriptorHandleIncrementSize(_type);
 
 	//根据可以复制到GPU描述符堆的最大描述符数量创建描述符句柄缓存
 	m_DescriptorHandleCache = std::make_unique<D3D12_CPU_DESCRIPTOR_HANDLE[]>(m_NumDescriptorPerHeap);
@@ -60,7 +63,7 @@ void DynamicDescriptorHeap::CommitStagedDescriptors(CommandList& _commandList, s
 
 	if (numDescriptorToCommit > 0)
 	{
-		auto device = Application::Get().GetDevice();
+		auto device = m_Device.GetD3D12Device();
 		auto commandList = _commandList.GetGraphicsCommandList().Get();
 
 		assert(commandList != nullptr);
@@ -82,7 +85,7 @@ void DynamicDescriptorHeap::CommitStagedDescriptors(CommandList& _commandList, s
 		}
 
 		DWORD rootIndex;
-		//迭代所有需要提交的废弃描述符表
+		//迭代所有需要提交的描述符表
 		while (_BitScanForward(&rootIndex, m_StaleDescriptorTableBitMake))
 		{
 			UINT numSrcDescriptor = m_DescriptorTableCache[rootIndex].NumDescriptor;
@@ -115,14 +118,41 @@ void DynamicDescriptorHeap::CommitStagedDescriptors(CommandList& _commandList, s
 	}
 }
 
+void DynamicDescriptorHeap::CommitInlineDescriptor(CommandList& _commandList, const D3D12_GPU_VIRTUAL_ADDRESS* _bufferLocation, uint32_t& _bitMask, std::function<void(ID3D12GraphicsCommandList*, UINT, D3D12_GPU_VIRTUAL_ADDRESS)> _setFunc)
+{
+	if (_bitMask != 0)
+	{
+		auto ded12CommandList = _commandList.GetGraphicsCommandList().Get();
+		DWORD rootIndex;
+		while (_BitScanForward(&rootIndex, _bitMask))
+		{
+			_setFunc(ded12CommandList, rootIndex, _bufferLocation[rootIndex]);
+
+			_bitMask ^= (1 << rootIndex);
+		}
+	}
+}
+
 void DynamicDescriptorHeap::CommitStagedDescriptorsForDraw(CommandList& _commandList)
 {
 	CommitStagedDescriptors(_commandList, &ID3D12GraphicsCommandList::SetGraphicsRootDescriptorTable);
+	CommitInlineDescriptor(_commandList, m_InlineCBV, m_StaleCBVBitMask,
+		&ID3D12GraphicsCommandList::SetGraphicsRootConstantBufferView);
+	CommitInlineDescriptor(_commandList, m_InlineSRV, m_StaleSRVBitMask,
+		&ID3D12GraphicsCommandList::SetGraphicsRootShaderResourceView);
+	CommitInlineDescriptor(_commandList, m_InlineUAV, m_StaleUAVBitMask,
+		&ID3D12GraphicsCommandList::SetGraphicsRootUnorderedAccessView);
 }
 
 void DynamicDescriptorHeap::CommitStagedDescriptorsForDispatch(CommandList& _commandList)
 {
 	CommitStagedDescriptors(_commandList, &ID3D12GraphicsCommandList::SetComputeRootDescriptorTable);
+	CommitInlineDescriptor(_commandList, m_InlineCBV, m_StaleCBVBitMask,
+		&ID3D12GraphicsCommandList::SetComputeRootUnorderedAccessView);
+	CommitInlineDescriptor(_commandList, m_InlineSRV, m_StaleSRVBitMask,
+		&ID3D12GraphicsCommandList::SetComputeRootUnorderedAccessView);
+	CommitInlineDescriptor(_commandList, m_InlineUAV, m_StaleUAVBitMask,
+		&ID3D12GraphicsCommandList::SetComputeRootUnorderedAccessView);
 }
 
 void DynamicDescriptorHeap::StageInlineCBV(uint32_t _rootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS _bufferLocation)
@@ -165,7 +195,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE DynamicDescriptorHeap::CopyDescriptor(CommandList& _
 		m_StaleDescriptorTableBitMake = m_DescriptorTableBitMask;
 	}
 
-	auto device = Application::Get().GetDevice();
+	auto device = m_Device.GetD3D12Device();
 
 	D3D12_GPU_DESCRIPTOR_HANDLE hGPU = m_CurrentGPUDescriptorHandle;
 	device->CopyDescriptorsSimple(1,	 //要复制的描述符数量
@@ -252,7 +282,7 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DynamicDescriptorHeap::RequestDescr
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DynamicDescriptorHeap::CreateDescriptorHeap()
 {
 	//创建一个新的描述符堆并返回
-	auto device = Application::Get().GetDevice();
+	auto device = m_Device.GetD3D12Device();
 
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 	desc.Type = m_DescriptorType;
