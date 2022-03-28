@@ -123,7 +123,7 @@ public:
 	std::shared_ptr<Texture> LoadTextureFromFile(const std::wstring& _fileName, bool _sRGB = false);
 
 	//从文件中加载场景
-	std::shared_ptr<Scene> LoadSceneFromFile(const std::wstring& _fileName, const std::function<bool(float)>& _loadingProgress);
+	std::shared_ptr<Scene> LoadSceneFromFile(const std::wstring& _fileName, const std::function<bool(float)>& _loadingProgress = std::function<bool(float)>());
 
 	std::shared_ptr<Scene> LoadSceneFromString(const std::string& _sceneString, const std::string& _format);
 
@@ -175,7 +175,7 @@ public:
 	}
 
 	//设置顶点缓冲到渲染管线
-	void SetVertexBuffer(uint32_t _slot, const std::vector<std::shared_ptr<VertexBuffer>>& _vertexBufffer);
+	void SetVertexBuffers(uint32_t _slot, const std::vector<std::shared_ptr<VertexBuffer>>& _vertexBufffer);
 	void SetVertexBuffer(uint32_t _slot, const std::shared_ptr<VertexBuffer>& _vertexBufffer);
 	//设置一个动态顶点缓冲到渲染管线
 	void SetDynamicVertexBuffer(uint32_t _slot, size_t _numVertices, size_t _vertexSize, const void* _vertexBufferData);

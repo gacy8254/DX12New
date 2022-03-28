@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 /*
- *  Copyright(c) 2018 Jeremiah van Oosten
+ *  Copyright(c) 2020 Jeremiah van Oosten
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files(the "Software"), to deal
@@ -24,7 +24,7 @@
 
  /**
   *  @file Light.h
-  *  @date October 24, 2018
+  *  @date November 10, 2020
   *  @author Jeremiah van Oosten
   *
   *  @brief Light structures that use HLSL constant buffer padding rules.
@@ -32,28 +32,28 @@
 
 #include <DirectXMath.h>
 
-    struct PointLight
+struct PointLight
 {
     PointLight()
         : PositionWS(0.0f, 0.0f, 0.0f, 1.0f)
         , PositionVS(0.0f, 0.0f, 0.0f, 1.0f)
         , Color(1.0f, 1.0f, 1.0f, 1.0f)
+        , Ambient(0.01f)
         , ConstantAttenuation(1.0f)
         , LinearAttenuation(0.0f)
         , QuadraticAttenuation(0.0f)
     {}
 
-    DirectX::XMFLOAT4    PositionWS; // Light position in world space.
+    DirectX::XMFLOAT4 PositionWS;  // Light position in world space.
     //----------------------------------- (16 byte boundary)
-    DirectX::XMFLOAT4    PositionVS; // Light position in view space.
+    DirectX::XMFLOAT4 PositionVS;  // Light position in view space.
     //----------------------------------- (16 byte boundary)
-    DirectX::XMFLOAT4    Color;
+    DirectX::XMFLOAT4 Color;
     //----------------------------------- (16 byte boundary)
-    float       ConstantAttenuation;
-    float       LinearAttenuation;
-    float       QuadraticAttenuation;
-    // Add some padding to align to 16 bytes.
-    float       Padding;
+    float Ambient;
+    float ConstantAttenuation;
+    float LinearAttenuation;
+    float QuadraticAttenuation;
     //----------------------------------- (16 byte boundary)
     // Total:                              16 * 4 = 64 bytes
 };
@@ -66,28 +66,32 @@ struct SpotLight
         , DirectionWS(0.0f, 0.0f, 1.0f, 0.0f)
         , DirectionVS(0.0f, 0.0f, 1.0f, 0.0f)
         , Color(1.0f, 1.0f, 1.0f, 1.0f)
+        , Ambient(0.01f)
         , SpotAngle(DirectX::XM_PIDIV2)
         , ConstantAttenuation(1.0f)
         , LinearAttenuation(0.0f)
         , QuadraticAttenuation(0.0f)
     {}
 
-    DirectX::XMFLOAT4    PositionWS; // Light position in world space.
+    DirectX::XMFLOAT4 PositionWS;  // Light position in world space.
     //----------------------------------- (16 byte boundary)
-    DirectX::XMFLOAT4    PositionVS; // Light position in view space.
+    DirectX::XMFLOAT4 PositionVS;  // Light position in view space.
     //----------------------------------- (16 byte boundary)
-    DirectX::XMFLOAT4    DirectionWS; // Light direction in world space.
+    DirectX::XMFLOAT4 DirectionWS;  // Light direction in world space.
     //----------------------------------- (16 byte boundary)
-    DirectX::XMFLOAT4    DirectionVS; // Light direction in view space.
+    DirectX::XMFLOAT4 DirectionVS;  // Light direction in view space.
     //----------------------------------- (16 byte boundary)
-    DirectX::XMFLOAT4    Color;
+    DirectX::XMFLOAT4 Color;
     //----------------------------------- (16 byte boundary)
-    float       SpotAngle;
-    float       ConstantAttenuation;
-    float       LinearAttenuation;
-    float       QuadraticAttenuation;
+    float Ambient;
+    float SpotAngle;
+    float ConstantAttenuation;
+    float LinearAttenuation;
     //----------------------------------- (16 byte boundary)
-    // Total:                              16 * 6 = 96 bytes
+    float QuadraticAttenuation;
+    float Padding[3];
+    //----------------------------------- (16 byte boundary)
+    // Total:                              16 * 7 = 112 bytes
 };
 
 struct DirectionalLight
@@ -96,13 +100,17 @@ struct DirectionalLight
         : DirectionWS(0.0f, 0.0f, 1.0f, 0.0f)
         , DirectionVS(0.0f, 0.0f, 1.0f, 0.0f)
         , Color(1.0f, 1.0f, 1.0f, 1.0f)
+        , Ambient(0.01f)
     {}
 
-    DirectX::XMFLOAT4    DirectionWS; // Light direction in world space.
+    DirectX::XMFLOAT4 DirectionWS;  // Light direction in world space.
     //----------------------------------- (16 byte boundary)
-    DirectX::XMFLOAT4    DirectionVS; // Light direction in view space.
+    DirectX::XMFLOAT4 DirectionVS;  // Light direction in view space.
     //----------------------------------- (16 byte boundary)
-    DirectX::XMFLOAT4    Color;
+    DirectX::XMFLOAT4 Color;
     //----------------------------------- (16 byte boundary)
-    // Total:                              16 * 3 = 48 bytes 
+    float Ambient;
+    float Padding[3];
+    //----------------------------------- (16 byte boundary)
+    // Total:                              16 * 4 = 64 bytes
 };

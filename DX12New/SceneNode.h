@@ -81,8 +81,6 @@ private:
 
 	//合并网格的AABB
 	DirectX::BoundingBox m_AABB;
-
-
 };
 
 

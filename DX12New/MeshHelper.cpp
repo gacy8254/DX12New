@@ -78,7 +78,7 @@ void MeshHelper::CreateCylinderCap(VertexCollection& vertices, IndexCollection& 
 	}
 }
 
-std::shared_ptr<Scene> MeshHelper::CreateCube(CommandList _commandlist, float size /*= 1.0*/, bool reverseWinding /*= false*/)
+std::shared_ptr<Scene> MeshHelper::CreateCube(std::shared_ptr<CommandList> _commandlist, float size /*= 1.0*/, bool reverseWinding /*= false*/)
 {
 	// Cube is centered at 0,0,0.
 	float s = size * 0.5f;
@@ -128,10 +128,10 @@ std::shared_ptr<Scene> MeshHelper::CreateCube(CommandList _commandlist, float si
 		ReverseWinding(indices, vertices);
 	}
 
-	return _commandlist.CreateScene(vertices, indices);
+	return _commandlist->CreateScene(vertices, indices);
 }
 
-std::shared_ptr<Scene> MeshHelper::CreateSphere(CommandList _commandlist, float radius /*= 0.5f*/, uint32_t tessellation /*= 16*/, bool reversWinding /*= false*/)
+std::shared_ptr<Scene> MeshHelper::CreateSphere(std::shared_ptr<CommandList> _commandlist, float radius /*= 0.5f*/, uint32_t tessellation /*= 16*/, bool reversWinding /*= false*/)
 {
 	if (tessellation < 3)
 		throw std::out_of_range("tessellation parameter out of range");
@@ -198,10 +198,10 @@ std::shared_ptr<Scene> MeshHelper::CreateSphere(CommandList _commandlist, float 
 		ReverseWinding(indices, vertices);
 	}
 
-	return _commandlist.CreateScene(vertices, indices);
+	return _commandlist->CreateScene(vertices, indices);
 }
 
-std::shared_ptr<Scene> MeshHelper::CreateCylinder(CommandList _commandlist, float radius /*= 0.5f*/, float height /*= 1.0f*/, uint32_t tessellation /*= 32*/, bool reverseWinding /*= false*/)
+std::shared_ptr<Scene> MeshHelper::CreateCylinder(std::shared_ptr<CommandList> _commandlist, float radius /*= 0.5f*/, float height /*= 1.0f*/, uint32_t tessellation /*= 32*/, bool reverseWinding /*= false*/)
 {
 	if (tessellation < 3)
 		throw std::out_of_range("tessellation parameter out of range");
@@ -249,10 +249,10 @@ std::shared_ptr<Scene> MeshHelper::CreateCylinder(CommandList _commandlist, floa
 		ReverseWinding(indices, vertices);
 	}
 
-	return _commandlist.CreateScene(vertices, indices);
+	return _commandlist->CreateScene(vertices, indices);
 }
 
-std::shared_ptr<Scene> MeshHelper::CreateCone(CommandList _commandlist, float radius /*= 0.5f*/, float height /*= 1.0f*/, uint32_t tessellation /*= 32*/, bool reverseWinding /*= false*/)
+std::shared_ptr<Scene> MeshHelper::CreateCone(std::shared_ptr<CommandList> _commandlist, float radius /*= 0.5f*/, float height /*= 1.0f*/, uint32_t tessellation /*= 32*/, bool reverseWinding /*= false*/)
 {
 	if (tessellation < 3)
 		throw std::out_of_range("tessellation parameter out of range");
@@ -300,10 +300,10 @@ std::shared_ptr<Scene> MeshHelper::CreateCone(CommandList _commandlist, float ra
 		ReverseWinding(indices, vertices);
 	}
 
-	return _commandlist.CreateScene(vertices, indices);
+	return _commandlist->CreateScene(vertices, indices);
 }
 
-std::shared_ptr<Scene> MeshHelper::CreateTorus(CommandList _commandlist, float radius /*= 0.5f*/, float thickness /*= 0.333f*/, uint32_t tessellation /*= 32*/, bool reverseWinding /*= false*/)
+std::shared_ptr<Scene> MeshHelper::CreateTorus(std::shared_ptr<CommandList> _commandlist, float radius /*= 0.5f*/, float thickness /*= 0.333f*/, uint32_t tessellation /*= 32*/, bool reverseWinding /*= false*/)
 {
 	assert(tessellation > 3);
 
@@ -362,10 +362,10 @@ std::shared_ptr<Scene> MeshHelper::CreateTorus(CommandList _commandlist, float r
 		ReverseWinding(indices, verticies);
 	}
 
-	return _commandlist.CreateScene(verticies, indices);
+	return _commandlist->CreateScene(verticies, indices);
 }
 
-std::shared_ptr<Scene> MeshHelper::CreatePlane(CommandList _commandlist, float width /*= 1.0f*/, float height /*= 1.0f*/, bool reverseWinding /*= false*/)
+std::shared_ptr<Scene> MeshHelper::CreatePlane(std::shared_ptr<CommandList> _commandlist, float width /*= 1.0f*/, float height /*= 1.0f*/, bool reverseWinding /*= false*/)
 {
 	using Vertex = VertexPositionNormalTangentBitangentTexture;
 
@@ -385,7 +385,7 @@ std::shared_ptr<Scene> MeshHelper::CreatePlane(CommandList _commandlist, float w
 		ReverseWinding(indices, vertices);
 	}
 
-	return _commandlist.CreateScene(vertices, indices);
+	return _commandlist->CreateScene(vertices, indices);
 }
 
 void MeshHelper::InvertNormals(VertexCollection& vertices)

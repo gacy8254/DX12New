@@ -35,7 +35,7 @@ public:
     * @param size The size of one side of the cube.
     * @param reverseWinding Whether to reverse the winding order of the triangles (useful for skyboxes).
     */
-    static std::shared_ptr<Scene> CreateCube(CommandList _commandlist, float size = 1.0, bool reverseWinding = false);
+    static std::shared_ptr<Scene> CreateCube(std::shared_ptr<CommandList> _commandlist, float size = 1.0, bool reverseWinding = false);
 
     /**
      * Create a sphere.
@@ -44,7 +44,7 @@ public:
      * @param tessellation Determines how smooth the sphere is.
      * @param reverseWinding Whether to reverse the winding order of the triangles (useful for sydomes).
      */
-    static std::shared_ptr<Scene> CreateSphere(CommandList _commandlist, float radius = 0.5f, uint32_t tessellation = 16, bool reversWinding = false);
+    static std::shared_ptr<Scene> CreateSphere(std::shared_ptr<CommandList> _commandlist, float radius = 0.5f, uint32_t tessellation = 16, bool reversWinding = false);
 
     /**
      * Create a Cylinder
@@ -54,7 +54,7 @@ public:
      * @param tessellation How smooth the cylinder will be.
      * @param reverseWinding Whether to reverse the winding order of the triangles.
      */
-    static std::shared_ptr<Scene> CreateCylinder(CommandList _commandlist, float radius = 0.5f, float height = 1.0f, uint32_t tessellation = 32,
+    static std::shared_ptr<Scene> CreateCylinder(std::shared_ptr<CommandList> _commandlist, float radius = 0.5f, float height = 1.0f, uint32_t tessellation = 32,
         bool reverseWinding = false);
 
     /**
@@ -65,7 +65,7 @@ public:
      * @param tessellation How smooth to make the cone.
      * @param reverseWinding Whether to reverse the winding order of the triangles.
      */
-    static std::shared_ptr<Scene> CreateCone(CommandList _commandlist, float radius = 0.5f, float height = 1.0f, uint32_t tessellation = 32,
+    static std::shared_ptr<Scene> CreateCone(std::shared_ptr<CommandList> _commandlist, float radius = 0.5f, float height = 1.0f, uint32_t tessellation = 32,
         bool reverseWinding = false);
 
     /**
@@ -76,7 +76,7 @@ public:
      * @param tessellation The smoothness of the torus.
      * @param reverseWinding Reverse the winding order of the vertices.
      */
-    static std::shared_ptr<Scene> CreateTorus(CommandList _commandlist, float radius = 0.5f, float thickness = 0.333f, uint32_t tessellation = 32,
+    static std::shared_ptr<Scene> CreateTorus(std::shared_ptr<CommandList> _commandlist, float radius = 0.5f, float thickness = 0.333f, uint32_t tessellation = 32,
         bool reverseWinding = false);
 
     /**
@@ -86,6 +86,6 @@ public:
      * @param height The height of the plane.
      * @reverseWinding Whether to reverse the winding order of the plane.
      */
-    static std::shared_ptr<Scene> CreatePlane(CommandList _commandlist, float width = 1.0f, float height = 1.0f, bool reverseWinding = false);
+    static std::shared_ptr<Scene> CreatePlane(std::shared_ptr<CommandList> _commandlist, float width = 1.0f, float height = 1.0f, bool reverseWinding = false);
 };
 

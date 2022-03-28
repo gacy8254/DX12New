@@ -203,7 +203,7 @@ void main( CSInput IN)
         
         src1 = 0.25 * (src1 + src2 + src3 + src4);
         
-        outMip3[IN.DispatchThreadID.xy / 8] = PackColor(src1);
-        StoreColor(IN.GroupIndex, src1);
+        outMip4[IN.DispatchThreadID.xy / 8] = PackColor(src1);
+
     }
 }

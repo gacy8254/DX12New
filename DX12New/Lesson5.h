@@ -12,6 +12,8 @@
 #include "CommandQueue.h"
 #include "RenderTarget.h"
 #include "Scene.h"
+#include "EffectPSO.h"
+#include "SceneVisitor.h"
 
 #include <d3d12.h>
 #include <future>
@@ -70,12 +72,17 @@ private:
     //╪сть╫Ь╤х
     bool LoadingProgress(float _loadingProgress);
 
+	std::shared_ptr<EffectPSO> m_LightingPSO;
+	std::shared_ptr<EffectPSO> m_DecalPSO;
+	std::shared_ptr<EffectPSO> m_UnlitPSO;
+
     std::shared_ptr<Device> m_Device;
     std::shared_ptr<SwapChain> m_SwapChain;
     std::shared_ptr<GUI> m_GUI;
     std::shared_ptr<Scene> m_Scene;
-    std::shared_ptr<Scene> m_Sphere;
     std::shared_ptr<Scene> m_Axis;
+    std::shared_ptr<Scene> m_Sphere;
+    std::shared_ptr<Scene> m_Cone;
     std::shared_ptr<Window> m_Window;
 
     RenderTarget m_RenderTarget;
@@ -109,5 +116,17 @@ private:
 	std::string       m_LoadingText;
 
 	float m_FPS;
+
+	float m_Forward;
+	float m_Backward;
+	float m_Left;
+	float m_Right;
+	float m_Up;
+	float m_Down;
+
+	float m_Pitch;
+	float m_Yaw;
+
+	bool m_Shift;
 };
 

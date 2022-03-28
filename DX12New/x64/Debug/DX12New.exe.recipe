@@ -7,6 +7,9 @@
   </ProjectOutputs>
   <ContentFiles>
     <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\Decal.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
       <FullPath>C:\Code\DX12New\x64\Debug\GanerateMips_GS.cso</FullPath>
     </ContentFile>
     <ContentFile>
@@ -29,6 +32,9 @@
     </ContentFile>
     <ContentFile>
       <FullPath>C:\Code\DX12New\x64\Debug\StandardVS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\Unlit.cso</FullPath>
     </ContentFile>
     <ContentFile>
       <FullPath>C:\Code\DX12New\x64\Debug\VertexShader.cso</FullPath>

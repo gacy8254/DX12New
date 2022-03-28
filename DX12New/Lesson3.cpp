@@ -260,58 +260,58 @@
 //{
 //	super::OnKeyPressed(_e);
 //
-//	//switch (_e.key)
-//	//{
-//	//case KeyCode::Escape:
-//	//	Application::Get().Quit(0);
-//	//	break;
-//	//case KeyCode::Enter:
-//	//	if (_e.alt)
-//	//	{
-//	//case KeyCode::F11:
-//	//	m_pWindow->ToggleFullScreen();
-//	//	break;
-//	//	}
-//	//case KeyCode::V:
-//	//	m_pWindow->ToggleVSync();
-//	//	break;
-//	//case KeyCode::R:
-//	//	// Reset camera transform
-//	//	m_Camera.SetTranslation(m_pAlignedCameraDate->m_InitialCamPos);
-//	//	m_Camera.SetRotation(m_pAlignedCameraDate->m_InitialCamRot);
-//	//	m_Camera.SetFov(m_pAlignedCameraDate->m_InitialFov);
-//	//	m_Pitch = 0.0f;
-//	//	m_Yaw = 0.0f;
-//	//	break;
-//	//case KeyCode::Up:
-//	//case KeyCode::W:
-//	//	m_Forward = 1.0f;
-//	//	break;
-//	//case KeyCode::Left:
-//	//case KeyCode::A:
-//	//	m_Left = 1.0f;
-//	//	break;
-//	//case KeyCode::Down:
-//	//case KeyCode::S:
-//	//	m_Backward = 1.0f;
-//	//	break;
-//	//case KeyCode::Right:
-//	//case KeyCode::D:
-//	//	m_Right = 1.0f;
-//	//	break;
-//	//case KeyCode::Q:
-//	//	m_Down = 1.0f;
-//	//	break;
-//	//case KeyCode::E:
-//	//	m_Up = 1.0f;
-//	//	break;
-//	//case KeyCode::Space:
-//	//	m_AnimaeLights = !m_AnimaeLights;
-//	//	break;
-//	//case KeyCode::ShiftKey:
-//	//	m_Shift = true;
-//	//	break;
-//	//}
+//	switch (_e.key)
+//	{
+//	case KeyCode::Escape:
+//		Application::Get().Quit(0);
+//		break;
+//	case KeyCode::Enter:
+//		if (_e.alt)
+//		{
+//	case KeyCode::F11:
+//		m_pWindow->ToggleFullScreen();
+//		break;
+//		}
+//	case KeyCode::V:
+//		m_pWindow->ToggleVSync();
+//		break;
+//	case KeyCode::R:
+//		// Reset camera transform
+//		m_Camera.SetTranslation(m_pAlignedCameraDate->m_InitialCamPos);
+//		m_Camera.SetRotation(m_pAlignedCameraDate->m_InitialCamRot);
+//		m_Camera.SetFov(m_pAlignedCameraDate->m_InitialFov);
+//		m_Pitch = 0.0f;
+//		m_Yaw = 0.0f;
+//		break;
+//	case KeyCode::Up:
+//	case KeyCode::W:
+//		m_Forward = 1.0f;
+//		break;
+//	case KeyCode::Left:
+//	case KeyCode::A:
+//		m_Left = 1.0f;
+//		break;
+//	case KeyCode::Down:
+//	case KeyCode::S:
+//		m_Backward = 1.0f;
+//		break;
+//	case KeyCode::Right:
+//	case KeyCode::D:
+//		m_Right = 1.0f;
+//		break;
+//	case KeyCode::Q:
+//		m_Down = 1.0f;
+//		break;
+//	case KeyCode::E:
+//		m_Up = 1.0f;
+//		break;
+//	case KeyCode::Space:
+//		m_AnimaeLights = !m_AnimaeLights;
+//		break;
+//	case KeyCode::ShiftKey:
+//		m_Shift = true;
+//		break;
+//	}
 //}
 //
 //void Lesson3::OnKeyReleased(KeyEventArgs& _e)

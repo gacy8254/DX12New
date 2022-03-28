@@ -137,8 +137,8 @@ SwapChain::SwapChain(Device& _device, HWND _hwnd, DXGI_FORMAT _rendertargetForma
 	ThrowIfFailed(dxgiFactory.As(&dxgiFactory5));
 
 	//检查对防撕裂的支持
-	bool allowTearing = false;
-	if (SUCCEEDED(dxgiFactory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(bool))))
+	BOOL allowTearing = FALSE;
+	if (SUCCEEDED(dxgiFactory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(BOOL))))
 	{
 		m_TearingSupported = (allowTearing == true);
 	}

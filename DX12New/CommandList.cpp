@@ -409,6 +409,8 @@ void CommandList::GenerateMips(const std::shared_ptr<Texture>& _texture)
 		return;
 	}
 
+	auto device = m_Device.GetD3D12Device();
+
 	//如果当前命令列表时复制命令列表
 	//检索计算命令列表
 	//在计算命令列表上执行该操作
@@ -454,8 +456,6 @@ void CommandList::GenerateMips(const std::shared_ptr<Texture>& _texture)
 	//如果不支持，生成一个支持的临时资源
 	if (!_texture->CheckUAVSupport() || (resDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) == 0)
 	{
-		auto device = m_Device.GetD3D12Device();
-
 		auto aliasDesc = resDesc;
 
 		//别名资源必须是UAV不能是RT和深度模板图
@@ -716,7 +716,7 @@ void CommandList::SetDynamicVertexBuffer(uint32_t _slot, size_t _numVertices, si
 	m_CommandList->IASetVertexBuffers(_slot, 1, &vbv);
 }
 
-void CommandList::SetVertexBuffer(uint32_t _slot, const std::vector<std::shared_ptr<VertexBuffer>>& _vertexBufffer)
+void CommandList::SetVertexBuffers(uint32_t _slot, const std::vector<std::shared_ptr<VertexBuffer>>& _vertexBufffer)
 {
 	std::vector<D3D12_VERTEX_BUFFER_VIEW> views;
 	views.reserve(_vertexBufffer.size());
@@ -737,7 +737,7 @@ void CommandList::SetVertexBuffer(uint32_t _slot, const std::vector<std::shared_
 
 void CommandList::SetVertexBuffer(uint32_t _slot, const std::shared_ptr<VertexBuffer>& _vertexBufffer)
 {
-	SetVertexBuffer(_slot, { _vertexBufffer });
+	SetVertexBuffers(_slot, { _vertexBufffer });
 }
 
 void CommandList::SetIndexBuffer(const std::shared_ptr<IndexBuffer>& _indexBuffer)
@@ -916,8 +916,7 @@ void CommandList::SetShaderResourceView(
 
 		TrackResource(_texture);
 
-		m_DynamicDescriptorHeap[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];// ->StageDescriptor(_rootParameterIndex, _descriptorOffset, 1, _texture->GetShaderResourceView());
-
+		m_DynamicDescriptorHeap[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]->StageDescriptor(_rootParameterIndex, _descriptorOffset, 1, _texture->GetShaderResourceView());
 	}
 }
 
@@ -1136,6 +1135,7 @@ void CommandList::Reset()
 
 	m_RootSignature = nullptr;
 	m_ComputerCommandList = nullptr;
+	m_PSO = nullptr;
 }
 
 void CommandList::ReleaseTrackedObjects()
