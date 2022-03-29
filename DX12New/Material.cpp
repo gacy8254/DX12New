@@ -24,44 +24,44 @@ Material::Material(const Material& _copy)
 	m_Textures(_copy.m_Textures)
 {}
 
-const DirectX::XMFLOAT4& Material::GetAmbientColor() const
+const Vector4& Material::GetAmbientColor() const
 {
 	return m_MaterialProperties->Ambient;
 }
 
-void Material::SetAmbientColor(const DirectX::XMFLOAT4& ambient)
+void Material::SetAmbientColor( Vector4 ambient)
 {
-	m_MaterialProperties->Ambient = ambient;
+	m_MaterialProperties->Ambient = ambient.GetFloat4();
 }
 
-const DirectX::XMFLOAT4& Material::GetDiffuseColor() const
+const Vector4& Material::GetDiffuseColor() const
 {
 	return m_MaterialProperties->Diffuse;
 }
 
-void Material::SetDiffuseColor(const DirectX::XMFLOAT4& diffuse)
+void Material::SetDiffuseColor(Vector4 diffuse)
 {
-	m_MaterialProperties->Diffuse = diffuse;
+	m_MaterialProperties->Diffuse = diffuse.GetFloat4();
 }
 
-const DirectX::XMFLOAT4& Material::GetEmissiveColor() const
+const Vector4& Material::GetEmissiveColor() const
 {
 	return m_MaterialProperties->Emissive;
 }
 
-void Material::SetEmissiveColor(const DirectX::XMFLOAT4& emissive)
+void Material::SetEmissiveColor(Vector4 emissive)
 {
-	m_MaterialProperties->Emissive = emissive;
+	m_MaterialProperties->Emissive = emissive.GetFloat4();
 }
 
-const DirectX::XMFLOAT4& Material::GetSpecularColor() const
+const Vector4& Material::GetSpecularColor() const
 {
 	return m_MaterialProperties->Specular;
 }
 
-void Material::SetSpecularColor(const DirectX::XMFLOAT4& specular)
+void Material::SetSpecularColor(Vector4 specular)
 {
-	m_MaterialProperties->Specular = specular;
+	m_MaterialProperties->Specular = specular.GetFloat4();
 }
 
 float Material::GetSpecularPower() const
@@ -74,14 +74,14 @@ void Material::SetSpecularPower(float specularPower)
 	m_MaterialProperties->SpecularPower = specularPower;
 }
 
-const DirectX::XMFLOAT4& Material::GetReflectance() const
+const Vector4& Material::GetReflectance() const
 {
 	return m_MaterialProperties->Reflectance;
 }
 
-void Material::SetReflectance(const DirectX::XMFLOAT4& reflectance)
+void Material::SetReflectance(Vector4 reflectance)
 {
-	m_MaterialProperties->Reflectance = reflectance;
+	m_MaterialProperties->Reflectance = reflectance.GetFloat4();
 }
 
 const float Material::GetOpacity() const

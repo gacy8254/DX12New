@@ -39,26 +39,27 @@ Lesson5::Lesson5(const std::wstring& _name, int _width, int _height, bool _vSync
 	m_CancelLoading(false),
 	m_ShowControls(false),
 	m_IsLoading(false),
-	m_FPS(0.0f)
+	m_FPS(0.0f),
+	m_CameraController(m_Camera)
 {
 #if defined(_DEBUG)
 	Device::EnableDebufLayer();
 #endif
 
-	XMVECTOR cameraPos1 = XMVectorSet(0, 5, -5, 1);
-	XMVECTOR cameraTarget1 = XMVectorSet(0, 5, 0, 1);
-	XMVECTOR cameraUp1 = XMVectorSet(0, 1, 0, 0);
+	//XMVECTOR cameraPos1 = XMVectorSet(0, 5, -5, 1);
+	//XMVECTOR cameraTarget1 = XMVectorSet(0, 5, 0, 1);
+	//XMVECTOR cameraUp1 = XMVectorSet(0, 1, 0, 0);
 
-	Vector4 cameraPos = Vector4(0, 5, -5, 1);
-	Vector4 cameraTarget = Vector4(0, 5, 0, 1);
-	Vector4 cameraUp = Vector4(0, 1, 0, 0);
+	//Vector4 cameraPos = Vector4(0, 5, -5, 1);
+	//Vector4 cameraTarget = Vector4(0, 5, 0, 1);
+	//Vector4 cameraUp = Vector4(0, 1, 0, 0);
 
-	auto v = DirectX::XMMatrixLookAtLH(cameraPos1, cameraTarget1, cameraUp1);
-	m_Camera.SetLookAt(cameraPos, cameraTarget, cameraUp);
-	float aspect = m_Width / (float)m_Height;
-	m_Camera.SetProjection(45.0f, aspect, 0.1f, 1000.0f);
-	m_Camera.GetProjMatrix();
-	auto o = XMMatrixPerspectiveFovLH(XMConvertToRadians(45.0f), aspect, 0.1f, 1000.0f);
+	//auto v = DirectX::XMMatrixLookAtLH(cameraPos1, cameraTarget1, cameraUp1);
+	//m_Camera.SetLookAt(cameraPos, cameraTarget, cameraUp);
+	//float aspect = m_Width / (float)m_Height;
+	//m_Camera.SetProjection(45.0f, aspect, 0.1f, 1000.0f);
+	//m_Camera.GetProjMatrix();
+	//auto o = XMMatrixPerspectiveFovLH(XMConvertToRadians(45.0f), aspect, 0.1f, 1000.0f);
 	m_Window = Application::Get().CreateWindow(_name, _width, _height);
 
 	//注册回调函数
@@ -104,6 +105,8 @@ void Lesson5::LoadContent()
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
 	auto commandList = commandQueue.GetCommandList();
 
+	
+
 	m_Sphere = MeshHelper::CreateSphere(commandList, 0.1f);
 	m_Cone = MeshHelper::CreateCone(commandList, 0.1f, 0.2f);
 	m_Axis = commandList->LoadSceneFromFile(L"C:\\Code\\DX12New\\Assets\\Models\\axis_of_evil.nff");
@@ -112,7 +115,7 @@ void Lesson5::LoadContent()
 	m_LightingPSO = std::make_shared<EffectPSO>(m_Device, true, false);
 	m_DecalPSO = std::make_shared<EffectPSO>(m_Device, true, true);
 	m_UnlitPSO = std::make_shared<EffectPSO>(m_Device, false, false);
-	
+	BuildLighting(1, 1, 0);
 	//执行命令列表
 	auto fence = commandQueue.ExecuteCommandList(commandList);
 
@@ -151,6 +154,8 @@ void Lesson5::LoadContent()
 
 	// Make sure the copy command queue is finished before leaving this function.
 	commandQueue.WaitForFenceValue(fence);
+
+	
 }
 
 void Lesson5::UnLoadContent()
@@ -177,17 +182,10 @@ void Lesson5::OnUpdate(UpdateEventArgs& e)
 		frameCount = 0;
 		totalTime = 0.0;
 	}
-
-	float speedMultipler = 20.0f;
-
-	Vector4 cameraTranslate = Vector4(m_Right - m_Left, 0.0f, m_Forward - m_Backward, 1.0f) * speedMultipler * static_cast<float>(e.DeltaTime);
-	Vector4 cameraPan = Vector4(0.0f, m_Up - m_Down, 0.0f, 1.0f) * speedMultipler * static_cast<float>(e.DeltaTime);
-	m_Camera.Translate(cameraTranslate, Space::Local);
-	m_Camera.Translate(cameraPan, Space::Local);
-
-	Vector4 cameraRotation = Transform::QuaternionRotationRollPitchYaw(XMConvertToRadians(m_Pitch), XMConvertToRadians(m_Yaw), 0.0f);
-	m_Camera.SetRotation(cameraRotation);
-
+	m_LightingPSO->SetSpotLights(m_SpotLights);
+	m_DecalPSO->SetSpotLights(m_SpotLights);
+	m_LightingPSO->SetPointLights(m_PointLights);
+	m_DecalPSO->SetPointLights(m_PointLights);
 	Matrix4 viewMatrix = m_Camera.GetViewMatrix();
 
 	Vector4 cameraPoint = Vector4(0, 0, 0, 1);
@@ -195,11 +193,13 @@ void Lesson5::OnUpdate(UpdateEventArgs& e)
 	Matrix4 scaleMatrix = Transform::MatrixScaling(0.01f, 0.01f, 0.01f);
 	m_Axis->GetRootNode()->SetLocalTransform(scaleMatrix * translationMatrix);
 
-	BuildLighting(1, 1, 1);
+	
+	
 
 	m_SwapChain->WaitForSwapChain();
 
 	Application::Get().ProcessInput();
+	m_CameraController.Update(e);
 
 	OnRender();
 }
@@ -222,7 +222,7 @@ void Lesson5::OnResize(ResizeEventArgs& e)
 void Lesson5::OnRender()
 {
 	m_Window->SetFullScreen(m_Fullscreen);
-
+	//std::cout << m_SpotLights.size() << std::endl;
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	auto  commandList = commandQueue.GetCommandList();
 
@@ -237,49 +237,24 @@ void Lesson5::OnRender()
 	}
 	else
 	{
+		//创建Pass
 		SceneVisitor opaquePass(*commandList, m_Camera, *m_LightingPSO, false);
 		SceneVisitor transparentPass(*commandList, m_Camera, *m_DecalPSO, true);
 		SceneVisitor unlitPass(*commandList, m_Camera, *m_UnlitPSO, false);
 
-
+		//设置命令列表
 		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color0), clearColor);
 		commandList->ClearDepthStencilTexture(rendertarget.GetTexture(AttachmentPoint::DepthStencil),D3D12_CLEAR_FLAG_DEPTH);
 		commandList->SetViewport(m_Viewport);
 		commandList->SetScissorRect(m_ScissorRect);
 		commandList->SetRenderTarget(rendertarget);
 
+		//渲染场景
 		m_Scene->Accept(opaquePass);
-		
 		m_Axis->Accept(unlitPass);
 		m_Scene->Accept(transparentPass);
 
-		MaterialProperties lightMaterial = Material::Black;
-		for (const auto& l : m_PointLights)
-		{
-			lightMaterial.Emissive = l.Color;
-			auto lightPos = Vector4(l.PositionWS);
-			auto worldMatrix = Transform::MatrixTranslateFromVector(lightPos);
-
-			m_Sphere->GetRootNode()->SetLocalTransform(worldMatrix);
-			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetMaterialProperties(lightMaterial);
-			m_Sphere->Accept(unlitPass);
-		}
-
-		for (const auto& l : m_SpotLights)
-		{
-			lightMaterial.Emissive = l.Color;
-			Vector4 lightPos = Vector4(l.PositionWS);
-			Vector4 lightDir = Vector4(l.DirectionWS);
-			Vector4 up = Vector4(0, 1, 0, 0);
-
-			// Rotate the cone so it is facing the Z axis.
-			auto rotationMatrix = Transform::MatrixRotationX(XMConvertToRadians(-90.0f));
-			auto worldMatrix = rotationMatrix * LookAtMatrix(lightPos, lightDir, up);
-
-			m_Cone->GetRootNode()->SetLocalTransform(worldMatrix);
-			m_Cone->GetRootNode()->GetMesh()->GetMaterial()->SetMaterialProperties(lightMaterial);
-			m_Cone->Accept(unlitPass);
-		}
+		DrawLightMesh(unlitPass);
 
 		auto swapChainBackBuffer = m_SwapChain->GetRenderTarget().GetTexture(AttachmentPoint::Color0);
 		auto msaaRenderTarget = m_RenderTarget.GetTexture(AttachmentPoint::Color0);
@@ -317,27 +292,8 @@ void Lesson5::OnKeyPressed(KeyEventArgs& e)
 	case KeyCode::V:
 		m_SwapChain->ToggleVSync();
 		break;
-	case KeyCode::Up:
-	case KeyCode::W:
-		m_Forward = 1.0f;
-		break;
-	case KeyCode::Left:
-	case KeyCode::A:
-		m_Left = 1.0f;
-		break;
-	case KeyCode::Down:
-	case KeyCode::S:
-		m_Backward = 1.0f;
-		break;
-	case KeyCode::Right:
-	case KeyCode::D:
-		m_Right = 1.0f;
-		break;
-	case KeyCode::Q:
-		m_Down = 1.0f;
-		break;
-	case KeyCode::E:
-		m_Up = 1.0f;
+	case KeyCode::R:
+		m_CameraController.ResetView();
 		break;
 	case KeyCode::O:
 		if (e.Control)
@@ -359,55 +315,19 @@ void Lesson5::OnKeyReleased(KeyEventArgs& e)
 		m_AllowFullscreenToggle = true;
 		}
 		break;
-	case KeyCode::Up:
-	case KeyCode::W:
-		m_Forward = 0.0f;
-		break;
-	case KeyCode::Left:
-	case KeyCode::A:
-		m_Left = 0.0f;
-		break;
-	case KeyCode::Down:
-	case KeyCode::S:
-		m_Backward = 0.0f;
-		break;
-	case KeyCode::Right:
-	case KeyCode::D:
-		m_Right = 0.0f;
-		break;
-	case KeyCode::Q:
-		m_Down = 0.0f;
-		break;
-	case KeyCode::E:
-		m_Up = 0.0f;
-		break;
-	case KeyCode::ShiftKey:
-		m_Shift = false;
-		break;
 	}
 }
 
 void Lesson5::OnMouseMoved(MouseMotionEventArgs& e)
 {
-	const float mouseSpeed = 0.1f;
-	if (e.LeftButton)
-	{
-		m_Pitch += e.RelY * mouseSpeed;
-
-		m_Pitch = Clamp(m_Pitch, -90.0f, 90.0f);
-
-		m_Yaw += e.RelX * mouseSpeed;
-	}
 }
 
 void Lesson5::OnDPIScaleChanged(DPIScaleEventArgs& e)
 {
-
 }
 
 void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const RenderTarget& renderTarget)
 {
-
 }
 
 bool Lesson5::LoadScene(const std::wstring& sceneFile)
@@ -429,7 +349,7 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 		//缩放场景,以适合摄像机时锥
 		DirectX::BoundingSphere s;
 		BoundingSphere::CreateFromBoundingBox(s, scene->GetAABB());
-		auto scale = 50.0f / (s.Radius * 2.0f);
+		auto scale = 100.0f / (s.Radius * 2.0f);
 		s.Radius *= scale;
 
 		scene->GetRootNode()->SetLocalTransform(Transform::MatrixScaling(scale, scale, scale));
@@ -572,9 +492,10 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 		XMStoreFloat4(&l.PositionVS, positionVS);
 
 		l.Color = XMFLOAT4(LightColors[i]);
-		l.ConstantAttenuation = 1.0f;
+		l.ConstantAttenuation = 100.0f;
 		l.LinearAttenuation = 0.08f;
-		l.QuadraticAttenuation = 0.0f;
+		l.QuadraticAttenuation = 7.0f;
+		l.Ambient = 0.0f;
 	}
 
 	m_LightingPSO->SetPointLights(m_PointLights);
@@ -587,19 +508,16 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 
 		float angle = lightAnimTime + spotLightOffset * i + pointLightOffset / 2.0;
 
-		l.PositionWS = { static_cast<float>(std::sin(angle)) * radius, 2.0f,
-						 static_cast<float>(std::cos(angle)) * radius, 1.0f };
+		l.PositionWS = { 10, 10, 5, 1};
+		l.PositionVS = l.PositionWS;
 
-		XMVECTOR positionWS = XMLoadFloat4(&l.PositionWS);
-		XMVECTOR positionVS = positionWS;
-		XMStoreFloat4(&l.PositionVS, positionVS);
-
-		XMVECTOR directionWS = XMVector3Normalize(XMVectorSetW(XMVectorSetY(positionWS, 0), 0));
-		XMVECTOR directionVS = XMVector3Normalize(XMVector3TransformNormal(directionWS, viewMatrix));
+		Vector4 directionWS(0.01, -0.8, 0, 0);
+		Vector4 directionVS = directionWS;
 		XMStoreFloat4(&l.DirectionWS, directionWS);
 		XMStoreFloat4(&l.DirectionVS, directionVS);
 
 		l.Color = XMFLOAT4(LightColors[(i + numPointLights) % _countof(LightColors)]);
+		l.Color = XMFLOAT4(1, 1, 1, 0);
 		l.SpotAngle = XMConvertToRadians(45.0f);
 		l.ConstantAttenuation = 1.0f;
 		l.LinearAttenuation = 0.08f;
@@ -630,4 +548,37 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 
 	m_LightingPSO->SetDirectionalLights(m_DirectionalLights);
 	m_DecalPSO->SetDirectionalLights(m_DirectionalLights);
+}
+
+void Lesson5::DrawLightMesh(SceneVisitor& _pass)
+{
+	MaterialProperties lightMaterial = Material::Black;
+	for (const auto& l : m_PointLights)
+	{
+		lightMaterial.Emissive = l.Color;
+		auto lightPos = Vector4(l.PositionWS);
+		auto worldMatrix = Transform::MatrixTranslateFromVector(lightPos);
+
+		m_Sphere->GetRootNode()->SetLocalTransform(worldMatrix);
+		m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetMaterialProperties(lightMaterial);
+		m_Sphere->Accept(_pass);
+	}
+
+	for (const auto& l : m_SpotLights)
+	{
+		lightMaterial.Emissive = l.Color;
+		Vector4 lightPos = Vector4(l.PositionWS);
+		Vector4 lightDir = Vector4(l.DirectionWS);
+		Vector4 up = Vector4(0, 1, 0, 0);
+
+		// Rotate the cone so it is facing the Z axis.
+
+		auto scale = Transform::MatrixScaling(1, 1, 1);
+		auto rotationMatrix = Transform::MatrixRotationX(XMConvertToRadians(-90.0f));
+		auto worldMatrix = scale * rotationMatrix * LookAtMatrix(lightPos, lightDir, up);
+
+		m_Cone->GetRootNode()->SetLocalTransform(worldMatrix);
+		m_Cone->GetRootNode()->GetMesh()->GetMaterial()->SetMaterialProperties(lightMaterial);
+		m_Cone->Accept(_pass);
+	}
 }

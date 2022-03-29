@@ -1,3 +1,4 @@
+
 struct Mat
 {
     matrix ModelMat;
@@ -30,9 +31,9 @@ struct VertexOutput
 VertexOutput main(VertexInput IN)
 {
     VertexOutput VSOUT;
-    
+
     VSOUT.Position = mul(MatCB.ModelViewPorjMat, float4(IN.Position, 1.0f));
-    VSOUT.PositionVS = mul(MatCB.ModelViewMat, float4(IN.Position, 1.0f));
+    VSOUT.PositionVS = mul(MatCB.ModelMat, float4(IN.Position, 1.0f));
     VSOUT.NormalVS = mul((float3x3) MatCB.InverseTransposeModelViewMat, IN.Normal);
     VSOUT.TexCoord = IN.TexCoord.xy;
     VSOUT.TangentVS = mul((float3x3) MatCB.InverseTransposeModelViewMat, IN.Tangent);

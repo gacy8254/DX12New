@@ -1,5 +1,6 @@
 #pragma once
 #include "BaseCamera.h"
+#include "CameraController.h"
 #include "Light.h"
 #include "Application.h"
 #include "RenderTarget.h"
@@ -74,6 +75,8 @@ private:
 
     void BuildLighting(int numPointLights, int numSpotLights, int numDirectionalLights);
 
+    void DrawLightMesh(SceneVisitor& _pass);
+
 	std::shared_ptr<EffectPSO> m_LightingPSO;
 	std::shared_ptr<EffectPSO> m_DecalPSO;
 	std::shared_ptr<EffectPSO> m_UnlitPSO;
@@ -93,6 +96,7 @@ private:
     D3D12_VIEWPORT m_Viewport;
 
     BaseCamera m_Camera;
+    CameraController m_CameraController;
     //Assimp::Logger m_Logger;
 
     int m_Width;
@@ -118,17 +122,5 @@ private:
 	std::string       m_LoadingText;
 
 	float m_FPS;
-
-	float m_Forward;
-	float m_Backward;
-	float m_Left;
-	float m_Right;
-	float m_Up;
-	float m_Down;
-
-	float m_Pitch;
-	float m_Yaw;
-
-	bool m_Shift;
 };
 

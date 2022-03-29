@@ -2,6 +2,7 @@
 #include <DirectXMath.h>
 #include <memory>
 #include <map>
+#include "Vector.h"
 
 class Texture;
 
@@ -88,23 +89,23 @@ public:
 
 	~Material() = default;
 
-	const DirectX::XMFLOAT4& GetAmbientColor() const;
-	void                     SetAmbientColor(const DirectX::XMFLOAT4& ambient);
+	const Vector4& GetAmbientColor() const;
+	void                     SetAmbientColor(Vector4 ambient);
 
-	const DirectX::XMFLOAT4& GetDiffuseColor() const;
-	void                     SetDiffuseColor(const DirectX::XMFLOAT4& diffuse);
+	const Vector4& GetDiffuseColor() const;
+	void                     SetDiffuseColor(Vector4 diffuse);
 
-	const DirectX::XMFLOAT4& GetEmissiveColor() const;
-	void                     SetEmissiveColor(const DirectX::XMFLOAT4& emissive);
+	const Vector4& GetEmissiveColor() const;
+	void                     SetEmissiveColor( Vector4 emissive);
 
-	const DirectX::XMFLOAT4& GetSpecularColor() const;
-	void                     SetSpecularColor(const DirectX::XMFLOAT4& specular);
+	const Vector4& GetSpecularColor() const;
+	void                     SetSpecularColor( Vector4 specular);
 
 	float GetSpecularPower() const;
 	void  SetSpecularPower(float specularPower);
 
-	const DirectX::XMFLOAT4& GetReflectance() const;
-	void                     SetReflectance(const DirectX::XMFLOAT4& reflectance);
+	const Vector4& GetReflectance() const;
+	void                     SetReflectance(Vector4 reflectance);
 
 	const float GetOpacity() const;
 	void        SetOpacity(float opacity);

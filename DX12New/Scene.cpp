@@ -190,19 +190,19 @@ void Scene::ImportMaterial(CommandList& _commandList, const aiMaterial& _materia
 
 	if (_material.Get(AI_MATKEY_COLOR_AMBIENT, ambientColor) == aiReturn_SUCCESS)
 	{
-		pMaterial->SetAmbientColor(XMFLOAT4(ambientColor.r, ambientColor.g, ambientColor.b, ambientColor.a));
+		pMaterial->SetAmbientColor(Vector4(ambientColor.r, ambientColor.g, ambientColor.b, ambientColor.a));
 	}
 	if (_material.Get(AI_MATKEY_COLOR_EMISSIVE, emissiveColor) == aiReturn_SUCCESS)
 	{
-		pMaterial->SetEmissiveColor(XMFLOAT4(emissiveColor.r, emissiveColor.g, emissiveColor.b, emissiveColor.a));
+		pMaterial->SetEmissiveColor(Vector4(emissiveColor.r, emissiveColor.g, emissiveColor.b, emissiveColor.a));
 	}
 	if (_material.Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor) == aiReturn_SUCCESS)
 	{
-		pMaterial->SetDiffuseColor(XMFLOAT4(diffuseColor.r, diffuseColor.g, diffuseColor.b, diffuseColor.a));
+		pMaterial->SetDiffuseColor(Vector4(diffuseColor.r, diffuseColor.g, diffuseColor.b, diffuseColor.a));
 	}
 	if (_material.Get(AI_MATKEY_COLOR_SPECULAR, specularColor) == aiReturn_SUCCESS)
 	{
-		pMaterial->SetSpecularColor(XMFLOAT4(specularColor.r, specularColor.g, specularColor.b, specularColor.a));
+		pMaterial->SetSpecularColor(Vector4(specularColor.r, specularColor.g, specularColor.b, specularColor.a));
 	}
 	if (_material.Get(AI_MATKEY_SHININESS, shininess) == aiReturn_SUCCESS)
 	{
