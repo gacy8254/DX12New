@@ -192,6 +192,7 @@
     <ClCompile Include="StructuredBuffer.cpp" />
     <ClCompile Include="SwapChain.cpp" />
     <ClCompile Include="Texture.cpp" />
+    <ClCompile Include="Transform.cpp" />
     <ClCompile Include="UnorderedAccessView.cpp" />
     <ClCompile Include="UploadBuffer.cpp" />
     <ClCompile Include="Vector.cpp" />
@@ -256,6 +257,7 @@
     <ClInclude Include="Texture.h" />
     <ClInclude Include="TextureUsage.hpp" />
     <ClInclude Include="ThreadSafeQueue.h" />
+    <ClInclude Include="Transform.h" />
     <ClInclude Include="UnorderedAccessView.h" />
     <ClInclude Include="UploadBuffer.h" />
     <ClInclude Include="Vector.h" />

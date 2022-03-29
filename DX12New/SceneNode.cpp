@@ -4,13 +4,13 @@
 
 using namespace DirectX;
 
-SceneNode::SceneNode(const DirectX::XMMATRIX& _localTransform /*= DirectX::XMMatrixIdentity()*/)
+SceneNode::SceneNode(const Matrix4& _localTransform /*= Matrix4Identity()*/)
 	:m_Name("SceneNode"),
 	m_AABB({0, 0, 0}, {0, 0, 0})
 {
 	m_AlignedData = (AlignedData*)_aligned_malloc(sizeof(AlignedData), 16);
 	m_AlignedData->m_LocalTransform = _localTransform;
-	m_AlignedData->m_InverseTransform = XMMatrixInverse(nullptr, _localTransform);
+	m_AlignedData->m_InverseTransform = Transform::InverseMatrix(nullptr, _localTransform);
 }
 
 SceneNode::~SceneNode()
@@ -28,30 +28,30 @@ void SceneNode::SetName(const std::string& _name)
 	m_Name = _name;
 }
 
-DirectX::XMMATRIX SceneNode::GetLocalTransform() const
+Matrix4 SceneNode::GetLocalTransform() const
 {
 	return m_AlignedData->m_LocalTransform;
 }
 
-void SceneNode::SetLocalTransform(const DirectX::XMMATRIX& _localTransform)
+void SceneNode::SetLocalTransform(const Matrix4& _localTransform)
 {
 	m_AlignedData->m_LocalTransform = _localTransform;
-	m_AlignedData->m_InverseTransform = XMMatrixInverse(nullptr, _localTransform);
+	m_AlignedData->m_InverseTransform = Transform::InverseMatrix(nullptr, _localTransform);
 }
 
-DirectX::XMMATRIX SceneNode::GetInverseLocalTransform() const
+Matrix4 SceneNode::GetInverseLocalTransform() const
 {
 	return m_AlignedData->m_InverseTransform;
 }
 
-DirectX::XMMATRIX SceneNode::GetWorldTransform() const
+Matrix4 SceneNode::GetWorldTransform() const
 {
 	return m_AlignedData->m_LocalTransform * GetParentWorldTransform();
 }
 
-DirectX::XMMATRIX SceneNode::GetInverseWorldTransform() const
+Matrix4 SceneNode::GetInverseWorldTransform() const
 {
-	return XMMatrixInverse(nullptr, GetWorldTransform());
+	return Transform::InverseMatrix(nullptr, GetWorldTransform());
 }
 
 void SceneNode::AddChild(std::shared_ptr<SceneNode> childNode)
@@ -67,9 +67,9 @@ void SceneNode::AddChild(std::shared_ptr<SceneNode> childNode)
 			//用子节点的世界变换乘自身世界变幻矩阵的逆矩阵,得到相对于自身的子节点的局部变换矩阵
 			//设置子节点的局部变换矩阵
 			//将子节点信息添加到容器中
-			XMMATRIX worldTransform = childNode->GetWorldTransform();
+			Matrix4 worldTransform = childNode->GetWorldTransform();
 			childNode->m_ParentNode = shared_from_this();
-			XMMATRIX localTransform = worldTransform * GetInverseWorldTransform();
+			Matrix4 localTransform = worldTransform * GetInverseWorldTransform();
 			childNode->SetLocalTransform(localTransform);
 			m_Children.push_back(childNode);
 			if (!childNode->GetName().empty())
@@ -201,9 +201,9 @@ void SceneNode::Accept(Visitor& _visitor)
 	}
 }
 
-DirectX::XMMATRIX SceneNode::GetParentWorldTransform() const
+Matrix4 SceneNode::GetParentWorldTransform() const
 {
-	XMMATRIX parentTransform = XMMatrixIdentity();
+	Matrix4 parentTransform = Matrix4();
 	if (auto parentNode = m_ParentNode.lock())
 	{
 		parentTransform = parentNode->GetWorldTransform();

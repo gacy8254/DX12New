@@ -1,10 +1,14 @@
 #pragma once
+
+#include "Transform.h"
+
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <DirectXMath.h>
+
+
 #include <DirectXCollision.h>
 
 
@@ -16,7 +20,7 @@ class Visitor;
 class SceneNode : public std::enable_shared_from_this<SceneNode>
 {
 public:
-	explicit SceneNode(const DirectX::XMMATRIX& _localTransform = DirectX::XMMatrixIdentity());
+	explicit SceneNode(const Matrix4& _localTransform = Matrix4());
 	virtual ~SceneNode();
 
 	//为场景节点指定一个名字方便搜索
@@ -24,17 +28,17 @@ public:
 	void SetName(const std::string& _name);
 
 	//获取局部变换(相对于父节点的位置)
-	DirectX::XMMATRIX GetLocalTransform() const;
-	void SetLocalTransform(const DirectX::XMMATRIX& _localTransform);
+	Matrix4 GetLocalTransform() const;
+	void SetLocalTransform(const Matrix4& _localTransform);
 
 	//得到局部变换的逆
-	DirectX::XMMATRIX GetInverseLocalTransform() const;
+	Matrix4 GetInverseLocalTransform() const;
 
 	//获取世界变换
-	DirectX::XMMATRIX GetWorldTransform() const;
+	Matrix4 GetWorldTransform() const;
 
 	//获取世界变换的逆
-	DirectX::XMMATRIX GetInverseWorldTransform() const;
+	Matrix4 GetInverseWorldTransform() const;
 
 	//增加一个子节点到场景节点
 	//如果父节点被删除,且没有另外的节点引用,所有子节点将会被删除
@@ -57,7 +61,7 @@ public:
 	void Accept(Visitor& _visitor);
 
 protected:
-	DirectX::XMMATRIX GetParentWorldTransform() const;
+	Matrix4 GetParentWorldTransform() const;
 
 private:
 	using NodePtr = std::shared_ptr<SceneNode>;
@@ -70,8 +74,8 @@ private:
 	//确保数据16位对齐
 	struct alignas(16) AlignedData
 	{
-		DirectX::XMMATRIX m_LocalTransform;
-		DirectX::XMMATRIX m_InverseTransform;
+		Matrix4 m_LocalTransform;
+		Matrix4 m_InverseTransform;
 	} *m_AlignedData;
 
 	std::weak_ptr<SceneNode> m_ParentNode;

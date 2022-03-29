@@ -45,7 +45,8 @@ __declspec(align(16)) class Matrix4
 {
 public:
 	inline Matrix4(Tag _tag);
-	inline Matrix4() { m_Mat.r[0] = Vector4(Tag::ONE), m_Mat.r[1] = Vector4(Tag::ONE), m_Mat.r[2] = Vector3(Tag::ONE), m_Mat.r[3] = Vector3(Tag::ONE); }
+	inline Matrix4() { m_Mat = DirectX::XMMatrixIdentity(); }
+	inline Matrix4(DirectX::XMMATRIX _mat) { m_Mat = _mat; }
 	inline Matrix4(Vector3 _x, Vector3 _y, Vector3 _z, Vector3 _w) { m_Mat.r[0] = SetWToZero(_x), m_Mat.r[1] = SetWToZero(_y), m_Mat.r[2] = SetWToZero(_y), m_Mat.r[3] = SetWToOne(_w); }
 	inline Matrix4(Vector4 _x, Vector4 _y, Vector4 _z, Vector4 _w) { m_Mat.r[0] = _x, m_Mat.r[1] = _y, m_Mat.r[2] = _z, m_Mat.r[3] = _w; }
 	inline Matrix4(const float* _data) { m_Mat = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)_data); }
@@ -79,7 +80,8 @@ public:
 
 	inline Vector4 operator* (Vector3 vec) const { return Vector4(DirectX::XMVector3Transform(vec, m_Mat)); }
 	inline Vector4 operator* (Vector4 vec) const { return Vector4(DirectX::XMVector4Transform(vec, m_Mat)); }
-	inline Matrix4 operator* (const Matrix4& vec) const { return Matrix4(DirectX::XMMatrixMultiply(vec, m_Mat)); }
+	inline Matrix4 operator* (const Matrix4& vec) const { return Matrix4(DirectX::XMMatrixMultiply(m_Mat, vec)); }
+	//inline Matrix4 operator* (const Matrix4& vec) const { return Matrix4(DirectX::XMMatrixMultiply(vec, m_Mat)); }
 
 	inline Matrix4 RotateX(float _angle) { return Matrix4(DirectX::XMMatrixRotationX(_angle)); }
 	inline Matrix4 RotateY(float _angle) { return Matrix4(DirectX::XMMatrixRotationY(_angle)); }

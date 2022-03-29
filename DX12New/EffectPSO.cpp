@@ -135,7 +135,7 @@ void EffectPSO::Apply(CommandList& _commandList)
 		m.ModelMatrix = m_pAlignedMVP->World;
 		m.ModelViewMatrix = m_pAlignedMVP->World * m_pAlignedMVP->View;
 		m.ModelViewProjectionMatrix = m.ModelViewMatrix * m_pAlignedMVP->Projection;
-		m.InverseTransposeModelViewMatrix = XMMatrixTranspose(XMMatrixInverse(nullptr, m.ModelMatrix));
+		m.InverseTransposeModelViewMatrix = Transform::MatrixTranspose(Transform::InverseMatrix(nullptr, m.ModelMatrix));
 
 		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MatricesCB, m);
 	}

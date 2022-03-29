@@ -8,7 +8,8 @@
 #include "RootSignature.h"
 #include "VertexType.h"
 
-#include <DirectXMath.h>
+//#include <DirectXMath.h>
+#include "Transform.h"
 
 #include <memory>
 #include <vector>
@@ -25,10 +26,10 @@ public:
 
 	struct alignas(16) Matrices
 	{
-		DirectX::XMMATRIX ModelMatrix;
-		DirectX::XMMATRIX ModelViewMatrix;
-		DirectX::XMMATRIX InverseTransposeModelViewMatrix;
-		DirectX::XMMATRIX ModelViewProjectionMatrix;
+		Matrix4 ModelMatrix;
+		Matrix4 ModelViewMatrix;
+		Matrix4 InverseTransposeModelViewMatrix;
+		Matrix4 ModelViewProjectionMatrix;
 	};
 
 	enum RootParameters
@@ -86,26 +87,26 @@ public:
 		m_DirtyFlags |= DF_Material;
 	}
 
-	void XM_CALLCONV SetWorldMatrix(DirectX::FXMMATRIX worldMatrix) 
+	void XM_CALLCONV SetWorldMatrix(Matrix4 worldMatrix) 
 	{ 
 		m_pAlignedMVP->World = worldMatrix; 
 		m_DirtyFlags |= DF_Matrices; 
 	}
-	DirectX::XMMATRIX GetWorldMatrix() const { return m_pAlignedMVP->World; }
+	Matrix4 GetWorldMatrix() const { return m_pAlignedMVP->World; }
 
-	void XM_CALLCONV SetViewMatrix(DirectX::FXMMATRIX viewMatrix) 
+	void XM_CALLCONV SetViewMatrix(Matrix4 viewMatrix) 
 	{ 
 		m_pAlignedMVP->View = viewMatrix; 
 		m_DirtyFlags |= DF_Matrices; 
 	}
-	DirectX::XMMATRIX GetViewMatrix() const { return m_pAlignedMVP->View; }
+	Matrix4 GetViewMatrix() const { return m_pAlignedMVP->View; }
 
-	void XM_CALLCONV SetProjectionMatrix(DirectX::FXMMATRIX projectionMatrix) 
+	void XM_CALLCONV SetProjectionMatrix(Matrix4 projectionMatrix) 
 	{ 
 		m_pAlignedMVP->Projection = projectionMatrix; 
 		m_DirtyFlags |= DF_Matrices; 
 	}
-	DirectX::XMMATRIX GetProjectionMatrix() const { return m_pAlignedMVP->Projection; }
+	Matrix4 GetProjectionMatrix() const { return m_pAlignedMVP->Projection; }
 
 	//应用到渲染管线上
 	void Apply(CommandList& _commandList);
@@ -124,9 +125,9 @@ private:
 
 	struct alignas(16) MVP
 	{
-		DirectX::XMMATRIX World;
-		DirectX::XMMATRIX View;
-		DirectX::XMMATRIX Projection;
+		Matrix4 World;
+		Matrix4 View;
+		Matrix4 Projection;
 	};
 
 	inline void BindTexture(CommandList& _commandList, uint32_t _offset, const std::shared_ptr<Texture>& _texture);

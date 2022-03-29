@@ -82,6 +82,12 @@ public:
 	inline explicit Vector4(Vector3 _v) { m_Vec = DirectX::XMVectorSelect(DirectX::g_XMIdentityR3, _v, DirectX::g_XMMask3); }
 	inline explicit Vector4(DirectX::FXMVECTOR _v) { m_Vec = _v; }
 
+	inline DirectX::XMFLOAT4 GetFloat4() 
+	{
+		DirectX::XMStoreFloat4(&m_VecFloat4, m_Vec);
+		return m_VecFloat4;
+	}
+	inline DirectX::XMVECTOR* GetPoint() { return &m_Vec; }
 	inline float GetX() const { return DirectX::XMVectorGetX(m_Vec); }
 	inline float GetY() const { return DirectX::XMVectorGetY(m_Vec); }
 	inline float GetZ() const { return DirectX::XMVectorGetZ(m_Vec); }
@@ -116,5 +122,6 @@ public:
 
 private:
 	DirectX::XMVECTOR m_Vec;
+	DirectX::XMFLOAT4 m_VecFloat4;
 };
 

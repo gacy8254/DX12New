@@ -21,6 +21,7 @@
 #include "UnorderedAccessView.h"
 #include "Material.h"
 
+
 using namespace DirectX;
 
 class MakeUploadBuffer : public UploadBuffer

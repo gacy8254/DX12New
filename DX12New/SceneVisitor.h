@@ -1,7 +1,7 @@
 #pragma once
 #include "Visitor.h"
 
-class Camera;
+class BaseCamera;
 class EffectPSO;
 class CommandList;
 
@@ -9,7 +9,7 @@ class SceneVisitor :
     public Visitor
 {
 public:
-    SceneVisitor(CommandList& _commandList, const Camera& _camera, EffectPSO& _pso, bool _transparent);
+    SceneVisitor(CommandList& _commandList, const BaseCamera& _camera, EffectPSO& _pso, bool _transparent);
 
     virtual void Visit(Mesh& _mesh) override;
     virtual void Visit(SceneNode& sceneNode) override;
@@ -17,7 +17,7 @@ public:
 
 private:
     CommandList& m_CommandList;
-    const Camera& m_Camera;
+    const BaseCamera& m_Camera;
     EffectPSO& m_LightingPSO;
     bool m_Transparent;
 

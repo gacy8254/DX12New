@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "Scene.h"
-
 #include "TextureUsage.hpp"
 #include "RootSignature.h"
 #include "Mesh.h"

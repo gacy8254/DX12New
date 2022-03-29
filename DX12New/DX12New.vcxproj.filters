@@ -183,6 +183,9 @@
     <ClCompile Include="SceneVisitor.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Transform.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Lesson2.h">
@@ -369,6 +372,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="SceneVisitor.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Transform.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -8,6 +8,7 @@
 #include "Texture.h"
 #include "VertexType.h"
 #include "Visitor.h"
+#include "Transform.h"
 
 
 using namespace DirectX;
@@ -390,7 +391,7 @@ std::shared_ptr<SceneNode> Scene::ImportSceneNode(CommandList& _commandList, std
 		return nullptr;
 	}
 
-	std::shared_ptr<SceneNode> node = std::make_shared<SceneNode>(XMMATRIX(&(_aiNode->mTransformation.a1)));
+	std::shared_ptr<SceneNode> node = std::make_shared<SceneNode>(Matrix4(&(_aiNode->mTransformation.a1)));
 	node->SetParent(_parent);
 
 	if (_aiNode->mName.length > 0)

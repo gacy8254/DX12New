@@ -1,5 +1,5 @@
 #pragma once
-#include "Camera.h"
+#include "BaseCamera.h"
 #include "Light.h"
 #include "Application.h"
 #include "RenderTarget.h"
@@ -72,6 +72,8 @@ private:
     //╪сть╫Ь╤х
     bool LoadingProgress(float _loadingProgress);
 
+    void BuildLighting(int numPointLights, int numSpotLights, int numDirectionalLights);
+
 	std::shared_ptr<EffectPSO> m_LightingPSO;
 	std::shared_ptr<EffectPSO> m_DecalPSO;
 	std::shared_ptr<EffectPSO> m_UnlitPSO;
@@ -90,7 +92,7 @@ private:
     D3D12_RECT m_ScissorRect;
     D3D12_VIEWPORT m_Viewport;
 
-    Camera m_Camera;
+    BaseCamera m_Camera;
     //Assimp::Logger m_Logger;
 
     int m_Width;

@@ -9,20 +9,20 @@
 #include "MeshHelper.h"
 using namespace DirectX;
 
-XMMATRIX XM_CALLCONV LookAtMatrix(FXMVECTOR _position, FXMVECTOR _direction, FXMVECTOR  _up)
+Matrix4 XM_CALLCONV LookAtMatrix(Vector4 _position, Vector4 _direction, Vector4  _up)
 {
-	assert(!XMVector3Equal(_direction, XMVectorZero()));
-	assert(!XMVector3IsInfinite(_direction));
-	assert(!XMVector3Equal(_up, XMVectorZero()));
-	assert(!XMVector3IsInfinite(_up));
+	assert(!Transform::Vector3Equal(_direction, Vector4(XMVectorZero())));
+	assert(!Transform::Vector3IsInfinite(_direction));
+	assert(!Transform::Vector3Equal(_up, Vector4(XMVectorZero())));
+	assert(!Transform::Vector3IsInfinite(_up));
 
-	XMVECTOR R2 = XMVector3Normalize(_direction);
-	XMVECTOR R0 = XMVector3Cross(_up, R2);
-	R0 = XMVector3Normalize(R0);
+	Vector4 R2 = Transform::Vector3Normalize(_direction);
+	Vector4 R0 = Transform::Vector3Cross(_up, R2);
+	R0 = Transform::Vector3Normalize(R0);
 
-	XMVECTOR R1 = XMVector3Cross(R2, R0);
+	Vector4 R1 = Transform::Vector3Cross(R2, R0);
 
-	XMMATRIX M(R0, R1, R2, _position);
+	Matrix4 M(R0, R1, R2, _position);
 
 	return M;
 }
@@ -45,14 +45,20 @@ Lesson5::Lesson5(const std::wstring& _name, int _width, int _height, bool _vSync
 	Device::EnableDebufLayer();
 #endif
 
-	XMVECTOR cameraPos = XMVectorSet(0, 5, -5, 1);
-	XMVECTOR cameraTarget = XMVectorSet(0, 5, 0, 1);
-	XMVECTOR cameraUp = XMVectorSet(0, 1, 0, 0);
+	XMVECTOR cameraPos1 = XMVectorSet(0, 5, -5, 1);
+	XMVECTOR cameraTarget1 = XMVectorSet(0, 5, 0, 1);
+	XMVECTOR cameraUp1 = XMVectorSet(0, 1, 0, 0);
 
+	Vector4 cameraPos = Vector4(0, 5, -5, 1);
+	Vector4 cameraTarget = Vector4(0, 5, 0, 1);
+	Vector4 cameraUp = Vector4(0, 1, 0, 0);
+
+	auto v = DirectX::XMMatrixLookAtLH(cameraPos1, cameraTarget1, cameraUp1);
 	m_Camera.SetLookAt(cameraPos, cameraTarget, cameraUp);
 	float aspect = m_Width / (float)m_Height;
 	m_Camera.SetProjection(45.0f, aspect, 0.1f, 1000.0f);
-
+	m_Camera.GetProjMatrix();
+	auto o = XMMatrixPerspectiveFovLH(XMConvertToRadians(45.0f), aspect, 0.1f, 1000.0f);
 	m_Window = Application::Get().CreateWindow(_name, _width, _height);
 
 	//注册回调函数
@@ -106,39 +112,11 @@ void Lesson5::LoadContent()
 	m_LightingPSO = std::make_shared<EffectPSO>(m_Device, true, false);
 	m_DecalPSO = std::make_shared<EffectPSO>(m_Device, true, true);
 	m_UnlitPSO = std::make_shared<EffectPSO>(m_Device, false, false);
-
-	const int numDirectionalLights = 3;
-	static const XMVECTORF32 LightColors[] = { DirectX::Colors::White, DirectX::Colors::OrangeRed, DirectX::Colors::Blue };
-
-	static float lightAnimTime = 0.0f;
-
-	const float radius = 1.0f;
-	float       directionalLightOffset = numDirectionalLights > 0 ? 2.0f * XM_PI / numDirectionalLights : 0;
-
-	//XMMATRIX viewMatrix = m_Camera.GetViewMatrix();
-	m_DirectionalLights.resize(numDirectionalLights);
-	for (int i = 0; i < numDirectionalLights; ++i)
-	{
-		DirectionalLight& l = m_DirectionalLights[i];
-
-		float angle = lightAnimTime + directionalLightOffset * i;
-
-		XMVECTORF32 positionWS = { static_cast<float>(std::cos(angle)) * radius,
-								   static_cast<float>(std::sin(angle)) * radius, radius, 1.0f };
-
-		//XMVECTOR directionWS = XMVector3Normalize(XMVectorNegate(positionWS));
-		XMVECTOR directionWS = XMVectorSet(i + 0.1 * i, i + 0.1 * i, i + 0.1 * i, 0);
-		//XMVECTOR directionVS = XMVector3TransformNormal(directionWS, viewMatrix);
-		XMVECTOR directionVS = XMVectorSet(i + 0.1 * i, i + 0.1 * i, i + 0.1 * i, 0);
-
-		XMStoreFloat4(&l.DirectionWS, directionWS);
-		XMStoreFloat4(&l.DirectionVS, directionVS);
-
-		l.Color = XMFLOAT4(LightColors[i]);
-	}
-
+	
+	//执行命令列表
 	auto fence = commandQueue.ExecuteCommandList(commandList);
 
+	//创建渲染目标
 	// Create a color buffer with sRGB for gamma correction.
 	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
@@ -202,25 +180,22 @@ void Lesson5::OnUpdate(UpdateEventArgs& e)
 
 	float speedMultipler = 20.0f;
 
-	XMVECTOR cameraTranslate = XMVectorSet(m_Right - m_Left, 0.0f, m_Forward - m_Backward, 1.0f) * speedMultipler * static_cast<float>(e.DeltaTime);
-	XMVECTOR cameraPan = XMVectorSet(0.0f, m_Up - m_Down, 0.0f, 1.0f) * speedMultipler * static_cast<float>(e.DeltaTime);
+	Vector4 cameraTranslate = Vector4(m_Right - m_Left, 0.0f, m_Forward - m_Backward, 1.0f) * speedMultipler * static_cast<float>(e.DeltaTime);
+	Vector4 cameraPan = Vector4(0.0f, m_Up - m_Down, 0.0f, 1.0f) * speedMultipler * static_cast<float>(e.DeltaTime);
 	m_Camera.Translate(cameraTranslate, Space::Local);
 	m_Camera.Translate(cameraPan, Space::Local);
 
-	XMVECTOR cameraRotation = XMQuaternionRotationRollPitchYaw(XMConvertToRadians(m_Pitch), XMConvertToRadians(m_Yaw), 0.0f);
+	Vector4 cameraRotation = Transform::QuaternionRotationRollPitchYaw(XMConvertToRadians(m_Pitch), XMConvertToRadians(m_Yaw), 0.0f);
 	m_Camera.SetRotation(cameraRotation);
 
-	XMMATRIX viewMatrix = m_Camera.GetViewMatrix();
+	Matrix4 viewMatrix = m_Camera.GetViewMatrix();
 
-	XMVECTOR cameraPoint = DirectX::XMVectorSet(0, 0, 0, 1);
-	XMMATRIX translationMatrix = XMMatrixTranslationFromVector(cameraPoint);
-	XMMATRIX scaleMatrix = XMMatrixScaling(0.01f, 0.01f, 0.01f);
+	Vector4 cameraPoint = Vector4(0, 0, 0, 1);
+	Matrix4 translationMatrix = Transform::MatrixTranslateFromVector(cameraPoint);
+	Matrix4 scaleMatrix = Transform::MatrixScaling(0.01f, 0.01f, 0.01f);
 	m_Axis->GetRootNode()->SetLocalTransform(scaleMatrix * translationMatrix);
 
-
-
-	m_LightingPSO->SetDirectionalLights(m_DirectionalLights);
-	m_DecalPSO->SetDirectionalLights(m_DirectionalLights);
+	BuildLighting(1, 1, 1);
 
 	m_SwapChain->WaitForSwapChain();
 
@@ -282,8 +257,8 @@ void Lesson5::OnRender()
 		for (const auto& l : m_PointLights)
 		{
 			lightMaterial.Emissive = l.Color;
-			auto lightPos = XMLoadFloat4(&l.PositionWS);
-			auto worldMatrix = XMMatrixTranslationFromVector(lightPos);
+			auto lightPos = Vector4(l.PositionWS);
+			auto worldMatrix = Transform::MatrixTranslateFromVector(lightPos);
 
 			m_Sphere->GetRootNode()->SetLocalTransform(worldMatrix);
 			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetMaterialProperties(lightMaterial);
@@ -293,12 +268,12 @@ void Lesson5::OnRender()
 		for (const auto& l : m_SpotLights)
 		{
 			lightMaterial.Emissive = l.Color;
-			XMVECTOR lightPos = XMLoadFloat4(&l.PositionWS);
-			XMVECTOR lightDir = XMLoadFloat4(&l.DirectionWS);
-			XMVECTOR up = XMVectorSet(0, 1, 0, 0);
+			Vector4 lightPos = Vector4(l.PositionWS);
+			Vector4 lightDir = Vector4(l.DirectionWS);
+			Vector4 up = Vector4(0, 1, 0, 0);
 
 			// Rotate the cone so it is facing the Z axis.
-			auto rotationMatrix = XMMatrixRotationX(XMConvertToRadians(-90.0f));
+			auto rotationMatrix = Transform::MatrixRotationX(XMConvertToRadians(-90.0f));
 			auto worldMatrix = rotationMatrix * LookAtMatrix(lightPos, lightDir, up);
 
 			m_Cone->GetRootNode()->SetLocalTransform(worldMatrix);
@@ -457,7 +432,7 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 		auto scale = 50.0f / (s.Radius * 2.0f);
 		s.Radius *= scale;
 
-		scene->GetRootNode()->SetLocalTransform(XMMatrixScaling(scale, scale, scale));
+		scene->GetRootNode()->SetLocalTransform(Transform::MatrixScaling(scale, scale, scale));
 
 		m_Scene = scene;
 	}
@@ -560,4 +535,99 @@ bool Lesson5::LoadingProgress(float _loadingProgress)
 	m_LoadingProgress = _loadingProgress;
 
 	return !m_CancelLoading;
+}
+
+void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirectionalLights)
+{
+	static const XMVECTORF32 LightColors[] = { Colors::Red,     Colors::Green,  Colors::Blue,   Colors::Cyan,
+											   Colors::Magenta, Colors::Yellow, Colors::Purple, Colors::White };
+
+	auto viewMatrix = m_Camera.GetViewMatrix();
+	static float lightAnimTime = 0.0f;
+	if (m_AnimateLights)
+	{
+		//lightAnimTime += static_cast<float>(e.DeltaTime) * 0.5f * XM_PI;
+	}
+
+	// Spin the lights in a circle.
+	const float radius = 1.0f;
+	// Offset angle for light sources.
+	float pointLightOffset = numPointLights > 0 ? 2.0f * XM_PI / numPointLights : 0;
+	float spotLightOffset = numSpotLights > 0 ? 2.0f * XM_PI / numSpotLights : 0;
+	float directionalLightOffset = numDirectionalLights > 0 ? 2.0f * XM_PI / numDirectionalLights : 0;
+
+	// Setup the lights.
+	m_PointLights.resize(numPointLights);
+	for (int i = 0; i < numPointLights; ++i)
+	{
+		PointLight& l = m_PointLights[i];
+
+		float angle = lightAnimTime + pointLightOffset * i;
+
+		l.PositionWS = { static_cast<float>(std::sin(angle)) * radius, 2.0f,
+						 static_cast<float>(std::cos(angle)) * radius, 1.0f };
+
+		XMVECTOR positionWS = XMLoadFloat4(&l.PositionWS);
+		XMVECTOR positionVS = positionWS;
+		XMStoreFloat4(&l.PositionVS, positionVS);
+
+		l.Color = XMFLOAT4(LightColors[i]);
+		l.ConstantAttenuation = 1.0f;
+		l.LinearAttenuation = 0.08f;
+		l.QuadraticAttenuation = 0.0f;
+	}
+
+	m_LightingPSO->SetPointLights(m_PointLights);
+	m_DecalPSO->SetPointLights(m_PointLights);
+
+	m_SpotLights.resize(numSpotLights);
+	for (int i = 0; i < numSpotLights; ++i)
+	{
+		SpotLight& l = m_SpotLights[i];
+
+		float angle = lightAnimTime + spotLightOffset * i + pointLightOffset / 2.0;
+
+		l.PositionWS = { static_cast<float>(std::sin(angle)) * radius, 2.0f,
+						 static_cast<float>(std::cos(angle)) * radius, 1.0f };
+
+		XMVECTOR positionWS = XMLoadFloat4(&l.PositionWS);
+		XMVECTOR positionVS = positionWS;
+		XMStoreFloat4(&l.PositionVS, positionVS);
+
+		XMVECTOR directionWS = XMVector3Normalize(XMVectorSetW(XMVectorSetY(positionWS, 0), 0));
+		XMVECTOR directionVS = XMVector3Normalize(XMVector3TransformNormal(directionWS, viewMatrix));
+		XMStoreFloat4(&l.DirectionWS, directionWS);
+		XMStoreFloat4(&l.DirectionVS, directionVS);
+
+		l.Color = XMFLOAT4(LightColors[(i + numPointLights) % _countof(LightColors)]);
+		l.SpotAngle = XMConvertToRadians(45.0f);
+		l.ConstantAttenuation = 1.0f;
+		l.LinearAttenuation = 0.08f;
+		l.QuadraticAttenuation = 0.0f;
+	}
+
+	m_LightingPSO->SetSpotLights(m_SpotLights);
+	m_DecalPSO->SetSpotLights(m_SpotLights);
+
+	m_DirectionalLights.resize(numDirectionalLights);
+	for (int i = 0; i < numDirectionalLights; ++i)
+	{
+		DirectionalLight& l = m_DirectionalLights[i];
+
+		float angle = lightAnimTime + directionalLightOffset * i;
+
+		XMVECTORF32 positionWS = { static_cast<float>(std::sin(angle)) * radius, radius,
+								   static_cast<float>(std::cos(angle)) * radius, 1.0f };
+
+		XMVECTOR directionWS = XMVector3Normalize(XMVectorNegate(positionWS));
+		XMVECTOR directionVS = directionWS;
+
+		XMStoreFloat4(&l.DirectionWS, directionWS);
+		XMStoreFloat4(&l.DirectionVS, directionVS);
+
+		l.Color = XMFLOAT4(Colors::White);
+	}
+
+	m_LightingPSO->SetDirectionalLights(m_DirectionalLights);
+	m_DecalPSO->SetDirectionalLights(m_DirectionalLights);
 }
