@@ -127,8 +127,28 @@ void Texture::CreateViews()
 		//创建SRV
 		if ((desc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) == 0 && CheckSRVSupport())
 		{
-			m_ShaderResourceView = m_Device.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-			device->CreateShaderResourceView(m_Resource.Get(), nullptr, m_ShaderResourceView.GetDescriptorHandle());
+			if (true)
+			{
+				m_ShaderResourceView = m_Device.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+				device->CreateShaderResourceView(m_Resource.Get(), nullptr, m_ShaderResourceView.GetDescriptorHandle());
+			}
+			else
+			{
+				auto cubemapDesc = m_Resource->GetDesc();
+				cubemapDesc.Width = cubemapDesc.Height = 1024;
+				cubemapDesc.DepthOrArraySize = 6;
+				cubemapDesc.MipLevels = 0;
+
+				D3D12_SHADER_RESOURCE_VIEW_DESC cubeMapSRVDesc = {};
+				cubeMapSRVDesc.Format = cubemapDesc.Format;
+				cubeMapSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				cubeMapSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+				cubeMapSRVDesc.TextureCube.MipLevels = (UINT)-1;  // Use all mips.
+
+				device->CreateShaderResourceView(m_Resource.Get(), &cubeMapSRVDesc, m_ShaderResourceView.GetDescriptorHandle());
+
+			}
+			
 		}
 		//创建UAV
 		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0 && CheckUAVSupport() && desc.DepthOrArraySize == 1)

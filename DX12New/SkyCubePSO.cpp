@@ -150,21 +150,22 @@ void SkyCubePSO::Apply(CommandList& _commandList)
 	{
 		if (m_Material)
 		{
-			auto cubemapDesc = m_Material->GetTexture(Material::TextureType::Diffuse)->GetResourceDesc();
-			cubemapDesc.Width = cubemapDesc.Height = 1024;
-			cubemapDesc.DepthOrArraySize = 6;
-			cubemapDesc.MipLevels = 0;
+			//auto cubemapDesc = m_Material->GetTexture(Material::TextureType::Diffuse)->GetResourceDesc();
+			//cubemapDesc.Width = cubemapDesc.Height = 1024;
+			//cubemapDesc.DepthOrArraySize = 6;
+			//cubemapDesc.MipLevels = 0;
 
-			D3D12_SHADER_RESOURCE_VIEW_DESC cubeMapSRVDesc = {};
-			cubeMapSRVDesc.Format = cubemapDesc.Format;
-			cubeMapSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			cubeMapSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-			cubeMapSRVDesc.TextureCube.MipLevels = (UINT)-1;  // Use all mips.
+			//D3D12_SHADER_RESOURCE_VIEW_DESC cubeMapSRVDesc = {};
+			//cubeMapSRVDesc.Format = cubemapDesc.Format;
+			//cubeMapSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			//cubeMapSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+			//cubeMapSRVDesc.TextureCube.MipLevels = (UINT)-1;  // Use all mips.
 
-			m_SRV = m_Device->CreateShaderResourceView(m_Material->GetTexture(Material::TextureType::Diffuse), &cubeMapSRVDesc);
-
-			//ÉèÖÃÌùÍ¼
-			_commandList.SetShaderResourceView(1, 0, m_SRV, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			//m_SRV = m_Device->CreateShaderResourceView(m_Material->GetTexture(Material::TextureType::Diffuse), &cubeMapSRVDesc);
+			////m_SRV->
+			////ÉèÖÃÌùÍ¼
+			//_commandList.SetShaderResourceView(1, 0, m_SRV, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			BindTexture(_commandList, 0, m_Material->GetTexture(Material::TextureType::Diffuse), RootParameters::Textures);
 		}
 	}
 

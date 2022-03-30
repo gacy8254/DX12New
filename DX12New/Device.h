@@ -10,6 +10,7 @@
 #include <string>
 #include "RootSignature.h"
 
+
 class Adapter;
 class ByteAddressBuffer;
 class CommandQueue;
@@ -22,11 +23,11 @@ class IndexBuffer;
 class PipelineStateObject;
 class RenderTarget;
 class Resource;
+class Texture;
 class Scene;
 class ShaderResourceView;
 class StructuredBuffer;
 class SwapChain;
-class Texture;
 class UnorderedAccessView;
 class VertexBuffer;
 
