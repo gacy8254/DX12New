@@ -82,7 +82,7 @@ void CameraController::ResetView()
 
 	Vector4 rotation = Transform::QuaternionRotationRollPitchYaw(DirectX::XMConvertToRadians(m_Pitch), DirectX::XMConvertToRadians(m_Yaw), 0.0f);
 	m_Camera.SetRotation(rotation);
-	m_Camera.SetTranslation(Vector4(0, 0, -m_Zoom, 1.0f));
+	m_Camera.SetTranslation(Vector4(0, 0, -m_Zoom, 0.0f));
 	m_Camera.SetFocalPoint(Vector4(0, 0, 0, 1.0f));
 }
 

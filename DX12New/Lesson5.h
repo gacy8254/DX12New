@@ -14,6 +14,7 @@
 #include "RenderTarget.h"
 #include "Scene.h"
 #include "EffectPSO.h"
+#include "DeferredGBufferPSO.h"
 #include "SceneVisitor.h"
 
 #include <d3d12.h>
@@ -80,6 +81,10 @@ private:
 	std::shared_ptr<EffectPSO> m_LightingPSO;
 	std::shared_ptr<EffectPSO> m_DecalPSO;
 	std::shared_ptr<EffectPSO> m_UnlitPSO;
+
+    std::unique_ptr<DeferredGBufferPSO> m_GBufferPso;
+    std::unique_ptr<DeferredGBufferPSO> m_GBufferDecalPso;
+    //std:unique_ptr<DeferredGBufferPSO> m_GBufferDecalPso;
 
     std::shared_ptr<Device> m_Device;
     std::shared_ptr<SwapChain> m_SwapChain;

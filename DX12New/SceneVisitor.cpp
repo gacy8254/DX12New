@@ -1,5 +1,5 @@
 #include "SceneVisitor.h"
-#include "EffectPSO.h"
+#include "BasePSO.h"
 #include "BaseCamera.h"
 #include "CommandList.h"
 #include "IndexBuffer.h"
@@ -11,7 +11,7 @@
 
 using namespace DirectX;
 
-SceneVisitor::SceneVisitor(CommandList& _commandList, const BaseCamera& _camera, EffectPSO& _pso, bool _transparent)
+SceneVisitor::SceneVisitor(CommandList& _commandList, const BaseCamera& _camera, BasePSO& _pso, bool _transparent)
 	:m_CommandList(_commandList),
 	m_Camera(_camera),
 	m_LightingPSO(_pso),

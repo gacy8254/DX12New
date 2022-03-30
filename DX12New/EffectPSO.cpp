@@ -10,13 +10,10 @@ using namespace Microsoft::WRL;
 using namespace DirectX;
 
 EffectPSO::EffectPSO(std::shared_ptr<Device> _device, bool _enableLighting, bool _enableDecal)
-	:m_Device(_device),
-	m_DirtyFlags(DF_All),
-	m_pPreviousCommandList(nullptr),
+	:BasePSO(_device),
 	m_EnableLights(_enableLighting),
 	m_EnableDecal(_enableDecal)
 {
-	m_pAlignedMVP = (MVP*)_aligned_malloc(sizeof(MVP), 16);
 
 	ComPtr<ID3DBlob> vertexShaderBlob;
 	ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\StandardVS.cso", &vertexShaderBlob));
@@ -105,22 +102,10 @@ EffectPSO::EffectPSO(std::shared_ptr<Device> _device, bool _enableLighting, bool
 
 	m_PSO = m_Device->CreatePipelineStateObject(pipelineStateStream);
 
-	//创建默认的空白SRV
-	D3D12_SHADER_RESOURCE_VIEW_DESC defaultSRV;
-	defaultSRV.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	defaultSRV.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	defaultSRV.Texture2D.MostDetailedMip = 0;
-	defaultSRV.Texture2D.MipLevels = 1;
-	defaultSRV.Texture2D.PlaneSlice = 0;
-	defaultSRV.Texture2D.ResourceMinLODClamp = 0;
-	defaultSRV.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-
-	m_DefaultSRV = m_Device->CreateShaderResourceView(nullptr, &defaultSRV);
 }
 
 EffectPSO::~EffectPSO()
 {
-	_aligned_free(m_pAlignedMVP);
 }
 
 void EffectPSO::Apply(CommandList& _commandList)
@@ -149,14 +134,14 @@ void EffectPSO::Apply(CommandList& _commandList)
 			_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MaterialCB, materialProps);
 
 			//设置贴图
-			BindTexture(_commandList, 0, m_Material->GetTexture(Material::TextureType::Ambient));
-			BindTexture(_commandList, 1, m_Material->GetTexture(Material::TextureType::Emissive));
-			BindTexture(_commandList, 2, m_Material->GetTexture(Material::TextureType::Diffuse));
-			BindTexture(_commandList, 3, m_Material->GetTexture(Material::TextureType::Specular));
-			BindTexture(_commandList, 4, m_Material->GetTexture(Material::TextureType::SpecularPower));
-			BindTexture(_commandList, 5, m_Material->GetTexture(Material::TextureType::Normal));
-			BindTexture(_commandList, 6, m_Material->GetTexture(Material::TextureType::Bump));
-			BindTexture(_commandList, 7, m_Material->GetTexture(Material::TextureType::Opacity));
+			BindTexture(_commandList, 0, m_Material->GetTexture(Material::TextureType::Ambient), RootParameters::Textures);
+			BindTexture(_commandList, 1, m_Material->GetTexture(Material::TextureType::Emissive), RootParameters::Textures);
+			BindTexture(_commandList, 2, m_Material->GetTexture(Material::TextureType::Diffuse), RootParameters::Textures);
+			BindTexture(_commandList, 3, m_Material->GetTexture(Material::TextureType::Specular), RootParameters::Textures);
+			BindTexture(_commandList, 4, m_Material->GetTexture(Material::TextureType::SpecularPower), RootParameters::Textures);
+			BindTexture(_commandList, 5, m_Material->GetTexture(Material::TextureType::Normal), RootParameters::Textures);
+			BindTexture(_commandList, 6, m_Material->GetTexture(Material::TextureType::Bump), RootParameters::Textures);
+			BindTexture(_commandList, 7, m_Material->GetTexture(Material::TextureType::Opacity), RootParameters::Textures);
 		}
 	}
 
@@ -189,15 +174,3 @@ void EffectPSO::Apply(CommandList& _commandList)
 	m_DirtyFlags = DF_None;
 }
 
-void EffectPSO::BindTexture(CommandList& _commandList, uint32_t _offset, const std::shared_ptr<Texture>& _texture)
-{
-	//如果贴图有效就设置贴图,否则就用默认的SRV填充
-	if (_texture)
-	{
-		_commandList.SetShaderResourceView(RootParameters::Textures, _offset, _texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	}
-	else
-	{
-		_commandList.SetShaderResourceView(RootParameters::Textures, _offset, m_DefaultSRV, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	}
-}

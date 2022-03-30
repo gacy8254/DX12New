@@ -45,21 +45,6 @@ Lesson5::Lesson5(const std::wstring& _name, int _width, int _height, bool _vSync
 #if defined(_DEBUG)
 	Device::EnableDebufLayer();
 #endif
-
-	//XMVECTOR cameraPos1 = XMVectorSet(0, 5, -5, 1);
-	//XMVECTOR cameraTarget1 = XMVectorSet(0, 5, 0, 1);
-	//XMVECTOR cameraUp1 = XMVectorSet(0, 1, 0, 0);
-
-	//Vector4 cameraPos = Vector4(0, 5, -5, 1);
-	//Vector4 cameraTarget = Vector4(0, 5, 0, 1);
-	//Vector4 cameraUp = Vector4(0, 1, 0, 0);
-
-	//auto v = DirectX::XMMatrixLookAtLH(cameraPos1, cameraTarget1, cameraUp1);
-	//m_Camera.SetLookAt(cameraPos, cameraTarget, cameraUp);
-	//float aspect = m_Width / (float)m_Height;
-	//m_Camera.SetProjection(45.0f, aspect, 0.1f, 1000.0f);
-	//m_Camera.GetProjMatrix();
-	//auto o = XMMatrixPerspectiveFovLH(XMConvertToRadians(45.0f), aspect, 0.1f, 1000.0f);
 	m_Window = Application::Get().CreateWindow(_name, _width, _height);
 
 	//注册回调函数
@@ -112,10 +97,13 @@ void Lesson5::LoadContent()
 	m_Axis = commandList->LoadSceneFromFile(L"C:\\Code\\DX12New\\Assets\\Models\\axis_of_evil.nff");
 
 	//创建PSO
-	m_LightingPSO = std::make_shared<EffectPSO>(m_Device, true, false);
-	m_DecalPSO = std::make_shared<EffectPSO>(m_Device, true, true);
 	m_UnlitPSO = std::make_shared<EffectPSO>(m_Device, false, false);
-	BuildLighting(1, 1, 0);
+
+	m_GBufferPso = std::make_unique<DeferredGBufferPSO>(m_Device, false);
+	m_GBufferDecalPso = std::make_unique<DeferredGBufferPSO>(m_Device, true);
+
+
+	BuildLighting(1, 1, 1);
 	//执行命令列表
 	auto fence = commandQueue.ExecuteCommandList(commandList);
 
@@ -136,8 +124,29 @@ void Lesson5::LoadContent()
 	colorClearValue.Color[2] = 0.9f;
 	colorClearValue.Color[3] = 1.0f;
 
-	auto colorTexture = m_Device->CreateTexture(colorDesc, &colorClearValue);
-	colorTexture->SetName(L"Color Render Target");
+	auto desc2 = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, sampleDesc.Count,
+		sampleDesc.Quality, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	desc2.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	for (int i = 0; i < 4; i++)
+	{
+		std::shared_ptr<Texture> colorTexture;
+		if (i == 0)
+		{
+			colorTexture = m_Device->CreateTexture(colorDesc, &colorClearValue);
+		}
+		else
+		{
+			colorTexture = m_Device->CreateTexture(desc2, &colorClearValue);
+		}
+		
+		colorTexture->SetName(L"Color Render Target");
+
+		m_RenderTarget.AttachTexture(static_cast<AttachmentPoint>(i), colorTexture);
+
+	}
+	//auto colorTexture = m_Device->CreateTexture(colorDesc, &colorClearValue);
+	//colorTexture->SetName(L"Color Render Target");
 
 	auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, m_Width, m_Height, 1, 1, sampleDesc.Count,
 		sampleDesc.Quality, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
@@ -149,7 +158,7 @@ void Lesson5::LoadContent()
 	depthTexture->SetName(L"Depth Render Target");
 
 	// Attach the textures to the render target.
-	m_RenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
+	//m_RenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
 	m_RenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
 
 	// Make sure the copy command queue is finished before leaving this function.
@@ -182,10 +191,12 @@ void Lesson5::OnUpdate(UpdateEventArgs& e)
 		frameCount = 0;
 		totalTime = 0.0;
 	}
-	m_LightingPSO->SetSpotLights(m_SpotLights);
-	m_DecalPSO->SetSpotLights(m_SpotLights);
-	m_LightingPSO->SetPointLights(m_PointLights);
-	m_DecalPSO->SetPointLights(m_PointLights);
+	//m_LightingPSO->SetSpotLights(m_SpotLights);
+	//m_DecalPSO->SetSpotLights(m_SpotLights);
+	//m_LightingPSO->SetPointLights(m_PointLights);
+	//m_DecalPSO->SetPointLights(m_PointLights);
+	//m_LightingPSO->SetDirectionalLights(m_DirectionalLights);
+	//m_DecalPSO->SetDirectionalLights(m_DirectionalLights);
 	Matrix4 viewMatrix = m_Camera.GetViewMatrix();
 
 	Vector4 cameraPoint = Vector4(0, 0, 0, 1);
@@ -193,11 +204,9 @@ void Lesson5::OnUpdate(UpdateEventArgs& e)
 	Matrix4 scaleMatrix = Transform::MatrixScaling(0.01f, 0.01f, 0.01f);
 	m_Axis->GetRootNode()->SetLocalTransform(scaleMatrix * translationMatrix);
 
-	
-	
-
 	m_SwapChain->WaitForSwapChain();
 
+	//处理输入
 	Application::Get().ProcessInput();
 	m_CameraController.Update(e);
 
@@ -238,8 +247,8 @@ void Lesson5::OnRender()
 	else
 	{
 		//创建Pass
-		SceneVisitor opaquePass(*commandList, m_Camera, *m_LightingPSO, false);
-		SceneVisitor transparentPass(*commandList, m_Camera, *m_DecalPSO, true);
+		SceneVisitor opaquePass(*commandList, m_Camera, *m_GBufferPso, false);
+		SceneVisitor transparentPass(*commandList, m_Camera, *m_GBufferDecalPso, true);
 		SceneVisitor unlitPass(*commandList, m_Camera, *m_UnlitPSO, false);
 
 		//设置命令列表
@@ -492,14 +501,11 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 		XMStoreFloat4(&l.PositionVS, positionVS);
 
 		l.Color = XMFLOAT4(LightColors[i]);
-		l.ConstantAttenuation = 100.0f;
+		l.ConstantAttenuation = 1.0f;
 		l.LinearAttenuation = 0.08f;
-		l.QuadraticAttenuation = 7.0f;
+		l.QuadraticAttenuation = 1.0f;
 		l.Ambient = 0.0f;
 	}
-
-	m_LightingPSO->SetPointLights(m_PointLights);
-	m_DecalPSO->SetPointLights(m_PointLights);
 
 	m_SpotLights.resize(numSpotLights);
 	for (int i = 0; i < numSpotLights; ++i)
@@ -524,9 +530,6 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 		l.QuadraticAttenuation = 0.0f;
 	}
 
-	m_LightingPSO->SetSpotLights(m_SpotLights);
-	m_DecalPSO->SetSpotLights(m_SpotLights);
-
 	m_DirectionalLights.resize(numDirectionalLights);
 	for (int i = 0; i < numDirectionalLights; ++i)
 	{
@@ -545,9 +548,6 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 
 		l.Color = XMFLOAT4(Colors::White);
 	}
-
-	m_LightingPSO->SetDirectionalLights(m_DirectionalLights);
-	m_DecalPSO->SetDirectionalLights(m_DirectionalLights);
 }
 
 void Lesson5::DrawLightMesh(SceneVisitor& _pass)

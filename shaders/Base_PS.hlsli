@@ -128,14 +128,7 @@ Texture2D OpacityTexture : register(t10);
 
 SamplerState TextureSampler : register(s0);
 
-float3 LinearToSRGB(float3 x)
-{
-    // This is exactly the sRGB curve
-    //return x < 0.0031308 ? 12.92 * x : 1.055 * pow(abs(x), 1.0 / 2.4) - 0.055;
 
-    // This is cheaper but nearly equivalent
-    return x < 0.0031308 ? 12.92 * x : 1.13005 * sqrt(abs(x - 0.00228)) - 0.13448 * x + 0.005719;
-}
 
 #if ENABLE_LIGHTING
 float DoDiffuse( float3 N, float3 L )

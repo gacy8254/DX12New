@@ -174,7 +174,8 @@ void BaseCamera::UpdateViewMatrix() const
 	Matrix4 translateMatrix = Transform::MatrixTranslateFromVector(-(pData->m_Translation));
 	Matrix4 focalMatrix = Transform::MatrixTranslateFromVector(-(pData->m_FocalPoint));
 
-	pData->m_ViewMatrix = focalMatrix * translateMatrix * rotationMatrix;
+	//pData->m_ViewMatrix = rotationMatrix * translateMatrix;
+	pData->m_ViewMatrix = focalMatrix * rotationMatrix * translateMatrix;
 
 	m_InverseViewDirty = true;
 	m_ViewDirty = false;
