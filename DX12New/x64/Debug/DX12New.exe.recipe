@@ -10,7 +10,16 @@
       <FullPath>C:\Code\DX12New\x64\Debug\Decal.cso</FullPath>
     </ContentFile>
     <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\FullScreen_PS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\FullScreen_VS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
       <FullPath>C:\Code\DX12New\x64\Debug\GanerateMips_GS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\GBuffer_PS.cso</FullPath>
     </ContentFile>
     <ContentFile>
       <FullPath>C:\Code\DX12New\x64\Debug\PanoToCubemap_CS.cso</FullPath>
@@ -35,9 +44,6 @@
     </ContentFile>
     <ContentFile>
       <FullPath>C:\Code\DX12New\x64\Debug\Unlit.cso</FullPath>
-    </ContentFile>
-    <ContentFile>
-      <FullPath>C:\Code\DX12New\x64\Debug\VertexShader.cso</FullPath>
     </ContentFile>
   </ContentFiles>
   <SatelliteDlls />

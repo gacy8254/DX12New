@@ -1,6 +1,7 @@
 #pragma once
 #include "BasePSO.h"
 
+#include "RenderTarget.h"
 #include "Transform.h"
 
 #include <memory>
@@ -47,4 +48,5 @@ public:
 
 private:
 	bool m_EnableDecal;
+
 };

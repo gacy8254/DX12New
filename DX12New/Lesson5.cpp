@@ -84,13 +84,13 @@ void Lesson5::LoadContent()
 
 	// Start the loading task to perform async loading of the scene file.
 	//LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\sphere.fbx");
-	LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj");
+	LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\MaterialMesh.FBX");
+	//LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj");
 	//m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this,L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj"));
 
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
 	auto commandList = commandQueue.GetCommandList();
 
-	
 
 	m_Sphere = MeshHelper::CreateSphere(commandList, 0.1f);
 	m_Cone = MeshHelper::CreateCone(commandList, 0.1f, 0.2f);
@@ -102,10 +102,13 @@ void Lesson5::LoadContent()
 	m_GBufferPso = std::make_unique<DeferredGBufferPSO>(m_Device, false);
 	m_GBufferDecalPso = std::make_unique<DeferredGBufferPSO>(m_Device, true);
 
+	m_DeferredLightingPso = std::make_unique<DeferredLightingPSO>(m_Device, *commandList, true);
 
 	BuildLighting(1, 1, 1);
 	//执行命令列表
 	auto fence = commandQueue.ExecuteCommandList(commandList);
+
+	CreateGBufferRT();
 
 	//创建渲染目标
 	// Create a color buffer with sRGB for gamma correction.
@@ -114,8 +117,8 @@ void Lesson5::LoadContent()
 
 	DXGI_SAMPLE_DESC sampleDesc = m_Device->GetMultisampleQualityLevels(backBufferFormat);
 
-	auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, sampleDesc.Count,
-		sampleDesc.Quality, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
+		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 	colorDesc.MipLevels = 1;
 	D3D12_CLEAR_VALUE colorClearValue;
 	colorClearValue.Format = colorDesc.Format;
@@ -124,32 +127,16 @@ void Lesson5::LoadContent()
 	colorClearValue.Color[2] = 0.9f;
 	colorClearValue.Color[3] = 1.0f;
 
-	auto desc2 = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, sampleDesc.Count,
-		sampleDesc.Quality, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
-	desc2.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	std::shared_ptr<Texture> colorTexture;
 
-	for (int i = 0; i < 4; i++)
-	{
-		std::shared_ptr<Texture> colorTexture;
-		if (i == 0)
-		{
-			colorTexture = m_Device->CreateTexture(colorDesc, &colorClearValue);
-		}
-		else
-		{
-			colorTexture = m_Device->CreateTexture(desc2, &colorClearValue);
-		}
-		
-		colorTexture->SetName(L"Color Render Target");
+	colorTexture = m_Device->CreateTexture(colorDesc, &colorClearValue);
 
-		m_RenderTarget.AttachTexture(static_cast<AttachmentPoint>(i), colorTexture);
+	colorTexture->SetName(L"Color Render Target");
 
-	}
-	//auto colorTexture = m_Device->CreateTexture(colorDesc, &colorClearValue);
-	//colorTexture->SetName(L"Color Render Target");
+	m_RenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
 
-	auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, m_Width, m_Height, 1, 1, sampleDesc.Count,
-		sampleDesc.Quality, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+	auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, m_Width, m_Height, 1, 1, 1,
+		0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 	D3D12_CLEAR_VALUE depthClearValue;
 	depthClearValue.Format = depthDesc.Format;
 	depthClearValue.DepthStencil = { 1.0f, 0 };
@@ -157,14 +144,10 @@ void Lesson5::LoadContent()
 	auto depthTexture = m_Device->CreateTexture(depthDesc, &depthClearValue);
 	depthTexture->SetName(L"Depth Render Target");
 
-	// Attach the textures to the render target.
-	//m_RenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
 	m_RenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
 
 	// Make sure the copy command queue is finished before leaving this function.
 	commandQueue.WaitForFenceValue(fence);
-
-	
 }
 
 void Lesson5::UnLoadContent()
@@ -235,13 +218,12 @@ void Lesson5::OnRender()
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	auto  commandList = commandQueue.GetCommandList();
 
-	const auto& rendertarget = m_IsLoading ? m_SwapChain->GetRenderTarget() : m_RenderTarget;
+	const auto& rendertarget = m_IsLoading ? m_SwapChain->GetRenderTarget() : m_GBufferRenderTarget;
 
 	FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
 
 	if (m_IsLoading)
 	{
-		
 		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color0), clearColor);
 	}
 	else
@@ -258,22 +240,37 @@ void Lesson5::OnRender()
 		commandList->SetScissorRect(m_ScissorRect);
 		commandList->SetRenderTarget(rendertarget);
 
-		//渲染场景
+		//渲染场景(GBUFFER  PASS)
 		m_Scene->Accept(opaquePass);
-		m_Axis->Accept(unlitPass);
+		//m_Axis->Accept(unlitPass);
 		m_Scene->Accept(transparentPass);
 
-		DrawLightMesh(unlitPass);
+		//DrawLightMesh(unlitPass);
+
+		//Lighting
+		commandList->SetRenderTarget(m_RenderTarget);
+
+		std::vector<std::shared_ptr<Texture>> gBufferTexture;
+		gBufferTexture.resize(DeferredLightingPSO::NumTextures);
+		gBufferTexture[DeferredLightingPSO::AlbedoText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color0);
+		gBufferTexture[DeferredLightingPSO::NormalText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color1);
+		gBufferTexture[DeferredLightingPSO::ORMText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color2);
+		gBufferTexture[DeferredLightingPSO::EmissiveText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color3);
+		gBufferTexture[DeferredLightingPSO::WorldPosText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color4);
+
+		m_DeferredLightingPso->SetTexture(gBufferTexture);
+		m_DeferredLightingPso->Apply(*commandList);
+		commandList->Draw(4);
 
 		auto swapChainBackBuffer = m_SwapChain->GetRenderTarget().GetTexture(AttachmentPoint::Color0);
 		auto msaaRenderTarget = m_RenderTarget.GetTexture(AttachmentPoint::Color0);
 
-		commandList->ResolveSubresource(swapChainBackBuffer, msaaRenderTarget);
+		//commandList->ResolveSubresource(swapChainBackBuffer, msaaRenderTarget);
 	}
 	
 	commandQueue.ExecuteCommandList(commandList);
 
-	m_SwapChain->Present();
+	m_SwapChain->Present(m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color0));
 }
 
 void Lesson5::OnKeyPressed(KeyEventArgs& e)
@@ -358,10 +355,14 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 		//缩放场景,以适合摄像机时锥
 		DirectX::BoundingSphere s;
 		BoundingSphere::CreateFromBoundingBox(s, scene->GetAABB());
-		auto scale = 100.0f / (s.Radius * 2.0f);
+		auto scale = 8.0f / (s.Radius * 2.0f);
 		s.Radius *= scale;
 
-		scene->GetRootNode()->SetLocalTransform(Transform::MatrixScaling(scale, scale, scale));
+		Vector4 qu = Transform::QuaternionRotationRollPitchYaw(DirectX::XMConvertToRadians(90), 0, 0);
+		auto scal = Transform::MatrixScaling(scale, scale, scale);
+		auto rota = Transform::MatrixRotationQuaternion(qu);
+		auto o = rota * scal;
+		scene->GetRootNode()->SetLocalTransform(o);
 
 		m_Scene = scene;
 	}
@@ -581,4 +582,71 @@ void Lesson5::DrawLightMesh(SceneVisitor& _pass)
 		m_Cone->GetRootNode()->GetMesh()->GetMaterial()->SetMaterialProperties(lightMaterial);
 		m_Cone->Accept(_pass);
 	}
+}
+
+void Lesson5::CreateGBufferRT()
+{
+	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
+
+	DXGI_SAMPLE_DESC sampleDesc = m_Device->GetMultisampleQualityLevels(backBufferFormat);
+
+	auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
+		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	colorDesc.MipLevels = 1;
+
+	//普通RT的格式
+	D3D12_CLEAR_VALUE colorClearValue;
+	colorClearValue.Format = colorDesc.Format;
+	colorClearValue.Color[0] = 0.4f;
+	colorClearValue.Color[1] = 0.6f;
+	colorClearValue.Color[2] = 0.9f;
+	colorClearValue.Color[3] = 1.0f;
+
+	//坐标通道RT的格式
+	D3D12_CLEAR_VALUE colorClearValue2;
+	colorClearValue2.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	colorClearValue2.Color[0] = 0.4f;
+	colorClearValue2.Color[1] = 0.6f;
+	colorClearValue2.Color[2] = 0.9f;
+	colorClearValue2.Color[3] = 1.0f;
+
+	auto desc2 = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
+		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	desc2.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	auto desc3 = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
+		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	desc3.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+
+	for (int i = 0; i < 5; i++)
+	{
+		std::shared_ptr<Texture> colorTexture;
+		if (i == 0)
+		{
+			colorTexture = m_Device->CreateTexture(colorDesc, &colorClearValue);
+		}
+		else if (i == 4)
+		{
+			colorTexture = m_Device->CreateTexture(desc3, &colorClearValue2);
+		}
+		else
+		{
+			colorTexture = m_Device->CreateTexture(desc2, &colorClearValue);
+		}
+		colorTexture->SetName(L"Color Render Target");
+
+		m_GBufferRenderTarget.AttachTexture(static_cast<AttachmentPoint>(i), colorTexture);
+	}
+
+	auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, m_Width, m_Height, 1, 1, 1,
+		0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+	D3D12_CLEAR_VALUE depthClearValue;
+	depthClearValue.Format = depthDesc.Format;
+	depthClearValue.DepthStencil = { 1.0f, 0 };
+
+	auto depthTexture = m_Device->CreateTexture(depthDesc, &depthClearValue);
+	depthTexture->SetName(L"Depth Render Target");
+
+	m_GBufferRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
 }

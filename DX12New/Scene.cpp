@@ -230,7 +230,7 @@ void Scene::ImportMaterial(CommandList& _commandList, const aiMaterial& _materia
 	{
 		fs::path texturePath(aiTexturePath.C_Str());
 		auto texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, true);
-		pMaterial->SetTexture(Material::TextureType::Ambient, texture);
+		pMaterial->SetTexture(Material::TextureType::AO, texture);
 	}
 
 	if (_material.GetTextureCount(aiTextureType_EMISSIVE) > 0 &&
@@ -259,7 +259,7 @@ void Scene::ImportMaterial(CommandList& _commandList, const aiMaterial& _materia
 	{
 		fs::path texturePath(aiTexturePath.C_Str());
 		auto     texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, true);
-		pMaterial->SetTexture(Material::TextureType::Specular, texture);
+		pMaterial->SetTexture(Material::TextureType::Metaltic, texture);
 	}
 
 	// Load specular power texture.
@@ -269,7 +269,7 @@ void Scene::ImportMaterial(CommandList& _commandList, const aiMaterial& _materia
 	{
 		fs::path texturePath(aiTexturePath.C_Str());
 		auto     texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, false);
-		pMaterial->SetTexture(Material::TextureType::SpecularPower, texture);
+		pMaterial->SetTexture(Material::TextureType::Roughness, texture);
 	}
 
 	if (_material.GetTextureCount(aiTextureType_OPACITY) > 0 &&

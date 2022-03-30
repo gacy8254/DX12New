@@ -23,7 +23,7 @@ DeferredGBufferPSO::DeferredGBufferPSO(std::shared_ptr<Device> _device, bool _en
 	}
 	else
 	{
-		ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\HDR_PS.cso", &pixelShaderBlob));
+		ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\GBuffer_PS.cso", &pixelShaderBlob));
 	}
 
 
@@ -69,11 +69,12 @@ DeferredGBufferPSO::DeferredGBufferPSO(std::shared_ptr<Device> _device, bool _en
 	DXGI_SAMPLE_DESC sampleDesc = m_Device->GetMultisampleQualityLevels(backBufferFormat);
 
 	D3D12_RT_FORMAT_ARRAY rtvFormats = {};
-	rtvFormats.NumRenderTargets = 4;
+	rtvFormats.NumRenderTargets = 5;
 	rtvFormats.RTFormats[0] = backBufferFormat;
 	rtvFormats.RTFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	rtvFormats.RTFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	rtvFormats.RTFormats[3] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	rtvFormats.RTFormats[4] = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
 	CD3DX12_RASTERIZER_DESC rasterizerState(D3D12_DEFAULT);
 	if (m_EnableDecal) {
@@ -90,7 +91,7 @@ DeferredGBufferPSO::DeferredGBufferPSO(std::shared_ptr<Device> _device, bool _en
 	pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	pipelineStateStream.DSVFormat = depthBufferFormat;
 	pipelineStateStream.RTVFormats = rtvFormats;
-	pipelineStateStream.SampleDesc = sampleDesc;
+	pipelineStateStream.SampleDesc = {1, 0};
 
 	m_PSO = m_Device->CreatePipelineStateObject(pipelineStateStream);
 }
@@ -169,11 +170,11 @@ void DeferredGBufferPSO::Apply(CommandList& _commandList)
 			_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MaterialCB, materialProps);
 
 			//设置贴图
-			BindTexture(_commandList, 0, m_Material->GetTexture(Material::TextureType::Ambient), RootParameters::Textures);
+			BindTexture(_commandList, 0, m_Material->GetTexture(Material::TextureType::AO), RootParameters::Textures);
 			BindTexture(_commandList, 1, m_Material->GetTexture(Material::TextureType::Emissive), RootParameters::Textures);
 			BindTexture(_commandList, 2, m_Material->GetTexture(Material::TextureType::Diffuse), RootParameters::Textures);
-			BindTexture(_commandList, 3, m_Material->GetTexture(Material::TextureType::Specular), RootParameters::Textures);
-			BindTexture(_commandList, 4, m_Material->GetTexture(Material::TextureType::SpecularPower), RootParameters::Textures);
+			BindTexture(_commandList, 3, m_Material->GetTexture(Material::TextureType::Metaltic), RootParameters::Textures);
+			BindTexture(_commandList, 4, m_Material->GetTexture(Material::TextureType::Roughness), RootParameters::Textures);
 			BindTexture(_commandList, 5, m_Material->GetTexture(Material::TextureType::Normal), RootParameters::Textures);
 			BindTexture(_commandList, 6, m_Material->GetTexture(Material::TextureType::Bump), RootParameters::Textures);
 			BindTexture(_commandList, 7, m_Material->GetTexture(Material::TextureType::Opacity), RootParameters::Textures);
@@ -183,3 +184,4 @@ void DeferredGBufferPSO::Apply(CommandList& _commandList)
 	//清空标志
 	m_DirtyFlags = DF_None;
 }
+

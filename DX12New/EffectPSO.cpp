@@ -134,11 +134,11 @@ void EffectPSO::Apply(CommandList& _commandList)
 			_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MaterialCB, materialProps);
 
 			//ÉèÖÃÌùÍ¼
-			BindTexture(_commandList, 0, m_Material->GetTexture(Material::TextureType::Ambient), RootParameters::Textures);
+			BindTexture(_commandList, 0, m_Material->GetTexture(Material::TextureType::AO), RootParameters::Textures);
 			BindTexture(_commandList, 1, m_Material->GetTexture(Material::TextureType::Emissive), RootParameters::Textures);
 			BindTexture(_commandList, 2, m_Material->GetTexture(Material::TextureType::Diffuse), RootParameters::Textures);
-			BindTexture(_commandList, 3, m_Material->GetTexture(Material::TextureType::Specular), RootParameters::Textures);
-			BindTexture(_commandList, 4, m_Material->GetTexture(Material::TextureType::SpecularPower), RootParameters::Textures);
+			BindTexture(_commandList, 3, m_Material->GetTexture(Material::TextureType::Metaltic), RootParameters::Textures);
+			BindTexture(_commandList, 4, m_Material->GetTexture(Material::TextureType::Roughness), RootParameters::Textures);
 			BindTexture(_commandList, 5, m_Material->GetTexture(Material::TextureType::Normal), RootParameters::Textures);
 			BindTexture(_commandList, 6, m_Material->GetTexture(Material::TextureType::Bump), RootParameters::Textures);
 			BindTexture(_commandList, 7, m_Material->GetTexture(Material::TextureType::Opacity), RootParameters::Textures);

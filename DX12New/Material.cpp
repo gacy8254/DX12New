@@ -131,9 +131,9 @@ void Material::SetTexture(TextureType type, std::shared_ptr<Texture> texture)
 
 	switch (type)
 	{
-	case TextureType::Ambient:
+	case TextureType::AO:
 	{
-		m_MaterialProperties->HasAmbientTexture = (texture != nullptr);
+		m_MaterialProperties->HasAOTexture = (texture != nullptr);
 	}
 	break;
 	case TextureType::Emissive:
@@ -146,14 +146,14 @@ void Material::SetTexture(TextureType type, std::shared_ptr<Texture> texture)
 		m_MaterialProperties->HasDiffuseTexture = (texture != nullptr);
 	}
 	break;
-	case TextureType::Specular:
+	case TextureType::Metaltic:
 	{
-		m_MaterialProperties->HasSpecularTexture = (texture != nullptr);
+		m_MaterialProperties->HasMetalticTexture = (texture != nullptr);
 	}
 	break;
-	case TextureType::SpecularPower:
+	case TextureType::Roughness:
 	{
-		m_MaterialProperties->HasSpecularPowerTexture = (texture != nullptr);
+		m_MaterialProperties->HasRoughnessTexture = (texture != nullptr);
 	}
 	break;
 	case TextureType::Normal:

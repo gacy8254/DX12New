@@ -192,6 +192,9 @@
     <ClCompile Include="BasePSO.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="DeferredLightingPSO.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Lesson2.h">
@@ -389,12 +392,12 @@
     <ClInclude Include="BasePSO.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="DeferredLightingPSO.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\shaders\HDR_PS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\shaders\VertexShader.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\GanerateMips_GS.hlsl">
@@ -424,6 +427,15 @@
     <FxCompile Include="..\shaders\Unlit.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="..\shaders\GBuffer_PS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\FullScreen_VS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\FullScreen_PS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -434,6 +446,9 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shaders\Deferred_GBuffer_PS.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shaders\Deferred_Lighting_PS.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

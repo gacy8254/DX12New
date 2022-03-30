@@ -31,7 +31,7 @@ void Texture::Resize(uint32_t width, uint32_t height, uint32_t depthOrArraySize)
 		resDesc.Width = std::max(width, 1u);
 		resDesc.Height = std::max(height, 1u);
 		resDesc.DepthOrArraySize = depthOrArraySize;
-		resDesc.MipLevels = resDesc.SampleDesc.Count > 1 ? 1 : 0;
+		resDesc.MipLevels = resDesc.MipLevels;
 
 		auto device = m_Device.GetD3D12Device();
 

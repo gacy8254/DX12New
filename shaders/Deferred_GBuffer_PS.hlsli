@@ -44,17 +44,18 @@ struct PixelOut
     float4 Normal        : SV_TARGET1;
     float4 ORM           : SV_TARGET2;
     float4 Emissive      : SV_TARGET3;
+    float4 WorldPos      : SV_TARGET4;
     //float4 Albedo : SV_TARGET0;
 };
 
 ConstantBuffer<Material> MaterialCB : register(b0, space1);
 
 // Textures
-Texture2D AmbientTexture : register(t0);
+Texture2D AOTexture : register(t0);
 Texture2D EmissiveTexture : register(t1);
 Texture2D DiffuseTexture : register(t2);
-Texture2D SpecularTexture : register(t3);
-Texture2D SpecularPowerTexture : register(t4);
+Texture2D MetalticTexture : register(t3);
+Texture2D RoughnessTexture : register(t4);
 Texture2D NormalTexture : register(t5);
 Texture2D BumpTexture : register(t6);
 Texture2D OpacityTexture : register(t7);
@@ -146,29 +147,34 @@ PixelOut main(PixelShaderInput IN)
     }
 #endif // ENABLE_DECAL
 
-    float4 ambient = material.Ambient;
-    float4 emissive = material.Emissive;
-    float4 diffuse = material.Diffuse;
-    float specularPower = material.SpecularPower;
+    float AO = 1.0f;
+    float4 emissive = (float4) 0;
+    float4 diffuse = (float4)1;
+    float metaltic = 0;
+    float roughness = 1.0f;
     float2 uv = IN.TexCoord.xy;
 
     if (material.HasAmbientTexture)
     {
-        ambient = SampleTexture(AmbientTexture, uv, ambient);
+        AO = AOTexture.Sample(TextureSampler, uv).r;
     }
     if (material.HasEmissiveTexture)
     {
-        emissive = SampleTexture(EmissiveTexture, uv, emissive);
+        emissive = EmissiveTexture.Sample(TextureSampler, uv);
     }
     if (material.HasDiffuseTexture)
     {
-        diffuse = SampleTexture(DiffuseTexture, uv, diffuse);
+        diffuse = DiffuseTexture.Sample(TextureSampler, uv);
     }
     if (material.HasSpecularPowerTexture)
     {
-        specularPower *= SpecularPowerTexture.Sample(TextureSampler, uv).r;
+        roughness = RoughnessTexture.Sample(TextureSampler, uv).r;
     }
+    if(material.HasSpecularTexture)
+    {
+        metaltic = MetalticTexture.Sample(TextureSampler, uv).r;
 
+    }
     float3 N;
     // Normal mapping
     if (material.HasNormalTexture)
@@ -201,11 +207,13 @@ PixelOut main(PixelShaderInput IN)
     }
     
     Out.Albedo = diffuse;
+    Out.Albedo.a = alpha;
     Out.Normal.rgb = N;
-    Out.ORM.r = 0.5f;
-    Out.ORM.g = 0.2f;
-    Out.ORM.b = 0.3f;
+    Out.ORM.r = AO;
+    Out.ORM.g = roughness;
+    Out.ORM.b = metaltic;
     Out.Emissive = emissive;
+    Out.WorldPos.rgb = IN.PositionVS;
     
     return Out;
 }

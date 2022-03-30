@@ -16,6 +16,7 @@
 #include "EffectPSO.h"
 #include "DeferredGBufferPSO.h"
 #include "SceneVisitor.h"
+#include "DeferredLightingPSO.h"
 
 #include <d3d12.h>
 #include <future>
@@ -78,13 +79,16 @@ private:
 
     void DrawLightMesh(SceneVisitor& _pass);
 
+    void CreateGBufferRT();
+
 	std::shared_ptr<EffectPSO> m_LightingPSO;
 	std::shared_ptr<EffectPSO> m_DecalPSO;
 	std::shared_ptr<EffectPSO> m_UnlitPSO;
 
     std::unique_ptr<DeferredGBufferPSO> m_GBufferPso;
     std::unique_ptr<DeferredGBufferPSO> m_GBufferDecalPso;
-    //std:unique_ptr<DeferredGBufferPSO> m_GBufferDecalPso;
+
+    std::unique_ptr<DeferredLightingPSO> m_DeferredLightingPso;
 
     std::shared_ptr<Device> m_Device;
     std::shared_ptr<SwapChain> m_SwapChain;
@@ -96,6 +100,7 @@ private:
     std::shared_ptr<Window> m_Window;
 
     RenderTarget m_RenderTarget;
+    RenderTarget m_GBufferRenderTarget;
 
     D3D12_RECT m_ScissorRect;
     D3D12_VIEWPORT m_Viewport;
