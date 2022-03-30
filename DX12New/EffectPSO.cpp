@@ -76,9 +76,6 @@ EffectPSO::EffectPSO(std::shared_ptr<Device> _device, bool _enableLighting, bool
 	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
 
-	//获取多重采样的支持
-	DXGI_SAMPLE_DESC sampleDesc = m_Device->GetMultisampleQualityLevels(backBufferFormat);
-
 	D3D12_RT_FORMAT_ARRAY rtvFormats = {};
 	rtvFormats.NumRenderTargets = 1;
 	rtvFormats.RTFormats[0] = backBufferFormat;
@@ -98,7 +95,7 @@ EffectPSO::EffectPSO(std::shared_ptr<Device> _device, bool _enableLighting, bool
 	pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	pipelineStateStream.DSVFormat = depthBufferFormat;
 	pipelineStateStream.RTVFormats = rtvFormats;
-	pipelineStateStream.SampleDesc = sampleDesc;
+	pipelineStateStream.SampleDesc = {1, 0};
 
 	m_PSO = m_Device->CreatePipelineStateObject(pipelineStateStream);
 

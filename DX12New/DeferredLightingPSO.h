@@ -49,7 +49,7 @@ public:
 		NumTextures
 	};
 
-	DeferredLightingPSO(std::shared_ptr<Device> _device, CommandList& _commandList, bool _enableLighting);
+	DeferredLightingPSO(std::shared_ptr<Device> _device, bool _enableLighting);
 	virtual ~DeferredLightingPSO();
 
 	const std::vector<PointLight>& GetPointLights() const { return m_PointLights; }
@@ -84,7 +84,6 @@ public:
 	void Apply(CommandList& _commandList) override;
 
 private:
-	CommandList& m_CommandList;
 
 	std::vector<PointLight> m_PointLights;
 	std::vector<SpotLight> m_SpotLights;

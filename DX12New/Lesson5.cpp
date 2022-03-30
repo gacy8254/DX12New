@@ -83,26 +83,42 @@ void Lesson5::LoadContent()
 	m_SwapChain = m_Device->CreateSwapChain(m_Window->GetWindowHandle(), DXGI_FORMAT_R8G8B8A8_UNORM);
 
 	// Start the loading task to perform async loading of the scene file.
-	//LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\sphere.fbx");
+
 	LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\MaterialMesh.FBX");
 	//LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj");
-	//m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this,L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj"));
+
 
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
 	auto commandList = commandQueue.GetCommandList();
 
+	auto hdrMap = commandList->LoadTextureFromFile(L"C:\\Code\\DX12New\\Assets\\Textures\\03-Ueno-Shrine_3k.hdr");
+	D3D12_RESOURCE_DESC desc = hdrMap->GetResourceDesc();
+	desc.Height = 1024;
+	desc.Width = 1024;
+	desc.DepthOrArraySize = 6;
+	desc.MipLevels = 0;
+
+	m_CubeMap = m_Device->CreateTexture(desc);
+	
+	commandList->PanoToCubeMap(m_CubeMap, hdrMap);
+	MaterialProperties Material = Material::Black;
 
 	m_Sphere = MeshHelper::CreateSphere(commandList, 0.1f);
 	m_Cone = MeshHelper::CreateCone(commandList, 0.1f, 0.2f);
+	m_Cube = MeshHelper::CreateCube(commandList, 5000.0f, true);
 	m_Axis = commandList->LoadSceneFromFile(L"C:\\Code\\DX12New\\Assets\\Models\\axis_of_evil.nff");
 
+	m_Cube->GetRootNode()->GetMesh()->GetMaterial()->SetTexture(Material::TextureType::Diffuse, m_CubeMap);
+
 	//创建PSO
-	m_UnlitPSO = std::make_shared<EffectPSO>(m_Device, false, false);
+	m_UnlitPso = std::make_unique<EffectPSO>(m_Device, false, false);
 
 	m_GBufferPso = std::make_unique<DeferredGBufferPSO>(m_Device, false);
 	m_GBufferDecalPso = std::make_unique<DeferredGBufferPSO>(m_Device, true);
 
-	m_DeferredLightingPso = std::make_unique<DeferredLightingPSO>(m_Device, *commandList, true);
+	m_DeferredLightingPso = std::make_unique<DeferredLightingPSO>(m_Device, true);
+
+	m_SkyBoxPso = std::make_unique<SkyCubePSO>(m_Device);
 
 	BuildLighting(1, 1, 1);
 	//执行命令列表
@@ -174,12 +190,12 @@ void Lesson5::OnUpdate(UpdateEventArgs& e)
 		frameCount = 0;
 		totalTime = 0.0;
 	}
-	//m_LightingPSO->SetSpotLights(m_SpotLights);
-	//m_DecalPSO->SetSpotLights(m_SpotLights);
-	//m_LightingPSO->SetPointLights(m_PointLights);
-	//m_DecalPSO->SetPointLights(m_PointLights);
-	//m_LightingPSO->SetDirectionalLights(m_DirectionalLights);
-	//m_DecalPSO->SetDirectionalLights(m_DirectionalLights);
+
+	//更新灯光数据
+	m_DeferredLightingPso->SetPointLights(m_PointLights);
+	m_DeferredLightingPso->SetDirectionalLights(m_DirectionalLights);
+	m_DeferredLightingPso->SetSpotLights(m_SpotLights);
+
 	Matrix4 viewMatrix = m_Camera.GetViewMatrix();
 
 	Vector4 cameraPoint = Vector4(0, 0, 0, 1);
@@ -204,9 +220,10 @@ void Lesson5::OnResize(ResizeEventArgs& e)
 	m_Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(m_Width), static_cast<float>(m_Height));
 
 	float aspect = m_Width / (float)m_Height;
-	m_Camera.SetProjection(45.0f, aspect, 0.1f, 1000.0f);
+	m_Camera.SetProjection(45.0f, aspect, 0.1f, 10000.0f);
 
 	m_RenderTarget.Resize(m_Width, m_Height);
+	m_GBufferRenderTarget.Resize(m_Width, m_Height);
 
 	m_SwapChain->Resize(m_Width, m_Height);
 }
@@ -231,25 +248,34 @@ void Lesson5::OnRender()
 		//创建Pass
 		SceneVisitor opaquePass(*commandList, m_Camera, *m_GBufferPso, false);
 		SceneVisitor transparentPass(*commandList, m_Camera, *m_GBufferDecalPso, true);
-		SceneVisitor unlitPass(*commandList, m_Camera, *m_UnlitPSO, false);
+		SceneVisitor unlitPass(*commandList, m_Camera, *m_UnlitPso, false);
+		SceneVisitor skyBoxPass(*commandList, m_Camera, *m_SkyBoxPso, false);
+
+		//清空缓冲区
+		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color0), clearColor);
+		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color1), clearColor);
+		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color2), clearColor);
+		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color3), clearColor);
+		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color4), clearColor);
+		commandList->ClearDepthStencilTexture(rendertarget.GetTexture(AttachmentPoint::DepthStencil),D3D12_CLEAR_FLAG_DEPTH);
 
 		//设置命令列表
-		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color0), clearColor);
-		commandList->ClearDepthStencilTexture(rendertarget.GetTexture(AttachmentPoint::DepthStencil),D3D12_CLEAR_FLAG_DEPTH);
 		commandList->SetViewport(m_Viewport);
 		commandList->SetScissorRect(m_ScissorRect);
 		commandList->SetRenderTarget(rendertarget);
 
 		//渲染场景(GBUFFER  PASS)
 		m_Scene->Accept(opaquePass);
-		//m_Axis->Accept(unlitPass);
+		
 		m_Scene->Accept(transparentPass);
 
-		//DrawLightMesh(unlitPass);
+		commandList->ClearTexture(m_RenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
+		commandList->ClearDepthStencilTexture(m_RenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
 
 		//Lighting
 		commandList->SetRenderTarget(m_RenderTarget);
 
+		//获取GBuffer贴图
 		std::vector<std::shared_ptr<Texture>> gBufferTexture;
 		gBufferTexture.resize(DeferredLightingPSO::NumTextures);
 		gBufferTexture[DeferredLightingPSO::AlbedoText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color0);
@@ -262,15 +288,19 @@ void Lesson5::OnRender()
 		m_DeferredLightingPso->Apply(*commandList);
 		commandList->Draw(4);
 
-		auto swapChainBackBuffer = m_SwapChain->GetRenderTarget().GetTexture(AttachmentPoint::Color0);
-		auto msaaRenderTarget = m_RenderTarget.GetTexture(AttachmentPoint::Color0);
+		commandList->CopyResource(m_RenderTarget.GetTexture(AttachmentPoint::DepthStencil), m_GBufferRenderTarget.GetTexture(AttachmentPoint::DepthStencil));
 
-		//commandList->ResolveSubresource(swapChainBackBuffer, msaaRenderTarget);
+		commandList->TransitionBarrier(m_RenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		commandList->FlushResourceBarriers();
+
+		m_Axis->Accept(unlitPass);
+		DrawLightMesh(unlitPass);
+		m_Cube->Accept(skyBoxPass);
 	}
 	
 	commandQueue.ExecuteCommandList(commandList);
 
-	m_SwapChain->Present(m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color0));
+	m_SwapChain->Present(m_RenderTarget.GetTexture(AttachmentPoint::Color0));
 }
 
 void Lesson5::OnKeyPressed(KeyEventArgs& e)
@@ -355,11 +385,11 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 		//缩放场景,以适合摄像机时锥
 		DirectX::BoundingSphere s;
 		BoundingSphere::CreateFromBoundingBox(s, scene->GetAABB());
-		auto scale = 8.0f / (s.Radius * 2.0f);
+		auto scale = 20.0f / (s.Radius * 2.0f);
 		s.Radius *= scale;
 
 		Vector4 qu = Transform::QuaternionRotationRollPitchYaw(DirectX::XMConvertToRadians(90), 0, 0);
-		auto scal = Transform::MatrixScaling(scale, scale, scale);
+		auto scal = Transform::MatrixScaling(0.05, 0.05, 0.05);
 		auto rota = Transform::MatrixRotationQuaternion(qu);
 		auto o = rota * scal;
 		scene->GetRootNode()->SetLocalTransform(o);
@@ -524,7 +554,7 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 		XMStoreFloat4(&l.DirectionVS, directionVS);
 
 		l.Color = XMFLOAT4(LightColors[(i + numPointLights) % _countof(LightColors)]);
-		l.Color = XMFLOAT4(1, 1, 1, 0);
+		l.Color = XMFLOAT4(10, 1, 1, 0);
 		l.SpotAngle = XMConvertToRadians(45.0f);
 		l.ConstantAttenuation = 1.0f;
 		l.LinearAttenuation = 0.08f;

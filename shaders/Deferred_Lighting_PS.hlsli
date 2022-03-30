@@ -233,11 +233,12 @@ float4 main(PixelShaderInput IN) : SV_Target
     albedo *= lit.Diffuse;
     //ambient *= lit.Ambient;
     metallic *= lit.Specular;
-
+    //return float4(lit.Diffuse.rgb, 1);
 #else 
     //shadow = -N.z;
 #endif // ENABLE_LIGHTING
 
     return float4((emissive + albedo + specular).rgb * shadow, alpha);
+    //return float4(roughness, roughness,roughness, 1);
 }
 

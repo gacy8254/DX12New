@@ -548,8 +548,8 @@ void CommandList::PanoToCubeMap(const std::shared_ptr<Texture>& _cubeMap, const 
 {
 	assert(_cubeMap && _pano);
 	//如果当前命令列表时复制命令列表
-//检索计算命令列表
-//在计算命令列表上执行该操作
+	//检索计算命令列表
+	//在计算命令列表上执行该操作
 	if (m_CommandListType == D3D12_COMMAND_LIST_TYPE_COPY)
 	{
 		if (!m_ComputerCommandList)

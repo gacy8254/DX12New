@@ -192,6 +192,7 @@
     <ClCompile Include="SceneNode.cpp" />
     <ClCompile Include="SceneVisitor.cpp" />
     <ClCompile Include="ShaderResourceView.cpp" />
+    <ClCompile Include="SkyCubePSO.cpp" />
     <ClCompile Include="StructuredBuffer.cpp" />
     <ClCompile Include="SwapChain.cpp" />
     <ClCompile Include="Texture.cpp" />
@@ -258,6 +259,7 @@
     <ClInclude Include="SceneVisitor.h" />
     <ClInclude Include="ShaderResourceView.h" />
     <ClInclude Include="signals.hpp" />
+    <ClInclude Include="SkyCubePSO.h" />
     <ClInclude Include="StructuredBuffer.h" />
     <ClInclude Include="SwapChain.h" />
     <ClInclude Include="Texture.h" />

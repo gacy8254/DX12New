@@ -17,6 +17,7 @@
 #include "DeferredGBufferPSO.h"
 #include "SceneVisitor.h"
 #include "DeferredLightingPSO.h"
+#include "SkyCubePSO.h"
 
 #include <d3d12.h>
 #include <future>
@@ -81,14 +82,16 @@ private:
 
     void CreateGBufferRT();
 
-	std::shared_ptr<EffectPSO> m_LightingPSO;
-	std::shared_ptr<EffectPSO> m_DecalPSO;
-	std::shared_ptr<EffectPSO> m_UnlitPSO;
+    std::shared_ptr<Texture> m_CubeMap;
 
+    std::unique_ptr<EffectPSO> m_UnlitPso;
+   
     std::unique_ptr<DeferredGBufferPSO> m_GBufferPso;
     std::unique_ptr<DeferredGBufferPSO> m_GBufferDecalPso;
 
     std::unique_ptr<DeferredLightingPSO> m_DeferredLightingPso;
+
+    std::unique_ptr<SkyCubePSO> m_SkyBoxPso;
 
     std::shared_ptr<Device> m_Device;
     std::shared_ptr<SwapChain> m_SwapChain;
@@ -96,6 +99,7 @@ private:
     std::shared_ptr<Scene> m_Scene;
     std::shared_ptr<Scene> m_Axis;
     std::shared_ptr<Scene> m_Sphere;
+    std::shared_ptr<Scene> m_Cube;
     std::shared_ptr<Scene> m_Cone;
     std::shared_ptr<Window> m_Window;
 

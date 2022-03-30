@@ -7,9 +7,8 @@
 using namespace Microsoft::WRL;
 using namespace DirectX;
 
-DeferredLightingPSO::DeferredLightingPSO(std::shared_ptr<Device> _device, CommandList& _commandList, bool _enableLighting)
+DeferredLightingPSO::DeferredLightingPSO(std::shared_ptr<Device> _device, bool _enableLighting)
 	:BasePSO(_device),
-	m_CommandList(_commandList),
 	m_EnableLights(_enableLighting)
 {
 	ComPtr<ID3DBlob> vertexShaderBlob;
@@ -45,6 +44,7 @@ DeferredLightingPSO::DeferredLightingPSO(std::shared_ptr<Device> _device, Comman
 		CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE        pRootSignature;
 		CD3DX12_PIPELINE_STATE_STREAM_VS                    VS;
 		CD3DX12_PIPELINE_STATE_STREAM_PS                    PS;
+		CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER            RasterizerState;
 		CD3DX12_PIPELINE_STATE_STREAM_INPUT_LAYOUT          InputLayout;
 		CD3DX12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY    PrimitiveTopologyType;
 		CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS RTVFormats;
@@ -54,12 +54,15 @@ DeferredLightingPSO::DeferredLightingPSO(std::shared_ptr<Device> _device, Comman
 	//创建一个具有SRGB的颜色缓冲,为了gamma矫正
 	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 
-	//获取多重采样的支持
-	DXGI_SAMPLE_DESC sampleDesc = m_Device->GetMultisampleQualityLevels(backBufferFormat);
-
 	D3D12_RT_FORMAT_ARRAY rtvFormats = {};
 	rtvFormats.NumRenderTargets = 1;
 	rtvFormats.RTFormats[0] = backBufferFormat;
+
+	CD3DX12_RASTERIZER_DESC rasterizerState(D3D12_DEFAULT);
+
+	rasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	
+
 
 	//设置PSO属性
 	pipelineStateStream.pRootSignature = m_RootSignature->GetRootSignature().Get();
@@ -69,6 +72,7 @@ DeferredLightingPSO::DeferredLightingPSO(std::shared_ptr<Device> _device, Comman
 	pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	pipelineStateStream.RTVFormats = rtvFormats;
 	pipelineStateStream.SampleDesc = { 1, 0 };
+	pipelineStateStream.RasterizerState = rasterizerState;
 
 	m_PSO = m_Device->CreatePipelineStateObject(pipelineStateStream);
 
@@ -88,8 +92,8 @@ void DeferredLightingPSO::Apply(CommandList& _commandList)
 	//	isFirst = false;
 	//	m_pPreviousCommandList = &_commandList;
 	//}
-	m_CommandList.SetPipelineState(m_PSO);
-	m_CommandList.SetGraphicsRootSignature(m_RootSignature);
+	_commandList.SetPipelineState(m_PSO);
+	_commandList.SetGraphicsRootSignature(m_RootSignature);
 	//依次判断需要更新的属性,并绑定到渲染管线上
 	if (m_DirtyFlags & DF_Material)
 	{

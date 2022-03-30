@@ -1,7 +1,6 @@
 struct PSInput
 {
     float3 TexCoord : TEXCOORD;
-    
 };
 
 TextureCube<float4> SkyboxTexture : register(t0);
