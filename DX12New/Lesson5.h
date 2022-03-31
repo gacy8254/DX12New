@@ -18,6 +18,7 @@
 #include "SceneVisitor.h"
 #include "DeferredLightingPSO.h"
 #include "SkyCubePSO.h"
+#include "NormalVisualizePSO.h"
 
 #include <d3d12.h>
 #include <future>
@@ -82,11 +83,13 @@ private:
 
     void CreateGBufferRT();
 
-    void DrawSphere(SceneVisitor& _pass);
+    void DrawSphere(SceneVisitor& _pass, bool isNormal);
 
     std::shared_ptr<Texture> m_CubeMap;
 
     std::unique_ptr<EffectPSO> m_UnlitPso;
+
+    std::unique_ptr<NormalVisualizePSO> m_NormalVisualizePso;
    
     std::unique_ptr<DeferredGBufferPSO> m_GBufferPso;
     std::unique_ptr<DeferredGBufferPSO> m_GBufferDecalPso;

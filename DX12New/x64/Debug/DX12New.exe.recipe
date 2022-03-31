@@ -22,6 +22,12 @@
       <FullPath>C:\Code\DX12New\x64\Debug\GBuffer_PS.cso</FullPath>
     </ContentFile>
     <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\NormalVisualize_GS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\NormalVisualize_VS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
       <FullPath>C:\Code\DX12New\x64\Debug\PanoToCubemap_CS.cso</FullPath>
     </ContentFile>
     <ContentFile>
@@ -44,6 +50,9 @@
     </ContentFile>
     <ContentFile>
       <FullPath>C:\Code\DX12New\x64\Debug\Unlit.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\Unlit_PS.cso</FullPath>
     </ContentFile>
   </ContentFiles>
   <SatelliteDlls />

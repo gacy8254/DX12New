@@ -71,7 +71,7 @@ DeferredGBufferPSO::DeferredGBufferPSO(std::shared_ptr<Device> _device, bool _en
 	D3D12_RT_FORMAT_ARRAY rtvFormats = {};
 	rtvFormats.NumRenderTargets = 5;
 	rtvFormats.RTFormats[0] = backBufferFormat;
-	rtvFormats.RTFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	rtvFormats.RTFormats[1] = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	rtvFormats.RTFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	rtvFormats.RTFormats[3] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	rtvFormats.RTFormats[4] = DXGI_FORMAT_R16G16B16A16_FLOAT;

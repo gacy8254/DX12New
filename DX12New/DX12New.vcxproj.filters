@@ -13,9 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Shaders">
-      <UniqueIdentifier>{64d9c211-9ccf-4917-9e96-9c428e2035ad}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Common">
       <UniqueIdentifier>{43464dba-260f-4d00-ac51-85665ea6dd2e}</UniqueIdentifier>
     </Filter>
@@ -24,6 +21,9 @@
     </Filter>
     <Filter Include="Common\Head">
       <UniqueIdentifier>{df7371fd-0259-4f29-b2d2-4c1561e01cc2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common\Shaders">
+      <UniqueIdentifier>{64d9c211-9ccf-4917-9e96-9c428e2035ad}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -198,6 +198,9 @@
     <ClCompile Include="SkyCubePSO.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="NormalVisualizePSO.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Lesson2.h">
@@ -309,10 +312,10 @@
       <Filter>Common\Head</Filter>
     </ClInclude>
     <ClInclude Include="HLSL\GanerateMips_GS.h">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </ClInclude>
     <ClInclude Include="HLSL\PanoToCubemap_CS.h">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </ClInclude>
     <ClInclude Include="PipelineStateStream.h">
       <Filter>头文件</Filter>
@@ -401,67 +404,79 @@
     <ClInclude Include="SkyCubePSO.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="NormalVisualizePSO.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\shaders\HDR_PS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\GanerateMips_GS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\StandardVS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\PanoToCubemap_CS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\SkyBox_VS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\SkyBox_PS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\SDR_VS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\SDR_PS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\Decal.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\Unlit.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\GBuffer_PS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\FullScreen_VS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\FullScreen_PS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\NormalVisualize_GS.hlsl">
+      <Filter>Common\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\Unlit_PS.hlsl">
+      <Filter>Common\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\NormalVisualize_VS.hlsl">
+      <Filter>Common\Shaders</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
     <None Include="..\shaders\CommonTool.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </None>
     <None Include="..\shaders\Base_PS.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </None>
     <None Include="..\shaders\Deferred_GBuffer_PS.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </None>
     <None Include="..\shaders\Deferred_Lighting_PS.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </None>
     <None Include="..\shaders\Deferred_PBRLighting_PS.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </None>
     <None Include="..\shaders\PBR_Function.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Common\Shaders</Filter>
     </None>
   </ItemGroup>
 </Project>

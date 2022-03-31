@@ -92,7 +92,7 @@ void CameraController::Update(UpdateEventArgs& _e)
 	const float LOOK_SENSITIVITY = 10.0f;
 	const float MOUSE_SENSITIVITY = 0.1f;
 
-	float speedScale = m_KMInput->GetBool(Boost) ? 2.0f : 1.0f;
+	float speedScale = m_KMInput->GetBool(Boost) ? 0.1f : 1.0f;
 	float rotationScale = m_KMInput->GetBool(Boost) ? 2.0f : 1.0f;
 
 	float x = m_KMInput->GetFloat(MoveX) * MOVE_SPEED * speedScale * _e.DeltaTime;

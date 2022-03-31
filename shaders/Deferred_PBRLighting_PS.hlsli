@@ -157,7 +157,7 @@ LightResult DoPointLight( PointLight light, float3 V, float3 P, float3 N, float3
     float3 lo = (kd * _albedo.xyz / PI + specular) * radiance * NdotL;
 
     
-    result.Diffuse.rgb = lo;
+    result.Diffuse.rgb = (float3) lo;
     result.Specular.rgb = lo;
     result.Ambient.rgb = lo;
 
@@ -297,65 +297,63 @@ float4 main(PixelShaderInput IN) : SV_Target
     float4 emissive = EmissiveText.Sample(TextureSampler, IN.TexCoord.xy);
     float alpha = albedo.a;
     
-    float3 toCamera = normalize(CameraProperticesCB.CameraPos.xyz - WorldPos);
+    //float3 toCamera = normalize(CameraProperticesCB.CameraPos.xyz - WorldPos);
     
-    float3 toLight = normalize(PointLights[0].PositionWS.xyz - WorldPos);
-    float3 halfVec = normalize(toCamera + toLight);
+    //float3 toLight = normalize(PointLights[0].PositionWS.xyz - WorldPos);
+    //float3 halfVec = normalize(toCamera + toLight);
     
-    float dis = length(PointLights[0].PositionWS.xyz - WorldPos);
-    float attenuation = DoAttenuation(dis);
+    //float dis = length(PointLights[0].PositionWS.xyz - WorldPos);
+    //float attenuation = DoAttenuation(dis);
     
-    float3 radiance = PointLights[0].Color * attenuation;
+    //float3 radiance = PointLights[0].Color * attenuation;
     
-    float NDF = DistributionGGX(normal.xyz, halfVec, roughness);
-    float G = GeometrySmith(normal.xyz, toCamera, toLight, roughness);
+    //float NDF = DistributionGGX(normal.xyz, halfVec, roughness);
+    //float G = GeometrySmith(normal.xyz, toCamera, toLight, roughness);
     
-    float3 F = CalFresnel(halfVec, toCamera, albedo.xyz, metallic);
+    //float3 F = CalFresnel(halfVec, toCamera, albedo.xyz, metallic);
     
-    float3 numerator = NDF * G * F;
-    float demoninator = 4.0 * max(dot(normal.xyz, toCamera), 0.0f) * max(dot(normal.xyz, toLight), 0.0) + 0.001;
+    //float3 numerator = NDF * G * F;
+    //float demoninator = 4.0 * max(dot(normal.xyz, toCamera), 0.0f) * max(dot(normal.xyz, toLight), 0.0) + 0.001;
     
-    float3 specular = numerator / demoninator;
+    //float3 specular = numerator / demoninator;
     
-    float3 KS = F;
+    //float3 KS = F;
     
-    float3 kd = (float3) 1.0f - KS;
+    //float3 kd = (float3) 1.0f - KS;
     
-    kd *= 1.0f - metallic;
+    //kd *= 1.0f - metallic;
     
-    float NdotL = max(dot(normal.xyz, toLight), 0.0);
+    //float NdotL = max(dot(normal.xyz, toLight), 0.0);
     
-    float3 lo = (kd * albedo.xyz / PI + specular) * radiance * NdotL;
-    
-    
-    float3 color = (float3)normal;
-    
-    return float4(color, alpha);
+    //float3 lo = (kd * albedo.xyz / PI + specular) * radiance * NdotL;
     
     
+    //float3 color = (float3) lo;
+    
+    //return float4(color, alpha);
     
     
     
     
     
     
-//    float shadow = 1;
-//    float4 specular = 0;
-////#if ENABLE_LIGHTING
-//    LightResult lit = DoLighting(WorldPos, normal.rgb, CameraProperticesCB.CameraPos.xyz, albedo.rgb, metallic, roughness);
-//    albedo *= lit.Diffuse;
-//    //ambient *= lit.Ambient;
-//    //metallic *= lit.Specular;
-//    //return float4(lit.Diffuse.rgb, 1);
-////#else 
-//    //shadow = -N.z;
-////#endif // ENABLE_LIGHTING
     
-//    float3 ambient = (float3) 0.03f * albedo.rgb * ao;
-//    float3 toCam = normalize(CameraProperticesCB.CameraPos.xyz - WorldPos);
-//    float3 toLight = normalize((PointLights[0].PositionVS.xyz - WorldPos));
+    
+    float shadow = 1;
+    float4 specular = 0;
+//#if ENABLE_LIGHTING
+    LightResult lit = DoLighting(WorldPos, normal.rgb, CameraProperticesCB.CameraPos.xyz, albedo.rgb, metallic, roughness);
+    albedo *= lit.Diffuse;
+    //ambient *= lit.Ambient;
+    //metallic *= lit.Specular;
+    //return float4(lit.Diffuse.rgb, 1);
+//#else 
+    //shadow = -N.z;
+//#endif // ENABLE_LIGHTING
+    
+    float3 ambient = (float3) 0.03f * albedo.rgb * ao;
 
-//    //return float4(((emissive + albedo + specular).rgb + ambient) * shadow, alpha);
-//    return float4(albedo.rgb, alpha);
+    return float4(((emissive + albedo + specular).rgb + ambient) * shadow, alpha);
+    //return float4(albedo.rgb, alpha);
 }
 
