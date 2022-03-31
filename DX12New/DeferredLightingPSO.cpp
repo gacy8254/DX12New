@@ -27,6 +27,7 @@ DeferredLightingPSO::DeferredLightingPSO(std::shared_ptr<Device> _device, bool _
 
 	CD3DX12_ROOT_PARAMETER1 rootParameter[RootParameters::NumRootParameters];
 	rootParameter[RootParameters::LightPropertiesCB].InitAsConstants(sizeof(LightProperties) / 4, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParameter[RootParameters::CameraPosCB].InitAsConstants(sizeof(Vector4) / 4, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::PointLights].InitAsShaderResourceView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::SpotLights].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::DirectionalLights].InitAsShaderResourceView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -94,6 +95,8 @@ void DeferredLightingPSO::Apply(CommandList& _commandList)
 	//}
 	_commandList.SetPipelineState(m_PSO);
 	_commandList.SetGraphicsRootSignature(m_RootSignature);
+
+	_commandList.SetGraphics32BitConstants(RootParameters::CameraPosCB, m_pAlignedMVP->CamPos.GetFloat4());
 	//依次判断需要更新的属性,并绑定到渲染管线上
 	if (m_DirtyFlags & DF_Material)
 	{

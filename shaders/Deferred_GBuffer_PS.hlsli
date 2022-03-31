@@ -158,6 +158,10 @@ PixelOut main(PixelShaderInput IN)
     {
         AO = AOTexture.Sample(TextureSampler, uv).r;
     }
+    else
+    {
+        AO = material.Specular.r;
+    }
     if (material.HasEmissiveTexture)
     {
         emissive = EmissiveTexture.Sample(TextureSampler, uv);
@@ -166,15 +170,27 @@ PixelOut main(PixelShaderInput IN)
     {
         diffuse = DiffuseTexture.Sample(TextureSampler, uv);
     }
+    else
+    {
+        diffuse = material.Diffuse;
+    }
     if (material.HasSpecularPowerTexture)
     {
         roughness = RoughnessTexture.Sample(TextureSampler, uv).r;
     }
+    else
+    {
+        roughness = material.Specular.g;
+    }
     if(material.HasSpecularTexture)
     {
         metaltic = MetalticTexture.Sample(TextureSampler, uv).r;
-
     }
+    else
+    {
+        metaltic = material.Specular.b;
+    }
+    
     float3 N;
     // Normal mapping
     if (material.HasNormalTexture)
@@ -196,10 +212,10 @@ PixelOut main(PixelShaderInput IN)
         float3 normal = normalize(IN.NormalVS);
 
         float3x3 TBN = float3x3(tangent,
-                                 -bitangent,
+                                 bitangent,
                                  normal);
 
-        N = DoBumpMapping(TBN, BumpTexture, uv, material.BumpIntensity);
+        N = DoNormalMapping(TBN, NormalTexture, uv);
     }
     else
     {

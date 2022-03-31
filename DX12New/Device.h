@@ -82,8 +82,10 @@ public:
      * @returns 返回一个创建的贴图的指针
      */
     std::shared_ptr<Texture> CreateTexture(const D3D12_RESOURCE_DESC& _resourceDesc,
+        bool _isCubeMap = false,
         const D3D12_CLEAR_VALUE* _clearValue = nullptr);
     std::shared_ptr<Texture> CreateTexture(Microsoft::WRL::ComPtr<ID3D12Resource> _resource,
+        bool _isCubeMap = false,
         const D3D12_CLEAR_VALUE* _clearValue = nullptr);
 
     //创建一个索引缓冲

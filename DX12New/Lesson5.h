@@ -82,6 +82,8 @@ private:
 
     void CreateGBufferRT();
 
+    void DrawSphere(SceneVisitor& _pass);
+
     std::shared_ptr<Texture> m_CubeMap;
 
     std::unique_ptr<EffectPSO> m_UnlitPso;

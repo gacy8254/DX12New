@@ -23,6 +23,7 @@ public:
 	enum RootParameters
 	{
 		LightPropertiesCB,  // ConstantBuffer<LightProperties> LightPropertiesCB : register( b0 );
+		CameraPosCB,  // ConstantBuffer<float4> CameraPos : register( b1 );
 
 		PointLights,        // StructuredBuffer<PointLight> PointLights : register( t0 );
 		SpotLights,         // StructuredBuffer<SpotLight> SpotLights : register( t1 );

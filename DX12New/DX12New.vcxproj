@@ -375,6 +375,8 @@
     <None Include="..\shaders\CommonTool.hlsli" />
     <None Include="..\shaders\Deferred_GBuffer_PS.hlsli" />
     <None Include="..\shaders\Deferred_Lighting_PS.hlsli" />
+    <None Include="..\shaders\Deferred_PBRLighting_PS.hlsli" />
+    <None Include="..\shaders\PBR_Function.hlsli" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

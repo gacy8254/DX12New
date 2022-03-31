@@ -91,6 +91,7 @@ void Lesson5::LoadContent()
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
 	auto commandList = commandQueue.GetCommandList();
 
+	//加载环境贴图
 	auto hdrMap = commandList->LoadTextureFromFile(L"C:\\Code\\DX12New\\Assets\\Textures\\03-Ueno-Shrine_3k.hdr");
 	D3D12_RESOURCE_DESC desc = hdrMap->GetResourceDesc();
 	desc.Height = 1024;
@@ -98,12 +99,12 @@ void Lesson5::LoadContent()
 	desc.DepthOrArraySize = 6;
 	desc.MipLevels = 0;
 
-	m_CubeMap = m_Device->CreateTexture(desc);
+	m_CubeMap = m_Device->CreateTexture(desc, true);
 	
 	commandList->PanoToCubeMap(m_CubeMap, hdrMap);
 	MaterialProperties Material = Material::Black;
 
-	m_Sphere = MeshHelper::CreateSphere(commandList, 0.1f);
+	m_Sphere = commandList->LoadSceneFromFile(L"C:\\Code\\DX12New\\Assets\\Models\\sphere.fbx");//MeshHelper::CreateSphere(commandList, 1.0f);
 	m_Cone = MeshHelper::CreateCone(commandList, 0.1f, 0.2f);
 	m_Cube = MeshHelper::CreateCube(commandList, 5000.0f, true);
 	m_Axis = commandList->LoadSceneFromFile(L"C:\\Code\\DX12New\\Assets\\Models\\axis_of_evil.nff");
@@ -120,7 +121,7 @@ void Lesson5::LoadContent()
 
 	m_SkyBoxPso = std::make_unique<SkyCubePSO>(m_Device);
 
-	BuildLighting(1, 1, 1);
+	BuildLighting(1, 0, 0);
 	//执行命令列表
 	auto fence = commandQueue.ExecuteCommandList(commandList);
 
@@ -145,7 +146,7 @@ void Lesson5::LoadContent()
 
 	std::shared_ptr<Texture> colorTexture;
 
-	colorTexture = m_Device->CreateTexture(colorDesc, &colorClearValue);
+	colorTexture = m_Device->CreateTexture(colorDesc, false, &colorClearValue);
 
 	colorTexture->SetName(L"Color Render Target");
 
@@ -157,7 +158,7 @@ void Lesson5::LoadContent()
 	depthClearValue.Format = depthDesc.Format;
 	depthClearValue.DepthStencil = { 1.0f, 0 };
 
-	auto depthTexture = m_Device->CreateTexture(depthDesc, &depthClearValue);
+	auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
 	depthTexture->SetName(L"Depth Render Target");
 
 	m_RenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
@@ -265,9 +266,10 @@ void Lesson5::OnRender()
 		commandList->SetRenderTarget(rendertarget);
 
 		//渲染场景(GBUFFER  PASS)
-		m_Scene->Accept(opaquePass);
-		
-		m_Scene->Accept(transparentPass);
+		//m_Scene->Accept(opaquePass);
+		//m_Scene->Accept(transparentPass);
+
+		DrawSphere(opaquePass);
 
 		commandList->ClearTexture(m_RenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
 		commandList->ClearDepthStencilTexture(m_RenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
@@ -284,6 +286,7 @@ void Lesson5::OnRender()
 		gBufferTexture[DeferredLightingPSO::EmissiveText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color3);
 		gBufferTexture[DeferredLightingPSO::WorldPosText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color4);
 
+		m_DeferredLightingPso->SetCameraPos(m_Camera.GetFocalPoint());
 		m_DeferredLightingPso->SetTexture(gBufferTexture);
 		m_DeferredLightingPso->Apply(*commandList);
 		commandList->Draw(4);
@@ -524,14 +527,29 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 
 		float angle = lightAnimTime + pointLightOffset * i;
 
-		l.PositionWS = { static_cast<float>(std::sin(angle)) * radius, 2.0f,
-						 static_cast<float>(std::cos(angle)) * radius, 1.0f };
+		if (i == 2)
+		{
+			l.PositionWS = { -2 , -2, -5, 1.0f };
+		}
+		else if (i == 0)
+		{
+			l.PositionWS = { 12 , 12, -5, 1.0f };
+		}
+		else if (i == 3)
+		{
+			l.PositionWS = { -2 , 12, -5, 1.0f };
+		}
+		else
+		{
+			l.PositionWS = { 12 , -2, -5, 1.0f };
+		}
+		
 
 		XMVECTOR positionWS = XMLoadFloat4(&l.PositionWS);
 		XMVECTOR positionVS = positionWS;
 		XMStoreFloat4(&l.PositionVS, positionVS);
 
-		l.Color = XMFLOAT4(LightColors[i]);
+		l.Color = XMFLOAT4(10, 10, 10, 1);
 		l.ConstantAttenuation = 1.0f;
 		l.LinearAttenuation = 0.08f;
 		l.QuadraticAttenuation = 1.0f;
@@ -588,9 +606,13 @@ void Lesson5::DrawLightMesh(SceneVisitor& _pass)
 	{
 		lightMaterial.Emissive = l.Color;
 		auto lightPos = Vector4(l.PositionWS);
-		auto worldMatrix = Transform::MatrixTranslateFromVector(lightPos);
+		auto transform = Transform::MatrixTranslateFromVector(lightPos);
 
-		m_Sphere->GetRootNode()->SetLocalTransform(worldMatrix);
+		Matrix4 scale = Transform::MatrixScaling(0.01, 0.01, 0.01);
+		auto o = scale * transform;
+		m_Sphere->GetRootNode()->SetLocalTransform(o);
+
+		//m_Sphere->GetRootNode()->SetLocalTransform(worldMatrix);
 		m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetMaterialProperties(lightMaterial);
 		m_Sphere->Accept(_pass);
 	}
@@ -654,15 +676,15 @@ void Lesson5::CreateGBufferRT()
 		std::shared_ptr<Texture> colorTexture;
 		if (i == 0)
 		{
-			colorTexture = m_Device->CreateTexture(colorDesc, &colorClearValue);
+			colorTexture = m_Device->CreateTexture(colorDesc, false, &colorClearValue);
 		}
 		else if (i == 4)
 		{
-			colorTexture = m_Device->CreateTexture(desc3, &colorClearValue2);
+			colorTexture = m_Device->CreateTexture(desc3, false, &colorClearValue2);
 		}
 		else
 		{
-			colorTexture = m_Device->CreateTexture(desc2, &colorClearValue);
+			colorTexture = m_Device->CreateTexture(desc2, false, &colorClearValue);
 		}
 		colorTexture->SetName(L"Color Render Target");
 
@@ -675,8 +697,28 @@ void Lesson5::CreateGBufferRT()
 	depthClearValue.Format = depthDesc.Format;
 	depthClearValue.DepthStencil = { 1.0f, 0 };
 
-	auto depthTexture = m_Device->CreateTexture(depthDesc, &depthClearValue);
+	auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
 	depthTexture->SetName(L"Depth Render Target");
 
 	m_GBufferRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
+}
+
+void Lesson5::DrawSphere(SceneVisitor& _pass)
+{
+	int i = 0;
+	for (int x = -5; x < 11; x++)
+	{
+		for (int y = -5; y < 11; y++)
+		{
+			Matrix4 scale = Transform::MatrixScaling(0.003, 0.003, 0.003);
+			Matrix4 transform = Transform::MatrixTranslateFromVector(Vector4(x * 0.4, y * 0.4, 0, 0));
+			auto o = scale * transform;
+			m_Sphere->GetRootNode()->SetLocalTransform(o);
+			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetSpecularColor(Vector4(1, x + 5.0f / 10.0f, y + 5.0f / 10.0f, 1.0f));
+			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetDiffuseColor(Vector4(0.9, 0.6, 0.2, 0));
+			m_Sphere->Accept(_pass);
+		}
+	}
+	
+	
 }

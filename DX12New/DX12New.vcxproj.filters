@@ -457,5 +457,11 @@
     <None Include="..\shaders\Deferred_Lighting_PS.hlsli">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\shaders\Deferred_PBRLighting_PS.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shaders\PBR_Function.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

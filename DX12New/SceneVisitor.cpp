@@ -46,4 +46,5 @@ void SceneVisitor::Visit(Scene& scene)
 	//设置观察矩阵和投影矩阵
 	m_LightingPSO.SetViewMatrix(m_Camera.GetViewMatrix());
 	m_LightingPSO.SetProjectionMatrix(m_Camera.GetProjMatrix());
+	m_LightingPSO.SetCameraPos(m_Camera.GetTranslation());
 }

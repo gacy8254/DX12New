@@ -85,12 +85,12 @@ public:
 class MakeTexture : public Texture
 {
 public:
-	MakeTexture(Device& device, const D3D12_RESOURCE_DESC& resourceDesc, const D3D12_CLEAR_VALUE* clearValue)
-		: Texture(device, resourceDesc, clearValue)
+	MakeTexture(Device& device, const D3D12_RESOURCE_DESC& resourceDesc, bool _isCubeMap, const D3D12_CLEAR_VALUE* clearValue)
+		: Texture(device, resourceDesc, _isCubeMap, clearValue)
 	{}
 
-	MakeTexture(Device& device, Microsoft::WRL::ComPtr<ID3D12Resource> resource, const D3D12_CLEAR_VALUE* clearValue)
-		: Texture(device, resource, clearValue)
+	MakeTexture(Device& device, Microsoft::WRL::ComPtr<ID3D12Resource> resource, bool _isCubeMap, const D3D12_CLEAR_VALUE* clearValue)
+		: Texture(device, resource, _isCubeMap, clearValue)
 	{}
 
 	virtual ~MakeTexture() {}
@@ -287,16 +287,16 @@ std::shared_ptr<StructuredBuffer> Device::CreateStructuredBuffer(Microsoft::WRL:
 	return t;
 }
 
-std::shared_ptr<Texture> Device::CreateTexture(const D3D12_RESOURCE_DESC& _resourceDesc, const D3D12_CLEAR_VALUE* _clearValue /*= nullptr*/)
+std::shared_ptr<Texture> Device::CreateTexture(const D3D12_RESOURCE_DESC& _resourceDesc, bool _isCubeMap, const D3D12_CLEAR_VALUE* _clearValue /*= nullptr*/)
 {
-	std::shared_ptr<Texture> t = std::make_shared<MakeTexture>(*this, _resourceDesc, _clearValue);
+	std::shared_ptr<Texture> t = std::make_shared<MakeTexture>(*this, _resourceDesc,_isCubeMap, _clearValue);
 
 	return t;
 }
 
-std::shared_ptr<Texture> Device::CreateTexture(Microsoft::WRL::ComPtr<ID3D12Resource> _resource, const D3D12_CLEAR_VALUE* _clearValue /*= nullptr*/)
+std::shared_ptr<Texture> Device::CreateTexture(Microsoft::WRL::ComPtr<ID3D12Resource> _resource, bool _isCubeMap, const D3D12_CLEAR_VALUE* _clearValue /*= nullptr*/)
 {
-	std::shared_ptr<Texture> t = std::make_shared<MakeTexture>(*this, _resource, _clearValue);
+	std::shared_ptr<Texture> t = std::make_shared<MakeTexture>(*this, _resource, _isCubeMap, _clearValue);
 
 	return t;
 }

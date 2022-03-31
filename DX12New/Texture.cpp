@@ -6,14 +6,16 @@
 #include "UnorderedAccessView.h"
 #include "DescriptorAllocation.h"
 
-Texture::Texture(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _resource, const D3D12_CLEAR_VALUE* _clearValue /*= nullptr*/)
-	:Resource(_device, _resource, _clearValue)
+Texture::Texture(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _resource, bool _isCubeMap, const D3D12_CLEAR_VALUE* _clearValue /*= nullptr*/)
+	:Resource(_device, _resource, _clearValue),
+	m_IsCubeMap(_isCubeMap)
 {
 	CreateViews();
 }
 
-Texture::Texture(Device& _device, const D3D12_RESOURCE_DESC& _resourceDesc, const D3D12_CLEAR_VALUE* _clearValue /*= nullptr*/)
-	: Resource(_device, _resourceDesc, _clearValue)
+Texture::Texture(Device& _device, const D3D12_RESOURCE_DESC& _resourceDesc, bool _isCubeMap, const D3D12_CLEAR_VALUE* _clearValue /*= nullptr*/)
+	: Resource(_device, _resourceDesc, _clearValue),
+	m_IsCubeMap(_isCubeMap)
 {
 	CreateViews();
 }
@@ -127,7 +129,7 @@ void Texture::CreateViews()
 		//´´½¨SRV
 		if ((desc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) == 0 && CheckSRVSupport())
 		{
-			if (true)
+			if (!m_IsCubeMap)
 			{
 				m_ShaderResourceView = m_Device.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 				device->CreateShaderResourceView(m_Resource.Get(), nullptr, m_ShaderResourceView.GetDescriptorHandle());
@@ -145,6 +147,7 @@ void Texture::CreateViews()
 				cubeMapSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
 				cubeMapSRVDesc.TextureCube.MipLevels = (UINT)-1;  // Use all mips.
 
+				m_ShaderResourceView = m_Device.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 				device->CreateShaderResourceView(m_Resource.Get(), &cubeMapSRVDesc, m_ShaderResourceView.GetDescriptorHandle());
 
 			}

@@ -76,8 +76,8 @@ public:
     static DXGI_FORMAT GetSRGBFormat(DXGI_FORMAT _format);
 
 protected:
-    Texture(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _resource, const D3D12_CLEAR_VALUE* _clearValue = nullptr);
-    Texture(Device& _device, const D3D12_RESOURCE_DESC& _resourceDesc, const D3D12_CLEAR_VALUE* _clearValue = nullptr);
+    Texture(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _resource, bool _isCubeMap = false, const D3D12_CLEAR_VALUE* _clearValue = nullptr);
+    Texture(Device& _device, const D3D12_RESOURCE_DESC& _resourceDesc, bool _isCubeMap = false, const D3D12_CLEAR_VALUE* _clearValue = nullptr);
 
     virtual ~Texture();
 
@@ -86,4 +86,6 @@ private:
     DescriptorAllocation m_DepthStencilView;
     DescriptorAllocation m_ShaderResourceView;
     DescriptorAllocation m_UnorderAccessView;
+
+    bool m_IsCubeMap;
 };

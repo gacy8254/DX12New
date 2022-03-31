@@ -48,6 +48,13 @@ public:
 	}
 	Matrix4 GetProjectionMatrix() const { return m_pAlignedMVP->Projection; }
 
+	void XM_CALLCONV SetCameraPos(Vector4 _pos)
+	{
+		m_pAlignedMVP->CamPos = _pos;
+		m_DirtyFlags |= DF_Matrices;
+	}
+	Vector4 GetCameraPos() const { return m_pAlignedMVP->CamPos; }
+
 	//应用到渲染管线上
 	virtual void Apply(CommandList& _commandList) = 0;
 
@@ -68,6 +75,7 @@ protected:
 		Matrix4 World;
 		Matrix4 View;
 		Matrix4 Projection;
+		Vector4 CamPos;
 	};
 
 	void BindTexture(CommandList& _commandList, uint32_t _offset, const std::shared_ptr<Texture>& _texture, UINT _slot);

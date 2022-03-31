@@ -665,24 +665,24 @@ void CommandList::PanoToCubeMap(const std::shared_ptr<Texture>& _cubeMap, const 
 		mipSlics += numMips;
 	}
 
-	auto cubemapDesc1 = stagingTexture->GetResourceDesc();
-	cubemapDesc1.Width = cubemapDesc.Height = 1024;
-	cubemapDesc1.DepthOrArraySize = 6;
-	cubemapDesc1.MipLevels = 0;
+	//auto cubemapDesc1 = stagingTexture->GetResourceDesc();
+	//cubemapDesc1.Width = cubemapDesc.Height = 1024;
+	//cubemapDesc1.DepthOrArraySize = 6;
+	//cubemapDesc1.MipLevels = 0;
 
-	D3D12_SHADER_RESOURCE_VIEW_DESC cubeMapSRVDesc = {};
-	cubeMapSRVDesc.Format = cubemapDesc1.Format;
-	cubeMapSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	cubeMapSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-	cubeMapSRVDesc.TextureCube.MipLevels = (UINT)-1;  // Use all mips.
+	//D3D12_SHADER_RESOURCE_VIEW_DESC cubeMapSRVDesc = {};
+	//cubeMapSRVDesc.Format = cubemapDesc1.Format;
+	//cubeMapSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	//cubeMapSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+	//cubeMapSRVDesc.TextureCube.MipLevels = (UINT)-1;  // Use all mips.
 
-	auto srv11 = m_Device.CreateShaderResourceView(stagingTexture, &cubeMapSRVDesc);
-	auto oo = m_Device.CreateTexture(srv11->GetResource()->GetResource());
+	//auto srv11 = m_Device.CreateShaderResourceView(stagingTexture, &cubeMapSRVDesc);
+	//auto oo = m_Device.CreateTexture(srv11->GetResource()->GetResource());
 
 	//如果临时资源不等于传入的资源，将资源拷贝回去
 	if (stagingResource != cubemapResource)
 	{
-		CopyResource(_cubeMap, oo);
+		CopyResource(_cubeMap, stagingTexture);
 	}
 
 }
