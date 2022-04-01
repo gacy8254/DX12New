@@ -34,6 +34,9 @@
       <FullPath>C:\Code\DX12New\x64\Debug\HDR_PS.cso</FullPath>
     </ContentFile>
     <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\PreIrradiance.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
       <FullPath>C:\Code\DX12New\x64\Debug\SDR_PS.cso</FullPath>
     </ContentFile>
     <ContentFile>

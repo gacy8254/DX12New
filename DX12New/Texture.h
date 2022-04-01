@@ -25,7 +25,7 @@ public:
     /**
      * Get the RTV for the texture.
      */
-    virtual D3D12_CPU_DESCRIPTOR_HANDLE GetRenderTargetView() const;
+    virtual D3D12_CPU_DESCRIPTOR_HANDLE GetRenderTargetView(UINT _index = 0) const;
 
     /**
      * Get the DSV for the texture.

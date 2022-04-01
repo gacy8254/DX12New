@@ -1,15 +1,31 @@
-struct VSOutput
+struct Vin
 {
-    float2 TexCoord : TEXCOORD;
-    float4 Position : SV_Position;
+    float3 Pos : POSITION;
+    uint id : SV_VertexID;
 };
 
-VSOutput main(uint VertexID : SV_VertexID)
+struct VertexToPixel
 {
-    VSOutput OUT;
+    float2 TexCoord : TEXCOORD;
+    float4 position : SV_POSITION;
     
-    OUT.TexCoord = float2(uint2(VertexID, VertexID << 1) & 2);
-    OUT.Position = float4(lerp(float2(-1, 1), float2(1, -1), OUT.TexCoord), 0, 1);
-    
-    return OUT;
+};
+
+// The entry point for our vertex shader
+VertexToPixel main(Vin IN)
+{
+	// Set up output
+    VertexToPixel output;
+
+	// Calculate the UV (0,0) to (2,2) via the ID
+    output.TexCoord = float2(
+		(IN.id << 1) & 2, // id % 2 * 2
+		IN.id & 2);
+
+	// Adjust the position based on the UV
+    output.position = float4(output.TexCoord, 0.0f, 1);
+    output.position.x = output.position.x * 2 - 1;
+    output.position.y = output.position.y * -2 + 1;
+
+    return output;
 }

@@ -222,6 +222,11 @@ PixelOut main(PixelShaderInput IN)
         N = normalize(IN.NormalVS);
     }
     
+    
+    float gamma = 2.0;
+    
+    diffuse.rgb = pow(diffuse.rgb, (float3) (gamma));
+    
     Out.Albedo = diffuse;
     Out.Albedo.a = alpha;
     Out.Normal.rgb = N;

@@ -297,48 +297,7 @@ float4 main(PixelShaderInput IN) : SV_Target
     float4 emissive = EmissiveText.Sample(TextureSampler, IN.TexCoord.xy);
     float alpha = albedo.a;
     
-    //float3 toCamera = normalize(CameraProperticesCB.CameraPos.xyz - WorldPos);
-    
-    //float3 toLight = normalize(PointLights[0].PositionWS.xyz - WorldPos);
-    //float3 halfVec = normalize(toCamera + toLight);
-    
-    //float dis = length(PointLights[0].PositionWS.xyz - WorldPos);
-    //float attenuation = DoAttenuation(dis);
-    
-    //float3 radiance = PointLights[0].Color * attenuation;
-    
-    //float NDF = DistributionGGX(normal.xyz, halfVec, roughness);
-    //float G = GeometrySmith(normal.xyz, toCamera, toLight, roughness);
-    
-    //float3 F = CalFresnel(halfVec, toCamera, albedo.xyz, metallic);
-    
-    //float3 numerator = NDF * G * F;
-    //float demoninator = 4.0 * max(dot(normal.xyz, toCamera), 0.0f) * max(dot(normal.xyz, toLight), 0.0) + 0.001;
-    
-    //float3 specular = numerator / demoninator;
-    
-    //float3 KS = F;
-    
-    //float3 kd = (float3) 1.0f - KS;
-    
-    //kd *= 1.0f - metallic;
-    
-    //float NdotL = max(dot(normal.xyz, toLight), 0.0);
-    
-    //float3 lo = (kd * albedo.xyz / PI + specular) * radiance * NdotL;
-    
-    
-    //float3 color = (float3) lo;
-    
-    //return float4(color, alpha);
-    
-    
-    
-    
-    
-    
-    
-    
+    float3 diffuse = albedo;
     float shadow = 1;
     float4 specular = 0;
 //#if ENABLE_LIGHTING
@@ -351,9 +310,14 @@ float4 main(PixelShaderInput IN) : SV_Target
     //shadow = -N.z;
 //#endif // ENABLE_LIGHTING
     
-    float3 ambient = (float3) 0.03f * albedo.rgb * ao;
+    float3 ambient = (float3) 0.03f * diffuse * ao;
+    
+    float3 color = ambient + albedo.xyz;
+    
+    //color = color / (color + (float3) (1.0));
+    //color = pow(color, (float3) (1.0 / 2.2));
 
-    return float4(((emissive + albedo + specular).rgb + ambient) * shadow, alpha);
+    return float4(color * shadow, alpha);
     //return float4(albedo.rgb, alpha);
 }
 

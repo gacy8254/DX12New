@@ -73,7 +73,7 @@ EffectPSO::EffectPSO(std::shared_ptr<Device> _device, bool _enableLighting, bool
 	} pipelineStateStream;
 
 	//创建一个具有SRGB的颜色缓冲,为了gamma矫正
-	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
 
 	D3D12_RT_FORMAT_ARRAY rtvFormats = {};

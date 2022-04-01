@@ -201,6 +201,9 @@
     <ClCompile Include="NormalVisualizePSO.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FinalLDRPSO.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Lesson2.h">
@@ -407,6 +410,9 @@
     <ClInclude Include="NormalVisualizePSO.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FinalLDRPSO.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\shaders\HDR_PS.hlsl">
@@ -455,6 +461,9 @@
       <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\NormalVisualize_VS.hlsl">
+      <Filter>Common\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\PreIrradiance.hlsl">
       <Filter>Common\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

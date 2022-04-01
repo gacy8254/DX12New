@@ -92,7 +92,7 @@ void Lesson5::LoadContent()
 	auto commandList = commandQueue.GetCommandList();
 
 	//加载环境贴图
-	auto hdrMap = commandList->LoadTextureFromFile(L"C:\\Code\\DX12New\\Assets\\Textures\\03-Ueno-Shrine_3k.hdr");
+	auto hdrMap = commandList->LoadTextureFromFile(L"C:\\Code\\DX12New\\Assets\\Textures\\newport_loft.hdr", true);
 	D3D12_RESOURCE_DESC desc = hdrMap->GetResourceDesc();
 	desc.Height = 1024;
 	desc.Width = 1024;
@@ -125,47 +125,92 @@ void Lesson5::LoadContent()
 
 	m_SkyBoxPso = std::make_unique<SkyCubePSO>(m_Device);
 
+	m_LDRPSO = std::make_unique<FinalLDRPSO>(m_Device);
+
+	//构建灯光
 	BuildLighting(4, 0, 0);
+
 	//执行命令列表
 	auto fence = commandQueue.ExecuteCommandList(commandList);
 
 	CreateGBufferRT();
 
 	//创建渲染目标
+	// HDR
 	// Create a color buffer with sRGB for gamma correction.
-	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
+	{
+		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
 
-	DXGI_SAMPLE_DESC sampleDesc = m_Device->GetMultisampleQualityLevels(backBufferFormat);
+		DXGI_SAMPLE_DESC sampleDesc = m_Device->GetMultisampleQualityLevels(backBufferFormat);
 
-	auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
-		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
-	colorDesc.MipLevels = 1;
-	D3D12_CLEAR_VALUE colorClearValue;
-	colorClearValue.Format = colorDesc.Format;
-	colorClearValue.Color[0] = 0.4f;
-	colorClearValue.Color[1] = 0.6f;
-	colorClearValue.Color[2] = 0.9f;
-	colorClearValue.Color[3] = 1.0f;
+		auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
+			0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+		colorDesc.MipLevels = 1;
+		D3D12_CLEAR_VALUE colorClearValue;
+		colorClearValue.Format = colorDesc.Format;
+		colorClearValue.Color[0] = 0.4f;
+		colorClearValue.Color[1] = 0.6f;
+		colorClearValue.Color[2] = 0.9f;
+		colorClearValue.Color[3] = 1.0f;
 
-	std::shared_ptr<Texture> colorTexture;
+		std::shared_ptr<Texture> colorTexture;
 
-	colorTexture = m_Device->CreateTexture(colorDesc, false, &colorClearValue);
+		colorTexture = m_Device->CreateTexture(colorDesc, false, &colorClearValue);
 
-	colorTexture->SetName(L"Color Render Target");
+		colorTexture->SetName(L"Color Render Target");
 
-	m_RenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
+		m_HDRRenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
 
-	auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, m_Width, m_Height, 1, 1, 1,
-		0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
-	D3D12_CLEAR_VALUE depthClearValue;
-	depthClearValue.Format = depthDesc.Format;
-	depthClearValue.DepthStencil = { 1.0f, 0 };
+		auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, m_Width, m_Height, 1, 1, 1,
+			0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+		D3D12_CLEAR_VALUE depthClearValue;
+		depthClearValue.Format = depthDesc.Format;
+		depthClearValue.DepthStencil = { 1.0f, 0 };
 
-	auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
-	depthTexture->SetName(L"Depth Render Target");
+		auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
+		depthTexture->SetName(L"Depth Render Target");
 
-	m_RenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
+		m_HDRRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
+	}
+
+	//LDR
+	{
+		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
+
+		DXGI_SAMPLE_DESC sampleDesc = m_Device->GetMultisampleQualityLevels(backBufferFormat);
+
+		auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
+			0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+		colorDesc.MipLevels = 1;
+		D3D12_CLEAR_VALUE colorClearValue;
+		colorClearValue.Format = colorDesc.Format;
+		colorClearValue.Color[0] = 0.4f;
+		colorClearValue.Color[1] = 0.6f;
+		colorClearValue.Color[2] = 0.9f;
+		colorClearValue.Color[3] = 1.0f;
+
+		std::shared_ptr<Texture> colorTexture;
+
+		colorTexture = m_Device->CreateTexture(colorDesc, false, &colorClearValue);
+
+		colorTexture->SetName(L"Color Render Target");
+
+		m_LDRRenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
+
+		//深度图暂时不需要
+			auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, m_Width, m_Height, 1, 1, 1,
+				0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+		D3D12_CLEAR_VALUE depthClearValue;
+		depthClearValue.Format = depthDesc.Format;
+		depthClearValue.DepthStencil = { 1.0f, 0 };
+
+		auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
+		depthTexture->SetName(L"Depth Render Target");
+
+		m_LDRRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
+	}
 
 	// Make sure the copy command queue is finished before leaving this function.
 	commandQueue.WaitForFenceValue(fence);
@@ -227,8 +272,14 @@ void Lesson5::OnResize(ResizeEventArgs& e)
 	float aspect = m_Width / (float)m_Height;
 	m_Camera.SetProjection(45.0f, aspect, 0.1f, 10000.0f);
 
-	m_RenderTarget.Resize(m_Width, m_Height);
+	m_HDRRenderTarget.Resize(m_Width, m_Height);
 	m_GBufferRenderTarget.Resize(m_Width, m_Height);
+
+	//LDR渲染目标
+	RenderTarget m_LDRRenderTarget;
+
+	//预计算立方体贴图卷积的RT
+	RenderTarget m_IrradianceRenderTarget;
 
 	m_SwapChain->Resize(m_Width, m_Height);
 }
@@ -239,6 +290,14 @@ void Lesson5::OnRender()
 	//std::cout << m_SpotLights.size() << std::endl;
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	auto  commandList = commandQueue.GetCommandList();
+
+	static bool isfirst = true;
+	if (isfirst)
+	{
+		PreIrradiance(commandList);
+		isfirst = false;
+	}
+	
 
 	const auto& rendertarget = m_IsLoading ? m_SwapChain->GetRenderTarget() : m_GBufferRenderTarget;
 
@@ -271,17 +330,17 @@ void Lesson5::OnRender()
 		commandList->SetRenderTarget(rendertarget);
 
 		//渲染场景(GBUFFER  PASS)
-		//m_Scene->Accept(opaquePass);
+		m_Scene->Accept(opaquePass);
 		//m_Scene->Accept(transparentPass);
 
-		DrawSphere(opaquePass, false);
+		//DrawSphere(opaquePass, false);
 		
 
-		commandList->ClearTexture(m_RenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
-		commandList->ClearDepthStencilTexture(m_RenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
+		commandList->ClearTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
+		commandList->ClearDepthStencilTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
 
 		//Lighting
-		commandList->SetRenderTarget(m_RenderTarget);
+		commandList->SetRenderTarget(m_HDRRenderTarget);
 
 		//获取GBuffer贴图
 		std::vector<std::shared_ptr<Texture>> gBufferTexture;
@@ -295,23 +354,29 @@ void Lesson5::OnRender()
 		m_DeferredLightingPso->SetCameraPos(m_Camera.GetFocalPoint());
 		m_DeferredLightingPso->SetTexture(gBufferTexture);
 		m_DeferredLightingPso->Apply(*commandList);
-		//commandList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		commandList->Draw(4);
 
-		commandList->CopyResource(m_RenderTarget.GetTexture(AttachmentPoint::DepthStencil), m_GBufferRenderTarget.GetTexture(AttachmentPoint::DepthStencil));
+		commandList->CopyResource(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), m_GBufferRenderTarget.GetTexture(AttachmentPoint::DepthStencil));
 
-		commandList->TransitionBarrier(m_RenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		commandList->TransitionBarrier(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		commandList->FlushResourceBarriers();
 
-		m_Axis->Accept(unlitPass);
+		//m_Axis->Accept(unlitPass);
 		DrawLightMesh(unlitPass);
 		m_Cube->Accept(skyBoxPass);
 		//DrawSphere(LinePass, true);
+
+		commandList->ClearTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
+		commandList->ClearDepthStencilTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
+		commandList->SetRenderTarget(m_LDRRenderTarget);
+		m_LDRPSO->SetTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0));
+		m_LDRPSO->Apply(*commandList);
+		commandList->Draw(4);
 	}
 	
 	commandQueue.ExecuteCommandList(commandList);
 
-	m_SwapChain->Present(m_RenderTarget.GetTexture(AttachmentPoint::Color0));
+	m_SwapChain->Present(m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0));
 }
 
 void Lesson5::OnKeyPressed(KeyEventArgs& e)
@@ -396,11 +461,11 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 		//缩放场景,以适合摄像机时锥
 		DirectX::BoundingSphere s;
 		BoundingSphere::CreateFromBoundingBox(s, scene->GetAABB());
-		auto scale = 20.0f / (s.Radius * 2.0f);
+		auto scale = 1.0f / (s.Radius * 2.0f);
 		s.Radius *= scale;
 
 		Vector4 qu = Transform::QuaternionRotationRollPitchYaw(DirectX::XMConvertToRadians(90), 0, 0);
-		auto scal = Transform::MatrixScaling(0.05, 0.05, 0.05);
+		auto scal = Transform::MatrixScaling(0.01, 0.01, 0.01);
 		auto rota = Transform::MatrixRotationQuaternion(qu);
 		auto o = rota * scal;
 		scene->GetRootNode()->SetLocalTransform(o);
@@ -557,7 +622,7 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 		XMVECTOR positionVS = positionWS;
 		XMStoreFloat4(&l.PositionVS, positionVS);
 
-		l.Color = XMFLOAT4(100, 10, 10, 1);
+		l.Color = XMFLOAT4(500, 500, 500, 1);
 		l.ConstantAttenuation = 1.0f;
 		l.LinearAttenuation = 0.08f;
 		l.QuadraticAttenuation = 1.0f;
@@ -646,7 +711,7 @@ void Lesson5::DrawLightMesh(SceneVisitor& _pass)
 
 void Lesson5::CreateGBufferRT()
 {
-	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
 
 	DXGI_SAMPLE_DESC sampleDesc = m_Device->GetMultisampleQualityLevels(backBufferFormat);
@@ -673,7 +738,7 @@ void Lesson5::CreateGBufferRT()
 
 	auto desc2 = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
 		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
-	desc2.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc2.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
 	auto desc3 = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
 		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
@@ -731,10 +796,112 @@ void Lesson5::DrawSphere(SceneVisitor& _pass, bool isNormal)
 			auto o = scale * transform;
 			m_Sphere->GetRootNode()->SetLocalTransform(o);
 			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetSpecularColor(Vector4(1, ((x + 5.0f) / 10.0f) + 0.1f, ((y + 5.0f) / 10.0f) + 0.1f, 1.0f));
-			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetDiffuseColor(Vector4(0.9, 0.6, 0.2, 0));
+			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetDiffuseColor(Vector4(0.6, 0.6, 0.2, 0));
 			m_Sphere->Accept(_pass);
 		}
 	}
 	
 	
+}
+
+void Lesson5::PreIrradiance(std::shared_ptr<CommandList> _commandList)
+{
+	float x = 0;
+	float y = 0;
+	float z = 0;
+
+	auto cube = MeshHelper::CreateCube(_commandList, 10.0f, true);
+
+	//创建指定位置处的CubeMap
+	Vector4 center(x, y, z,1.0f);//指定位置
+	Vector4 worldUp(0.0f, 1.0f, 0.0f, 0.0f);//向上向量
+
+	//CubeMap的6个Target向量
+	Vector4 targets[6] =
+	{
+		Vector4(x + 1.0f, y, z , 1.0f), // +X
+		Vector4(x - 1.0f, y, z , 1.0f), // -X
+		Vector4(x, y + 1.0f, z , 1.0f), // +Y
+		Vector4(x, y - 1.0f, z , 1.0f), // -Y
+		Vector4(x, y, z + 1.0f , 1.0f), // +Z
+		Vector4(x, y, z - 1.0f , 1.0f)  // -Z
+	};
+
+	//6个Up向量，Y轴使用“特殊”的Up向量
+	Vector4 ups[6] =
+	{
+		Vector4(0.0f, 1.0f, 0.0f	, 1.0f),  // +X
+		Vector4(0.0f, 1.0f, 0.0f	, 1.0f),  // -X
+		Vector4(0.0f, 0.0f, -1.0f	, 1.0f), // +Y
+		Vector4(0.0f, 0.0f, +1.0f	, 1.0f), // -Y
+		Vector4(0.0f, 1.0f, 0.0f	, 1.0f),	 // +Z
+		Vector4(0.0f, 1.0f, 0.0f	, 1.0f)	 // -Z
+	};
+
+	//设置相机矩阵
+	for (int i = 0; i < 6; i++)
+	{
+		m_CubeMapCamera[i].SetLookAt(center, targets[i], ups[i]);
+		m_CubeMapCamera[i].SetProjection(90.0f, 1.0f, 0.1f, 1000.0f);
+	}
+
+	//创建渲染目标
+	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
+
+	//RT资源描述
+	auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, 32, 32, 6, 1, 1,
+		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	colorDesc.MipLevels = 1;
+	D3D12_CLEAR_VALUE colorClearValue;
+	colorClearValue.Format = colorDesc.Format;
+	colorClearValue.Color[0] = 0.4f;
+	colorClearValue.Color[1] = 0.6f;
+	colorClearValue.Color[2] = 0.9f;
+	colorClearValue.Color[3] = 1.0f;
+
+	//RT
+	std::shared_ptr<Texture> colorTexture;
+	colorTexture = m_Device->CreateTexture(colorDesc, true, &colorClearValue);
+	_commandList->TransitionBarrier(colorTexture->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+	colorTexture->SetName(L"Color Render Target");
+	m_IrradianceRenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
+
+	//DS资源描述
+	auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, 32, 32, 1, 1, 1,
+		0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+	D3D12_CLEAR_VALUE depthClearValue;
+	depthClearValue.Format = depthDesc.Format;
+	depthClearValue.DepthStencil = { 1.0f, 0 };
+
+	//深度图
+	auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
+	depthTexture->SetName(L"Depth Render Target");
+	m_IrradianceRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
+
+	FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
+
+	//设置渲染用的视口
+	_commandList->SetScissorRect(m_IrradianceRenderTarget.GetScissorRect());
+	_commandList->SetViewport(m_IrradianceRenderTarget.GetViewport());
+	
+	m_PreCalPso = std::make_unique<SkyCubePSO>(m_Device, true);
+	//渲染环境图
+	cube->GetRootNode()->GetMesh()->GetMaterial()->SetTexture(Material::TextureType::Diffuse, m_CubeMap);
+	for (int i = 0; i < 6; i++)
+	{
+		//设置渲染目标
+		auto rtv = colorTexture->GetRenderTargetView(i);
+		auto dsv = depthTexture->GetDepthStencilView();
+		_commandList->GetGraphicsCommandList()->OMSetRenderTargets(1, &rtv, true, &dsv);
+
+		_commandList->GetGraphicsCommandList()->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
+		_commandList->ClearDepthStencilTexture(m_IrradianceRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
+		SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[i], *m_PreCalPso, false);
+		cube->Accept(skyBoxPass);
+	}
+
+	m_CubeMap1 = m_Device->CreateTexture(m_IrradianceRenderTarget.GetTexture(AttachmentPoint::Color0)->GetResource(), true, &colorClearValue);
+
+	//m_Cube->GetRootNode()->GetMesh()->GetMaterial()->SetTexture(Material::TextureType::Diffuse, m_CubeMap1);
 }

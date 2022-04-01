@@ -8,14 +8,22 @@
 using namespace Microsoft::WRL;
 using namespace DirectX;
 
-SkyCubePSO::SkyCubePSO(std::shared_ptr<Device> _device)
+SkyCubePSO::SkyCubePSO(std::shared_ptr<Device> _device, bool _isPreCal)
 	:BasePSO(_device)
 {
 	ComPtr<ID3DBlob> vertexShaderBlob;
 	ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\SkyBox_VS.cso", &vertexShaderBlob));
 
 	ComPtr<ID3DBlob> pixelShaderBlob;
-	ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\SkyBox_PS.cso", &pixelShaderBlob));
+	if (_isPreCal)
+	{
+		ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\PreIrradiance.cso", &pixelShaderBlob));
+	}
+	else
+	{
+		ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\SkyBox_PS.cso", &pixelShaderBlob));
+	}
+	
 
 	//设置根签名的标签,防止一些无必要的访问
 	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -30,10 +38,11 @@ SkyCubePSO::SkyCubePSO(std::shared_ptr<Device> _device)
 	rootParameter[RootParameters::MatricesCB].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
 	rootParameter[RootParameters::Textures].InitAsDescriptorTable(1, &descriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-	CD3DX12_STATIC_SAMPLER_DESC anisotropicSampler(0, D3D12_FILTER_MAXIMUM_MIN_MAG_MIP_LINEAR);
+	auto samplers = GetStaticSamplers();
+	
 
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rsDesc;
-	rsDesc.Init_1_1(RootParameters::NumRootParameters, rootParameter, 1, &anisotropicSampler, rootSignatureFlags);
+	rsDesc.Init_1_1(RootParameters::NumRootParameters, rootParameter, samplers.size(), samplers.data(), rootSignatureFlags);
 
 	m_RootSignature = m_Device->CreateRootSignature(rsDesc.Desc_1_1);
 
@@ -51,7 +60,7 @@ SkyCubePSO::SkyCubePSO(std::shared_ptr<Device> _device)
 	} pipelineStateStream;
 
 	//创建一个具有SRGB的颜色缓冲,为了gamma矫正
-	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
 
 	D3D12_RT_FORMAT_ARRAY rtvFormats = {};

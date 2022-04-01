@@ -20,7 +20,7 @@ public:
 		NumRootParameters
 	};
 
-	SkyCubePSO(std::shared_ptr<Device> _device);
+	SkyCubePSO(std::shared_ptr<Device> _device, bool _isPreCal = false);
 	virtual ~SkyCubePSO();
 
 	const std::shared_ptr<Material>& GetMaterial() const;

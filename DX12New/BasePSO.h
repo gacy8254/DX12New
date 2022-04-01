@@ -5,6 +5,7 @@
 #include "Material.h"
 #include "PipelineStateObject.h"
 #include "RootSignature.h"
+#include <array>
 
 class BasePSO
 {
@@ -57,6 +58,8 @@ public:
 
 	//应用到渲染管线上
 	virtual void Apply(CommandList& _commandList) = 0;
+
+	static std::array<CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
 
 protected:
 	enum DirtyFlags

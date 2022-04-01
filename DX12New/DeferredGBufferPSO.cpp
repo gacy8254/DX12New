@@ -62,7 +62,7 @@ DeferredGBufferPSO::DeferredGBufferPSO(std::shared_ptr<Device> _device, bool _en
 	} pipelineStateStream;
 
 	//创建一个具有SRGB的颜色缓冲,为了gamma矫正
-	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
 
 	//获取多重采样的支持
@@ -72,8 +72,8 @@ DeferredGBufferPSO::DeferredGBufferPSO(std::shared_ptr<Device> _device, bool _en
 	rtvFormats.NumRenderTargets = 5;
 	rtvFormats.RTFormats[0] = backBufferFormat;
 	rtvFormats.RTFormats[1] = DXGI_FORMAT_R16G16B16A16_FLOAT;
-	rtvFormats.RTFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	rtvFormats.RTFormats[3] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	rtvFormats.RTFormats[2] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	rtvFormats.RTFormats[3] = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	rtvFormats.RTFormats[4] = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
 	CD3DX12_RASTERIZER_DESC rasterizerState(D3D12_DEFAULT);

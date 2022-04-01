@@ -74,7 +74,9 @@ DXGI_FORMAT RenderTarget::GetDepthStencilFormat() const
 	return format;
 }
 
-D3D12_VIEWPORT RenderTarget::GetViewport(DirectX::XMFLOAT2 scale /*= { 1.0f, 1.0f }*/, DirectX::XMFLOAT2 bias /*= { 0.0f, 0.0f }*/, float minDepth /*= 0.0f*/, float maxDepth /*= 1.0f*/) const
+D3D12_VIEWPORT RenderTarget::GetViewport(DirectX::XMFLOAT2 scale /*= { 1.0f, 1.0f }*/, 
+	DirectX::XMFLOAT2 bias /*= { 0.0f, 0.0f }*/, 
+	float minDepth /*= 0.0f*/, float maxDepth /*= 1.0f*/) const
 {
 	UINT64 width = 0;
 	UINT height = 0;
@@ -100,4 +102,26 @@ D3D12_VIEWPORT RenderTarget::GetViewport(DirectX::XMFLOAT2 scale /*= { 1.0f, 1.0
 	};
 
 	return viewport;
+}
+
+D3D12_RECT RenderTarget::GetScissorRect()
+{
+	UINT64 width = 0;
+	UINT height = 0;
+
+	for (int i = AttachmentPoint::Color0; i < AttachmentPoint::Color7; ++i)
+	{
+		auto texture = m_Textures[i];
+		if (texture)
+		{
+			auto desc = texture->GetResourceDesc();
+			width = std::max(width, desc.Width);
+			height = std::max(height, desc.Height);
+		}
+	}
+
+
+	D3D12_RECT resc = { 0, 0, (int)width, (int)height };
+
+	return resc;
 }

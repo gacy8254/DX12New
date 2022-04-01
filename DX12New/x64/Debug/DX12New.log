@@ -1,10 +1,9 @@
-﻿C:\Code\DX12New\shaders\Deferred_PBRLighting_PS.hlsli(137,12-47): warning X3206: implicit truncation of vector type
-C:\Code\DX12New\shaders\Deferred_PBRLighting_PS.hlsli(175,5-43): warning X3206: implicit truncation of vector type
-C:\Code\DX12New\shaders\Deferred_PBRLighting_PS.hlsli(180,12-63): warning X3206: implicit truncation of vector type
-C:\Code\DX12New\shaders\Deferred_PBRLighting_PS.hlsli(182,11-56): warning X3206: implicit truncation of vector type
-C:\Code\DX12New\shaders\Deferred_PBRLighting_PS.hlsli(214,12-33): warning X3206: implicit truncation of vector type
-C:\Code\DX12New\shaders\Deferred_PBRLighting_PS.hlsli(216,11-56): warning X3206: implicit truncation of vector type
-C:\Code\DX12New\shaders\Deferred_PBRLighting_PS.hlsli(291,12-73): warning X3206: implicit truncation of vector type
+﻿C:\Code\DX12New\shaders\Deferred_GBuffer_PS.hlsli(237,5-36): warning X3206: implicit truncation of vector type
+C:\Code\DX12New\shaders\Deferred_GBuffer_PS.hlsli(130,13-34): warning X3578: Output value 'main' is not completely initialized
   
-  compilation object save succeeded; see C:\Code\DX12New\x64\Debug\HDR_PS.cso
+  compilation object save succeeded; see C:\Code\DX12New\x64\Debug\Decal.cso
+C:\Code\DX12New\shaders\Deferred_GBuffer_PS.hlsli(237,5-36): warning X3206: implicit truncation of vector type
+C:\Code\DX12New\shaders\Deferred_GBuffer_PS.hlsli(130,13-34): warning X3578: Output value 'main' is not completely initialized
+  
+  compilation object save succeeded; see C:\Code\DX12New\x64\Debug\GBuffer_PS.cso
   DX12New.vcxproj -> C:\Code\DX12New\x64\Debug\DX12New.exe

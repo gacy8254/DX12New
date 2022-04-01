@@ -19,6 +19,7 @@
 #include "DeferredLightingPSO.h"
 #include "SkyCubePSO.h"
 #include "NormalVisualizePSO.h"
+#include "FinalLDRPSO.h"
 
 #include <d3d12.h>
 #include <future>
@@ -85,8 +86,14 @@ private:
 
     void DrawSphere(SceneVisitor& _pass, bool isNormal);
 
-    std::shared_ptr<Texture> m_CubeMap;
+    //预计算立方体贴图卷积
+    void PreIrradiance(std::shared_ptr<CommandList> _commandList);
 
+    //贴图
+    std::shared_ptr<Texture> m_CubeMap;
+    std::shared_ptr<Texture> m_CubeMap1;
+
+    //PSO
     std::unique_ptr<EffectPSO> m_UnlitPso;
 
     std::unique_ptr<NormalVisualizePSO> m_NormalVisualizePso;
@@ -97,10 +104,16 @@ private:
     std::unique_ptr<DeferredLightingPSO> m_DeferredLightingPso;
 
     std::unique_ptr<SkyCubePSO> m_SkyBoxPso;
+    std::unique_ptr<SkyCubePSO> m_PreCalPso;
 
+    std::unique_ptr<FinalLDRPSO> m_LDRPSO;
+
+    //设备
     std::shared_ptr<Device> m_Device;
     std::shared_ptr<SwapChain> m_SwapChain;
     std::shared_ptr<GUI> m_GUI;
+
+    //场景模型
     std::shared_ptr<Scene> m_Scene;
     std::shared_ptr<Scene> m_Axis;
     std::shared_ptr<Scene> m_Sphere;
@@ -108,14 +121,23 @@ private:
     std::shared_ptr<Scene> m_Cone;
     std::shared_ptr<Window> m_Window;
 
-    RenderTarget m_RenderTarget;
+    //HDR渲染目标
+    RenderTarget m_HDRRenderTarget;
+
+    //LDR渲染目标
+    RenderTarget m_LDRRenderTarget;
+
+    //渲染GBuffer的RT
     RenderTarget m_GBufferRenderTarget;
+    //预计算立方体贴图卷积的RT
+    RenderTarget m_IrradianceRenderTarget;
 
     D3D12_RECT m_ScissorRect;
     D3D12_VIEWPORT m_Viewport;
 
     BaseCamera m_Camera;
     CameraController m_CameraController;
+    BaseCamera m_CubeMapCamera[6];
     //Assimp::Logger m_Logger;
 
     int m_Width;

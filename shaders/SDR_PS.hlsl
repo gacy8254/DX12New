@@ -60,7 +60,6 @@ float3 ACESFilmic(float3 _x, float _a, float _b, float _c, float _d, float _e, f
     return ((_x * (_a * _x + _c * _b) + _d * _e) / (_x * (_a * _x + _b) + _d * _f)) - (_e / _f);
 }
 
-
 float4 main(float2 TexCoord : TEXCOORD) : SV_TARGET0
 {
     float3 HDR = HDRTexture.SampleLevel(LinearClampSampler, TexCoord, 0);
@@ -82,10 +81,12 @@ float4 main(float2 TexCoord : TEXCOORD) : SV_TARGET0
             sdr = ReinhardSqr(HDR, TonemapParametersCB.K);
             break;
         case TM_ACESFilmic:
-            sdr = ACESFilmic(HDR, TonemapParametersCB.A, TonemapParametersCB.B, TonemapParametersCB.C, TonemapParametersCB.D, TonemapParametersCB.E, TonemapParametersCB.F) / 
+            sdr = ACESFilmic(HDR, TonemapParametersCB.A, TonemapParametersCB.B, TonemapParametersCB.C, TonemapParametersCB.D, TonemapParametersCB.E, TonemapParametersCB.F) /
         ACESFilmic(TonemapParametersCB.LinearWhite, TonemapParametersCB.A, TonemapParametersCB.B, TonemapParametersCB.C, TonemapParametersCB.D, TonemapParametersCB.E, TonemapParametersCB.F);
             break;
     }
     
     return float4(pow(abs(sdr), 1.0f / TonemapParametersCB.Gamma), 1);
+    //return float4(sdr, 1.0f);
+
 }
