@@ -9,9 +9,10 @@ SamplerState LinearClampSampler : register(s0);
 float4 main(PSInput IN) : SV_TARGET
 {
     
-    float gamma = 2.0;
+    float gamma = 2.2;
     
     float3 finalColor = SkyboxTexture.Sample(LinearClampSampler, IN.TexCoord).rgb;
+    //float3 finalColor = SkyboxTexture.SampleLevel(LinearClampSampler, IN.TexCoord, 4).rgb;
     
     finalColor = pow(finalColor, (float3) (gamma));
     

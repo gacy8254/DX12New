@@ -29,14 +29,14 @@ public:
 		SpotLights,         // StructuredBuffer<SpotLight> SpotLights : register( t1 );
 		DirectionalLights,  // StructuredBuffer<DirectionalLight> DirectionalLights : register( t2 )
 
-		Textures,  // Texture2D AmbientTexture       : register( t3 );
-				   // Texture2D EmissiveTexture : register( t4 );
-				   // Texture2D DiffuseTexture : register( t5 );
-				   // Texture2D SpecularTexture : register( t6 );
-				   // Texture2D SpecularPowerTexture : register( t7 );
-				   // Texture2D NormalTexture : register( t8 );
-				   // Texture2D BumpTexture : register( t9 );
-				   // Texture2D OpacityTexture : register( t10 );
+		Textures,  // Texture2D AlbedoText,			register (t3)
+				   // Texture2D NormalText,			register (t4)
+				   // Texture2D ORMText,			register (t5)
+				   // Texture2D EmissiveText,		register (t6)
+				   // Texture2D WorldPosText,		register (t7)
+				   // Texture2D IrradianceText,		register (t8)
+				   // Texture2D 
+				   // Texture2D 
 				   NumRootParameters
 	};
 
@@ -47,6 +47,9 @@ public:
 		ORMText,
 		EmissiveText,
 		WorldPosText,
+		IrradianceText,
+		PrefilterText,
+		IntegrateBRDFText,
 		NumTextures
 	};
 

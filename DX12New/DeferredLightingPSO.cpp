@@ -33,10 +33,10 @@ DeferredLightingPSO::DeferredLightingPSO(std::shared_ptr<Device> _device, bool _
 	rootParameter[RootParameters::DirectionalLights].InitAsShaderResourceView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::Textures].InitAsDescriptorTable(1, &descriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-	CD3DX12_STATIC_SAMPLER_DESC anisotropicSampler(0, D3D12_FILTER_MAXIMUM_MIN_MAG_MIP_LINEAR);
+	auto samplers = GetStaticSamplers();
 
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rsDesc;
-	rsDesc.Init_1_1(RootParameters::NumRootParameters, rootParameter, 1, &anisotropicSampler, rootSignatureFlags);
+	rsDesc.Init_1_1(RootParameters::NumRootParameters, rootParameter, samplers.size(), samplers.data(), rootSignatureFlags);
 
 	m_RootSignature = m_Device->CreateRootSignature(rsDesc.Desc_1_1);
 
@@ -107,6 +107,9 @@ void DeferredLightingPSO::Apply(CommandList& _commandList)
 		BindTexture(_commandList, 2, m_Textures[ORMText], RootParameters::Textures);
 		BindTexture(_commandList, 3, m_Textures[EmissiveText], RootParameters::Textures);
 		BindTexture(_commandList, 4, m_Textures[WorldPosText], RootParameters::Textures);
+		BindTexture(_commandList, 5, m_Textures[IrradianceText], RootParameters::Textures);
+		BindTexture(_commandList, 6, m_Textures[PrefilterText], RootParameters::Textures);
+		BindTexture(_commandList, 7, m_Textures[IntegrateBRDFText], RootParameters::Textures);
 
 	}
 

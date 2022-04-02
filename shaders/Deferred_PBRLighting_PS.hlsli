@@ -67,13 +67,6 @@ struct LightProperties
     uint NumDirectionalLights;
 };
 
-struct LightResult
-{
-    float4 Diffuse;
-    float4 Specular;
-    float4 Ambient;
-};
-
 struct CameraPropertices
 {
     float4 CameraPos;
@@ -93,8 +86,16 @@ Texture2D NormalText : register(t4);
 Texture2D ORMText : register(t5);
 Texture2D EmissiveText : register(t6);
 Texture2D WorldPosText : register(t7);
+TextureCube<float4> IrradianceText : register(t8);
+TextureCube<float4> PrefilterText : register(t9);
+Texture2D IntegrateBRDFText : register(t10);
 
-SamplerState TextureSampler : register(s0);
+SamplerState SamPointWrap : register(s0);
+SamplerState SamPointClamp : register(s1);
+SamplerState SamLinearWarp : register(s2);
+SamplerState SamLinearClamp : register(s3);
+SamplerState SamAnisotropicWarp : register(s4);
+SamplerState SamAnisotropicClamp : register(s5);
 
 //#if ENABLE_LIGHTING
 float DoDiffuse( float3 N, float3 L )
@@ -123,9 +124,9 @@ float DoSpotCone( float3 spotDir, float3 L, float spotAngle )
     return smoothstep( minCos, maxCos, cosAngle );
 }
 
-LightResult DoPointLight( PointLight light, float3 V, float3 P, float3 N, float3 _albedo, float _metallic, float _roughness )
+float3 DoPointLight(PointLight light, float3 V, float3 P, float3 N, float3 _albedo, float _metallic, float _roughness)
 {
-    LightResult result;
+    float3 result;
     float3 toCamera = normalize(CameraProperticesCB.CameraPos.xyz - P);
     
     float3 toLight = normalize(light.PositionWS.xyz - P);
@@ -139,10 +140,10 @@ LightResult DoPointLight( PointLight light, float3 V, float3 P, float3 N, float3
     float NDF = DistributionGGX(N.xyz, halfVec, _roughness);
     float G = GeometrySmith(N.xyz, toCamera, toLight, _roughness);
     
-    float3 F = CalFresnel(halfVec, toCamera, _albedo.xyz, _metallic);
+    float3 F = CalFresnel(halfVec, toCamera, _albedo.rgb, _metallic);
     
     float3 numerator = NDF * G * F;
-    float demoninator = 4.0 * max(dot(N.xyz, toCamera), 0.0f) * max(dot(N.xyz, toLight), 0.0) + 0.001;
+    float demoninator = 4.0 * max(dot(N.xyz, toCamera), 0.0f) * max(dot(N.xyz, toLight), 0.0) + 0.0001;
     
     float3 specular = numerator / demoninator;
     
@@ -154,19 +155,16 @@ LightResult DoPointLight( PointLight light, float3 V, float3 P, float3 N, float3
     
     float NdotL = max(dot(N.xyz, toLight), 0.0);
     
-    float3 lo = (kd * _albedo.xyz / PI + specular) * radiance * NdotL;
-
+    float3 lo = (kd * _albedo.rgb / PI + specular) * radiance * NdotL;
     
-    result.Diffuse.rgb = (float3) lo;
-    result.Specular.rgb = lo;
-    result.Ambient.rgb = lo;
+    result = lo;
 
     return result;
 }
 
-LightResult DoSpotLight(SpotLight light, float3 V, float3 P, float3 N, float3 _albedo, float _metallic, float _roughness)
+float3 DoSpotLight(SpotLight light, float3 V, float3 P, float3 N, float3 _albedo, float _metallic, float _roughness)
 {
-    LightResult result;
+    float3 result;
     
     float3 toLight = (light.PositionVS.xyz - P);
     float3 halfVec = normalize(toLight + V);
@@ -197,16 +195,14 @@ LightResult DoSpotLight(SpotLight light, float3 V, float3 P, float3 N, float3 _a
     
     float3 Lo = (KD * _albedo / PI + specular) * radiance * NdotL;
     
-    result.Diffuse.rgb = Lo;
-    result.Specular.rgb = Lo;
-    result.Ambient.rgb = Lo;
+    result = Lo;
 
     return result;
 }
 
-LightResult DoDirectionalLight(DirectionalLight light, float3 V, float3 P, float3 N, float3 _albedo, float _metallic, float _roughness)
+float3 DoDirectionalLight(DirectionalLight light, float3 V, float3 P, float3 N, float3 _albedo, float _metallic, float _roughness)
 {
-    LightResult result = (LightResult)0;
+    float3 result = (float3)0;
 
     float3 toLight = normalize(-light.DirectionWS.xyz);
     float3 halfVec = normalize(toLight + V);
@@ -232,55 +228,46 @@ LightResult DoDirectionalLight(DirectionalLight light, float3 V, float3 P, float
     float3 Lo = (KD * _albedo / PI + specular) * radiance * NdotL;
     
     //result.Diffuse.rgb = (float3) Lo;
-    result.Diffuse.rgb = Lo;
-    result.Specular.rgb = Lo;
-    result.Ambient.rgb = Lo;
+    result = Lo;
+
 
     return result;
 }
 
-LightResult DoLighting(float3 P, float3 N,  float3 _camPos, float3 _albedo, float _metallic, float _roughness)
+float3 DoLighting(float3 P, float3 N,  float3 _camPos, float3 _albedo, float _metallic, float _roughness)
 {
     uint i;
 
     // Lighting is performed in view space.
     float3 V = normalize(_camPos - P);
 
-    LightResult totalResult = (LightResult)0;
+    float3 totalResult = (float3)0;
 
     // Iterate point lights.
     for (i = 0; i < LightPropertiesCB.NumPointLights; ++i)
     {
-        LightResult result = DoPointLight(PointLights[i], V, P, N, _albedo, _metallic, _roughness);
+        float3 result = DoPointLight(PointLights[i], V, P, N, _albedo, _metallic, _roughness);
 
-        totalResult.Diffuse += result.Diffuse;
-        totalResult.Specular += result.Specular;
-        totalResult.Ambient += result.Ambient;
+        totalResult += result;
     }
 
     // Iterate spot lights.
     for (i = 0; i < LightPropertiesCB.NumSpotLights; ++i)
     {
-        LightResult result = DoSpotLight(SpotLights[i], V, P, N, _albedo, _metallic, _roughness);
+        float3 result = DoSpotLight(SpotLights[i], V, P, N, _albedo, _metallic, _roughness);
 
-        totalResult.Diffuse += result.Diffuse;
-        totalResult.Specular += result.Specular;
-        totalResult.Ambient += result.Ambient;
+        totalResult += result;
     }
 
     // Iterate directinal lights
     for (i = 0; i < LightPropertiesCB.NumDirectionalLights; ++i)
     {
-        LightResult result = DoDirectionalLight(DirectionalLights[i], V, P, N, _albedo, _metallic, _roughness);
+        float3 result = DoDirectionalLight(DirectionalLights[i], V, P, N, _albedo, _metallic, _roughness);
 
-        totalResult.Diffuse += result.Diffuse;
-        totalResult.Specular += result.Specular;
-        totalResult.Ambient += result.Ambient;
+        totalResult += result;
     }
 
-    totalResult.Diffuse = saturate( totalResult.Diffuse );
-    totalResult.Specular = saturate( totalResult.Specular );
-    totalResult.Ambient = saturate( totalResult.Ambient );
+    //totalResult = saturate( totalResult );
 
     return totalResult;
 }
@@ -288,36 +275,45 @@ LightResult DoLighting(float3 P, float3 N,  float3 _camPos, float3 _albedo, floa
 
 float4 main(PixelShaderInput IN) : SV_Target
 {
-    float3 WorldPos = WorldPosText.Sample(TextureSampler, IN.TexCoord.xy);
-    float4 albedo = AlbedoText.Sample(TextureSampler, IN.TexCoord.xy);
-    float ao = ORMText.Sample(TextureSampler, IN.TexCoord.xy).r;
-    float roughness = ORMText.Sample(TextureSampler, IN.TexCoord.xy).g;
-    float metallic = ORMText.Sample(TextureSampler, IN.TexCoord.xy).b;
-    float4 normal = NormalText.Sample(TextureSampler, IN.TexCoord.xy);
-    float4 emissive = EmissiveText.Sample(TextureSampler, IN.TexCoord.xy);
+    float3 WorldPos = WorldPosText.Sample(SamAnisotropicWarp, IN.TexCoord.xy);
+    float4 albedo = AlbedoText.Sample(SamAnisotropicWarp, IN.TexCoord.xy);
+    float ao = ORMText.Sample(SamAnisotropicWarp, IN.TexCoord.xy).r;
+    float roughness = ORMText.Sample(SamAnisotropicWarp, IN.TexCoord.xy).g;
+    float metallic = ORMText.Sample(SamAnisotropicWarp, IN.TexCoord.xy).b;
+    float4 normal = NormalText.Sample(SamAnisotropicWarp, IN.TexCoord.xy);
+    float4 emissive = EmissiveText.Sample(SamAnisotropicWarp, IN.TexCoord.xy);
     float alpha = albedo.a;
     
-    float3 diffuse = albedo;
+    float3 toCamera = normalize(CameraProperticesCB.CameraPos.xyz - WorldPos);
+    
+    float3 diffuse;
     float shadow = 1;
-    float4 specular = 0;
 //#if ENABLE_LIGHTING
-    LightResult lit = DoLighting(WorldPos, normal.rgb, CameraProperticesCB.CameraPos.xyz, albedo.rgb, metallic, roughness);
-    albedo *= lit.Diffuse;
-    //ambient *= lit.Ambient;
-    //metallic *= lit.Specular;
-    //return float4(lit.Diffuse.rgb, 1);
+    float3 lit = DoLighting(WorldPos, normal.rgb, CameraProperticesCB.CameraPos.xyz, albedo.rgb, metallic, roughness);
+    
+    float3 reflectVec = reflect(-toCamera, normal.rgb);
+    
+    float3 F = CalFresnelRoughness(normal.rgb, toCamera, albedo.rgb, metallic, roughness);
+    
+    float3 KS = F;
+    float3 KD = (float3) (1.0f) - KS;
+    KD *= 1.0 - metallic;
+    float3 irradiance = IrradianceText.Sample(SamAnisotropicWarp, normal.rgb).rgb;
+    diffuse = irradiance * albedo.rgb;
+    
+    const float MAX_REFLECTION_LOD = 4.0F;
+    float3 prefilterColor = PrefilterText.SampleLevel(SamAnisotropicClamp, reflectVec, roughness * MAX_REFLECTION_LOD).rgb;
+    float2 brdf = IntegrateBRDFText.SampleLevel(SamLinearClamp, float2(max(dot(normal.rgb, toCamera), 0.0f), roughness), 0.0f).rg;
+    float3 specular = prefilterColor * (F * brdf.x + brdf.y);
+    
+    float3 ambient = (KD * diffuse + specular) * ao;
+    float3 color = ambient + lit.rgb;
 //#else 
     //shadow = -N.z;
 //#endif // ENABLE_LIGHTING
-    
-    float3 ambient = (float3) 0.03f * diffuse * ao;
-    
-    float3 color = ambient + albedo.xyz;
-    
-    //color = color / (color + (float3) (1.0));
-    //color = pow(color, (float3) (1.0 / 2.2));
 
     return float4(color * shadow, alpha);
-    //return float4(albedo.rgb, alpha);
+    float3 ccc = (float3) (specular);
+    //return float4(ccc, alpha);
 }
 

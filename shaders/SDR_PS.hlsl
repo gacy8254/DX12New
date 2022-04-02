@@ -65,9 +65,9 @@ float4 main(float2 TexCoord : TEXCOORD) : SV_TARGET0
     float3 HDR = HDRTexture.SampleLevel(LinearClampSampler, TexCoord, 0);
     
     //根据曝光度调整结果
-    HDR *= exp2(TonemapParametersCB.Exposure);
+   HDR *= exp2(TonemapParametersCB.Exposure);
     
-    float3 sdr = (float3) 0;
+    float3 sdr = HDR;
     
     switch (TonemapParametersCB.TonemapMethed)
     {

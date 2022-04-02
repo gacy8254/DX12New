@@ -204,6 +204,9 @@
     <ClCompile Include="FinalLDRPSO.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="IntegrateBRDFPSO.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Lesson2.h">
@@ -413,6 +416,9 @@
     <ClInclude Include="FinalLDRPSO.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="IntegrateBRDFPSO.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\shaders\HDR_PS.hlsl">
@@ -464,6 +470,12 @@
       <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\PreIrradiance.hlsl">
+      <Filter>Common\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\Prefilter.hlsl">
+      <Filter>Common\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\IntegrateBRDF.hlsl">
       <Filter>Common\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

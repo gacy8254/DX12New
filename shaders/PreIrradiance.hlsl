@@ -1,9 +1,9 @@
+#include "CommonTool.hlsli"
+
 struct PSInput
 {
     float3 TexCoord : TEXCOORD;
 };
-
-
 
 TextureCube<float4> SkyboxTexture : register(t0);
 SamplerState gSamPointWrap : register(s0);
@@ -15,7 +15,6 @@ SamplerState gSamAnisotropicClamp : register(s5);
 
 float4 main(PSInput IN) : SV_TARGET
 {
-    const float PI = 3.14159265359;
     float3 normal = normalize(IN.TexCoord);
     
     float3 irradiance = (float3) 0.0f;
@@ -42,5 +41,11 @@ float4 main(PSInput IN) : SV_TARGET
     
     irradiance = PI * irradiance * (1.0f / nrSamples);
     
-    return float4(irradiance, 1.0f);
+    float gamma = 2.2;
+    
+    float3 finalColor;
+    
+    finalColor = pow(irradiance, (float3) (gamma));
+    
+    return float4(finalColor, 1.0f);
 }

@@ -27,6 +27,8 @@ Matrix4 XM_CALLCONV LookAtMatrix(Vector4 _position, Vector4 _direction, Vector4 
 	return M;
 }
 
+
+
 Lesson5::Lesson5(const std::wstring& _name, int _width, int _height, bool _vSync /*= false*/)
 	:m_ScissorRect{0, 0, LONG_MAX, LONG_MAX},
 	m_Viewport(CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(_width), static_cast<float>(_height))),
@@ -92,12 +94,14 @@ void Lesson5::LoadContent()
 	auto commandList = commandQueue.GetCommandList();
 
 	//加载环境贴图
-	auto hdrMap = commandList->LoadTextureFromFile(L"C:\\Code\\DX12New\\Assets\\Textures\\newport_loft.hdr", true);
+	auto hdrMap = commandList->LoadTextureFromFile(L"C:\\Code\\DX12New\\Assets\\Textures\\newport_loft.hdr", false);
 	D3D12_RESOURCE_DESC desc = hdrMap->GetResourceDesc();
 	desc.Height = 1024;
 	desc.Width = 1024;
 	desc.DepthOrArraySize = 6;
-	desc.MipLevels = 0;
+	desc.MipLevels = 6;
+
+	m_LUT = commandList->LoadTextureFromFile(L"C:\\Code\\DX12New\\Assets\\Textures\\lut.tga", false);
 
 	m_CubeMap = m_Device->CreateTexture(desc, true);
 	
@@ -124,11 +128,13 @@ void Lesson5::LoadContent()
 	m_DeferredLightingPso = std::make_unique<DeferredLightingPSO>(m_Device, true);
 
 	m_SkyBoxPso = std::make_unique<SkyCubePSO>(m_Device);
+	m_PrefilterPso = std::make_unique<SkyCubePSO>(m_Device, false, true);
 
 	m_LDRPSO = std::make_unique<FinalLDRPSO>(m_Device);
 
 	//构建灯光
 	BuildLighting(4, 0, 0);
+	BuildCubemapCamera();
 
 	//执行命令列表
 	auto fence = commandQueue.ExecuteCommandList(commandList);
@@ -276,7 +282,7 @@ void Lesson5::OnResize(ResizeEventArgs& e)
 	m_GBufferRenderTarget.Resize(m_Width, m_Height);
 
 	//LDR渲染目标
-	RenderTarget m_LDRRenderTarget;
+	m_LDRRenderTarget.Resize(m_Width, m_Height);
 
 	//预计算立方体贴图卷积的RT
 	RenderTarget m_IrradianceRenderTarget;
@@ -291,14 +297,16 @@ void Lesson5::OnRender()
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	auto  commandList = commandQueue.GetCommandList();
 
+	//进行预计算光照,只在第一次循环执行一次
 	static bool isfirst = true;
 	if (isfirst)
 	{
 		PreIrradiance(commandList);
+		Prefilter(commandList);
+		IntegrateBRDF(commandList);
 		isfirst = false;
 	}
-	
-
+	IntegrateBRDF(commandList);
 	const auto& rendertarget = m_IsLoading ? m_SwapChain->GetRenderTarget() : m_GBufferRenderTarget;
 
 	FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
@@ -309,13 +317,15 @@ void Lesson5::OnRender()
 	}
 	else
 	{
+
+		
 		//创建Pass
 		SceneVisitor opaquePass(*commandList, m_Camera, *m_GBufferPso, false);
 		SceneVisitor transparentPass(*commandList, m_Camera, *m_GBufferDecalPso, true);
 		SceneVisitor unlitPass(*commandList, m_Camera, *m_UnlitPso, false);
 		SceneVisitor skyBoxPass(*commandList, m_Camera, *m_SkyBoxPso, false);
 		SceneVisitor LinePass(*commandList, m_Camera, *m_NormalVisualizePso, false);
-
+	
 		//清空缓冲区
 		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color0), clearColor);
 		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color1), clearColor);
@@ -323,7 +333,6 @@ void Lesson5::OnRender()
 		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color3), clearColor);
 		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color4), clearColor);
 		commandList->ClearDepthStencilTexture(rendertarget.GetTexture(AttachmentPoint::DepthStencil),D3D12_CLEAR_FLAG_DEPTH);
-
 		//设置命令列表
 		commandList->SetViewport(m_Viewport);
 		commandList->SetScissorRect(m_ScissorRect);
@@ -333,13 +342,12 @@ void Lesson5::OnRender()
 		m_Scene->Accept(opaquePass);
 		//m_Scene->Accept(transparentPass);
 
-		//DrawSphere(opaquePass, false);
+		DrawSphere(opaquePass, false);
 		
-
+		
+		//计算光照(PBR PASS)
 		commandList->ClearTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
 		commandList->ClearDepthStencilTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
-
-		//Lighting
 		commandList->SetRenderTarget(m_HDRRenderTarget);
 
 		//获取GBuffer贴图
@@ -350,22 +358,27 @@ void Lesson5::OnRender()
 		gBufferTexture[DeferredLightingPSO::ORMText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color2);
 		gBufferTexture[DeferredLightingPSO::EmissiveText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color3);
 		gBufferTexture[DeferredLightingPSO::WorldPosText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color4);
-
+		gBufferTexture[DeferredLightingPSO::IrradianceText] = m_IrradianceRenderTarget.GetTexture(AttachmentPoint::Color0);
+		gBufferTexture[DeferredLightingPSO::PrefilterText] = m_PrefilterRenderTarget.GetTexture(AttachmentPoint::Color0);
+		gBufferTexture[DeferredLightingPSO::IntegrateBRDFText] = m_LUT;
+		
 		m_DeferredLightingPso->SetCameraPos(m_Camera.GetFocalPoint());
 		m_DeferredLightingPso->SetTexture(gBufferTexture);
 		m_DeferredLightingPso->Apply(*commandList);
 		commandList->Draw(4);
 
+		//将深度图拷贝到HDR渲染目标,渲染辅助附体
 		commandList->CopyResource(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), m_GBufferRenderTarget.GetTexture(AttachmentPoint::DepthStencil));
 
 		commandList->TransitionBarrier(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		commandList->FlushResourceBarriers();
 
-		//m_Axis->Accept(unlitPass);
+		m_Axis->Accept(unlitPass);
 		DrawLightMesh(unlitPass);
 		m_Cube->Accept(skyBoxPass);
 		//DrawSphere(LinePass, true);
 
+		//HDR转LDR
 		commandList->ClearTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
 		commandList->ClearDepthStencilTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
 		commandList->SetRenderTarget(m_LDRRenderTarget);
@@ -465,9 +478,10 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 		s.Radius *= scale;
 
 		Vector4 qu = Transform::QuaternionRotationRollPitchYaw(DirectX::XMConvertToRadians(90), 0, 0);
+		auto trans = Transform::MatrixTranslateFromVector(Vector4(0, 0, -5,0));
 		auto scal = Transform::MatrixScaling(0.01, 0.01, 0.01);
 		auto rota = Transform::MatrixRotationQuaternion(qu);
-		auto o = rota * scal;
+		auto o = rota * scal * trans;
 		scene->GetRootNode()->SetLocalTransform(o);
 
 		m_Scene = scene;
@@ -622,10 +636,10 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 		XMVECTOR positionVS = positionWS;
 		XMStoreFloat4(&l.PositionVS, positionVS);
 
-		l.Color = XMFLOAT4(500, 500, 500, 1);
+		l.Color = XMFLOAT4(10, 10, 10, 0);
 		l.ConstantAttenuation = 1.0f;
 		l.LinearAttenuation = 0.08f;
-		l.QuadraticAttenuation = 1.0f;
+		l.QuadraticAttenuation = 0.1f;
 		l.Ambient = 0.0f;
 	}
 
@@ -795,8 +809,10 @@ void Lesson5::DrawSphere(SceneVisitor& _pass, bool isNormal)
 			Matrix4 transform = Transform::MatrixTranslateFromVector(Vector4(x * 1.3, y * 1.3, 0, 0));
 			auto o = scale * transform;
 			m_Sphere->GetRootNode()->SetLocalTransform(o);
-			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetSpecularColor(Vector4(1, ((x + 5.0f) / 10.0f) + 0.1f, ((y + 5.0f) / 10.0f) + 0.1f, 1.0f));
-			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetDiffuseColor(Vector4(0.6, 0.6, 0.2, 0));
+			float roughness = Clamp(((x + 5.0f) / 10.0f), 0.0f, 0.99f);
+			float metallic = Clamp(((y + 5.0f) / 10.0f), 0.0f, 0.99f);
+			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetSpecularColor(Vector4(1, roughness, metallic, 1.0f));
+			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetDiffuseColor(Vector4(0.5, 0.0, 0.0, 0));
 			m_Sphere->Accept(_pass);
 		}
 	}
@@ -804,16 +820,14 @@ void Lesson5::DrawSphere(SceneVisitor& _pass, bool isNormal)
 	
 }
 
-void Lesson5::PreIrradiance(std::shared_ptr<CommandList> _commandList)
+void Lesson5::BuildCubemapCamera()
 {
 	float x = 0;
 	float y = 0;
 	float z = 0;
 
-	auto cube = MeshHelper::CreateCube(_commandList, 10.0f, true);
-
 	//创建指定位置处的CubeMap
-	Vector4 center(x, y, z,1.0f);//指定位置
+	Vector4 center(x, y, z, 1.0f);//指定位置
 	Vector4 worldUp(0.0f, 1.0f, 0.0f, 0.0f);//向上向量
 
 	//CubeMap的6个Target向量
@@ -844,6 +858,11 @@ void Lesson5::PreIrradiance(std::shared_ptr<CommandList> _commandList)
 		m_CubeMapCamera[i].SetLookAt(center, targets[i], ups[i]);
 		m_CubeMapCamera[i].SetProjection(90.0f, 1.0f, 0.1f, 1000.0f);
 	}
+}
+
+void Lesson5::PreIrradiance(std::shared_ptr<CommandList> _commandList)
+{
+	auto cube = MeshHelper::CreateCube(_commandList, 10.0f, true);
 
 	//创建渲染目标
 	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
@@ -904,4 +923,109 @@ void Lesson5::PreIrradiance(std::shared_ptr<CommandList> _commandList)
 	m_CubeMap1 = m_Device->CreateTexture(m_IrradianceRenderTarget.GetTexture(AttachmentPoint::Color0)->GetResource(), true, &colorClearValue);
 
 	//m_Cube->GetRootNode()->GetMesh()->GetMaterial()->SetTexture(Material::TextureType::Diffuse, m_CubeMap1);
+}
+
+void Lesson5::Prefilter(std::shared_ptr<CommandList> _commandList)
+{
+	auto cube = MeshHelper::CreateCube(_commandList, 10.0f, true);
+
+	//创建渲染目标
+	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
+
+	//RT资源描述
+	auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, 128, 128, 6, 5, 1,
+		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	D3D12_CLEAR_VALUE colorClearValue;
+	colorClearValue.Format = colorDesc.Format;
+	colorClearValue.Color[0] = 0.4f;
+	colorClearValue.Color[1] = 0.6f;
+	colorClearValue.Color[2] = 0.9f;
+	colorClearValue.Color[3] = 1.0f;
+
+	//RT
+	std::shared_ptr<Texture> colorTexture;
+	colorTexture = m_Device->CreateTexture(colorDesc, true, &colorClearValue);
+	_commandList->TransitionBarrier(colorTexture->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+	colorTexture->SetName(L"Color Render Target");
+	m_PrefilterRenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
+
+	//DS资源描述
+	auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, 128, 128, 1, 1, 1,
+		0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+	D3D12_CLEAR_VALUE depthClearValue;
+	depthClearValue.Format = depthDesc.Format;
+	depthClearValue.DepthStencil = { 1.0f, 0 };
+
+	//深度图
+	auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
+	depthTexture->SetName(L"Depth Render Target");
+	m_PrefilterRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
+
+	FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
+
+	cube->GetRootNode()->GetMesh()->GetMaterial()->SetTexture(Material::TextureType::Diffuse, m_CubeMap);
+	for (auto mip = 0u; mip < 5; mip++)
+	{
+		UINT width = 128 * std::pow(0.5, mip);
+		UINT height = 128 * std::pow(0.5, mip);
+
+		_commandList->SetScissorRect(CalRect(width, height));
+		_commandList->SetViewport(CalViewport(width, height));
+
+		float roughness = (float)mip / (float)(5 - 1);
+		m_PrefilterPso->SetRoughness(roughness);
+
+		for (auto j = 0u; j < 6; j++)
+		{
+			//	//设置渲染目标
+			auto rtv = colorTexture->GetRenderTargetView(j * 5 + mip);
+			auto dsv = depthTexture->GetDepthStencilView();
+			_commandList->GetGraphicsCommandList()->OMSetRenderTargets(1, &rtv, true, &dsv);
+
+			_commandList->GetGraphicsCommandList()->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
+			_commandList->ClearDepthStencilTexture(m_PrefilterRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
+			SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[j], *m_PrefilterPso, false);
+			cube->Accept(skyBoxPass);
+		}
+	}
+	m_PrefilterCubeMap = m_Device->CreateTexture(m_PrefilterRenderTarget.GetTexture(AttachmentPoint::Color0)->GetResource(), true, &colorClearValue);
+
+	//m_Cube->GetRootNode()->GetMesh()->GetMaterial()->SetTexture(Material::TextureType::Diffuse, m_PrefilterCubeMap);
+}
+
+void Lesson5::IntegrateBRDF(std::shared_ptr<CommandList> _commandList)
+{
+	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16G16_FLOAT;
+
+	//RT资源描述
+	auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, 512, 512, 1, 1, 1,
+		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	D3D12_CLEAR_VALUE colorClearValue;
+	colorClearValue.Format = colorDesc.Format;
+	colorClearValue.Color[0] = 0.4f;
+	colorClearValue.Color[1] = 0.6f;
+	colorClearValue.Color[2] = 0.9f;
+	colorClearValue.Color[3] = 1.0f;
+
+	FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
+
+	//RT
+	std::shared_ptr<Texture> colorTexture;
+	colorTexture = m_Device->CreateTexture(colorDesc, false, &colorClearValue);
+	_commandList->TransitionBarrier(colorTexture->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+	colorTexture->SetName(L"Color Render Target");
+	m_IntegrateBRDFRenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
+
+	_commandList->ClearTexture(m_IntegrateBRDFRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
+
+	//设置命令列表
+	_commandList->SetViewport(m_Viewport);
+	_commandList->SetScissorRect(m_ScissorRect);
+	_commandList->SetRenderTarget(m_IntegrateBRDFRenderTarget);
+	_commandList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	m_IntegrateBRDFPSO = std::make_unique<IntegrateBRDFPSO>(m_Device);
+	m_IntegrateBRDFPSO->Apply(*_commandList);
+	_commandList->Draw(4);
 }

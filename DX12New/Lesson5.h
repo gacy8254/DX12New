@@ -20,6 +20,7 @@
 #include "SkyCubePSO.h"
 #include "NormalVisualizePSO.h"
 #include "FinalLDRPSO.h"
+#include "IntegrateBRDFPSO.h"
 
 #include <d3d12.h>
 #include <future>
@@ -86,12 +87,21 @@ private:
 
     void DrawSphere(SceneVisitor& _pass, bool isNormal);
 
+    //准备渲染立方体贴图所需的相机
+    void BuildCubemapCamera();
+
     //预计算立方体贴图卷积
     void PreIrradiance(std::shared_ptr<CommandList> _commandList);
+
+    void Prefilter(std::shared_ptr<CommandList> _commandList);
+
+    void IntegrateBRDF(std::shared_ptr<CommandList> _commandList);
 
     //贴图
     std::shared_ptr<Texture> m_CubeMap;
     std::shared_ptr<Texture> m_CubeMap1;
+    std::shared_ptr<Texture> m_PrefilterCubeMap;
+    std::shared_ptr<Texture> m_LUT;
 
     //PSO
     std::unique_ptr<EffectPSO> m_UnlitPso;
@@ -105,8 +115,11 @@ private:
 
     std::unique_ptr<SkyCubePSO> m_SkyBoxPso;
     std::unique_ptr<SkyCubePSO> m_PreCalPso;
+    std::unique_ptr<SkyCubePSO> m_PrefilterPso;
 
     std::unique_ptr<FinalLDRPSO> m_LDRPSO;
+
+    std::unique_ptr<IntegrateBRDFPSO> m_IntegrateBRDFPSO;
 
     //设备
     std::shared_ptr<Device> m_Device;
@@ -131,6 +144,10 @@ private:
     RenderTarget m_GBufferRenderTarget;
     //预计算立方体贴图卷积的RT
     RenderTarget m_IrradianceRenderTarget;
+    RenderTarget m_PrefilterRenderTarget;
+
+    //2D LUT
+    RenderTarget m_IntegrateBRDFRenderTarget;
 
     D3D12_RECT m_ScissorRect;
     D3D12_VIEWPORT m_Viewport;

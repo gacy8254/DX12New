@@ -8,8 +8,9 @@
 using namespace Microsoft::WRL;
 using namespace DirectX;
 
-SkyCubePSO::SkyCubePSO(std::shared_ptr<Device> _device, bool _isPreCal)
-	:BasePSO(_device)
+SkyCubePSO::SkyCubePSO(std::shared_ptr<Device> _device, bool _isPreCal, bool _prefilter)
+	:BasePSO(_device),
+	m_Prefilter(_prefilter)
 {
 	ComPtr<ID3DBlob> vertexShaderBlob;
 	ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\SkyBox_VS.cso", &vertexShaderBlob));
@@ -18,6 +19,10 @@ SkyCubePSO::SkyCubePSO(std::shared_ptr<Device> _device, bool _isPreCal)
 	if (_isPreCal)
 	{
 		ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\PreIrradiance.cso", &pixelShaderBlob));
+	}
+	else if (_prefilter)
+	{
+		ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\Prefilter.cso", &pixelShaderBlob));
 	}
 	else
 	{
@@ -36,13 +41,16 @@ SkyCubePSO::SkyCubePSO(std::shared_ptr<Device> _device, bool _isPreCal)
 
 	CD3DX12_ROOT_PARAMETER1 rootParameter[RootParameters::NumRootParameters];
 	rootParameter[RootParameters::MatricesCB].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+	if (m_Prefilter)
+	{
+		rootParameter[RootParameters::Roughness].InitAsConstants(sizeof(float) / 4, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+	}
 	rootParameter[RootParameters::Textures].InitAsDescriptorTable(1, &descriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto samplers = GetStaticSamplers();
-	
 
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rsDesc;
-	rsDesc.Init_1_1(RootParameters::NumRootParameters, rootParameter, samplers.size(), samplers.data(), rootSignatureFlags);
+	rsDesc.Init_1_1(m_Prefilter ? RootParameters::NumRootParameters : RootParameters::NumRootParameters - 1, rootParameter, samplers.size(), samplers.data(), rootSignatureFlags);
 
 	m_RootSignature = m_Device->CreateRootSignature(rsDesc.Desc_1_1);
 
@@ -74,7 +82,6 @@ SkyCubePSO::SkyCubePSO(std::shared_ptr<Device> _device, bool _isPreCal)
 	CD3DX12_RASTERIZER_DESC rasterizerState(D3D12_DEFAULT);
 	rasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	
-
 	//ÉèÖÃPSOÊôÐÔ
 	pipelineStateStream.pRootSignature = m_RootSignature->GetRootSignature().Get();
 	pipelineStateStream.VS = CD3DX12_SHADER_BYTECODE(vertexShaderBlob.Get());
@@ -91,7 +98,6 @@ SkyCubePSO::SkyCubePSO(std::shared_ptr<Device> _device, bool _isPreCal)
 
 SkyCubePSO::~SkyCubePSO()
 {
-
 }
 
 const std::shared_ptr<Material>& SkyCubePSO::GetMaterial() const
@@ -160,6 +166,14 @@ void SkyCubePSO::Apply(CommandList& _commandList)
 		if (m_Material)
 		{
 			BindTexture(_commandList, 0, m_Material->GetTexture(Material::TextureType::Diffuse), RootParameters::Textures);
+		}
+	}
+
+	if (m_Prefilter)
+	{
+		if (m_DirtyFlags & DF_PointLights)
+		{
+			_commandList.SetGraphics32BitConstants(RootParameters::Roughness, m_Roughness);
 		}
 	}
 

@@ -39,6 +39,7 @@
 #include <string>
 #include <locale.h>
 #include <comutil.h>
+#include <DirectXMath.h>
 
 #pragma comment(lib, "comsuppw.lib")
 
@@ -327,6 +328,30 @@ inline std::wstring ConvertString( const std::string& string )
 	std::wstring result = pwchar;
 	return result;
 
+}
+
+inline D3D12_VIEWPORT CalViewport(UINT _width, UINT _height)
+{
+	DirectX::XMFLOAT2 scale = { 1.0f, 1.0f };
+	DirectX::XMFLOAT2 bias = { 0.0f, 0.0f };
+
+	D3D12_VIEWPORT viewport = {
+		(_width * bias.x),       // TopLeftX
+		(_height * bias.y),      // TopLeftY
+		(_width * scale.x),      // Width
+		(_height * scale.y),     // Height
+		0.0f,               // MinDepth
+		1.0f                // MaxDepth
+	};
+
+	return viewport;
+}
+
+inline D3D12_RECT CalRect(UINT _width, UINT _height)
+{
+	D3D12_RECT resc = { 0, 0, (int)_width, (int)_height };
+
+	return resc;
 }
 
 // Converts a wide (UTF-16) encoded string into a multi-byte (UTF-8) character string.

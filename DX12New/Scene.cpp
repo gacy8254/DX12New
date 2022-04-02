@@ -229,7 +229,7 @@ void Scene::ImportMaterial(CommandList& _commandList, const aiMaterial& _materia
 		_material.GetTexture(aiTextureType_AMBIENT, 0, &aiTexturePath, nullptr, nullptr, &blendFactor, &aiBlendOperation) == aiReturn_SUCCESS)
 	{
 		fs::path texturePath(aiTexturePath.C_Str());
-		auto texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, true);
+		auto texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, false);
 		pMaterial->SetTexture(Material::TextureType::AO, texture);
 	}
 
@@ -238,7 +238,7 @@ void Scene::ImportMaterial(CommandList& _commandList, const aiMaterial& _materia
 			&aiBlendOperation) == aiReturn_SUCCESS)
 	{
 		fs::path texturePath(aiTexturePath.C_Str());
-		auto     texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, true);
+		auto     texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, false);
 		pMaterial->SetTexture(Material::TextureType::Emissive, texture);
 	}
 
@@ -248,7 +248,7 @@ void Scene::ImportMaterial(CommandList& _commandList, const aiMaterial& _materia
 			&aiBlendOperation) == aiReturn_SUCCESS)
 	{
 		fs::path texturePath(aiTexturePath.C_Str());
-		auto     texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, true);
+		auto     texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, false);
 		pMaterial->SetTexture(Material::TextureType::Diffuse, texture);
 	}
 
@@ -258,7 +258,7 @@ void Scene::ImportMaterial(CommandList& _commandList, const aiMaterial& _materia
 			&aiBlendOperation) == aiReturn_SUCCESS)
 	{
 		fs::path texturePath(aiTexturePath.C_Str());
-		auto     texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, true);
+		auto     texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, false);
 		pMaterial->SetTexture(Material::TextureType::Metaltic, texture);
 	}
 

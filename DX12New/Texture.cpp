@@ -5,6 +5,7 @@
 #include "ShaderResourceView.h"
 #include "UnorderedAccessView.h"
 #include "DescriptorAllocation.h"
+#include <iostream>
 
 Texture::Texture(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _resource, bool _isCubeMap, const D3D12_CLEAR_VALUE* _clearValue /*= nullptr*/)
 	:Resource(_device, _resource, _clearValue),
@@ -121,25 +122,29 @@ void Texture::CreateViews()
 			if (!m_IsCubeMap)
 			{
 				m_RenderTargetView = m_Device.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+				
 				device->CreateRenderTargetView(m_Resource.Get(), nullptr, m_RenderTargetView.GetDescriptorHandle());
 			}
 			else
 			{
 				//如果是纹理数组(例如CUBEMAP)
 				//分别为数组的每一张纹理创建RTV
-				m_RenderTargetView = m_Device.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_Resource->GetDesc().DepthOrArraySize);
+				m_RenderTargetView = m_Device.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_Resource->GetDesc().DepthOrArraySize * m_Resource->GetDesc().MipLevels);
 				for (int i = 0; i < m_Resource->GetDesc().DepthOrArraySize; i++)
 				{
-					//创建单独纹理的RTV描述
-					D3D12_RENDER_TARGET_VIEW_DESC rtvDesc;
-					rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
-					rtvDesc.Texture2DArray.MipSlice = 0;
-					rtvDesc.Texture2DArray.PlaneSlice = 0;
-					rtvDesc.Format = m_Resource->GetDesc().Format;
-					rtvDesc.Texture2DArray.FirstArraySlice = i;
-					rtvDesc.Texture2DArray.ArraySize = 1;
-
-					device->CreateRenderTargetView(m_Resource.Get(), &rtvDesc, m_RenderTargetView.GetDescriptorHandle(i));
+					for (int mipSlice = 0; mipSlice < m_Resource->GetDesc().MipLevels; ++mipSlice)
+					{
+						//创建单独纹理的RTV描述
+						D3D12_RENDER_TARGET_VIEW_DESC rtvDesc;
+						rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+						rtvDesc.Texture2DArray.MipSlice = mipSlice;
+						rtvDesc.Texture2DArray.PlaneSlice = 0;
+						rtvDesc.Format = m_Resource->GetDesc().Format;
+						rtvDesc.Texture2DArray.FirstArraySlice = i;
+						rtvDesc.Texture2DArray.ArraySize = 1;
+						auto desc = m_Resource->GetDesc();
+						device->CreateRenderTargetView(m_Resource.Get(), &rtvDesc, m_RenderTargetView.GetDescriptorHandle(i * m_Resource->GetDesc().MipLevels + mipSlice));
+					}
 				}
 			}
 		}

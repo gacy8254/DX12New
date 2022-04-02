@@ -168,7 +168,11 @@ PixelOut main(PixelShaderInput IN)
     }
     if (material.HasDiffuseTexture)
     {
+        diffuse.rgb = float3(0.5, 0.0, 0.0);
         diffuse = DiffuseTexture.Sample(TextureSampler, uv);
+        float gamma = 2.2;
+    
+        diffuse.rgb = pow(diffuse.rgb, gamma);
     }
     else
     {
@@ -176,7 +180,8 @@ PixelOut main(PixelShaderInput IN)
     }
     if (material.HasSpecularPowerTexture)
     {
-        roughness = RoughnessTexture.Sample(TextureSampler, uv).r;
+        
+       roughness = RoughnessTexture.Sample(TextureSampler, uv).r;
     }
     else
     {
@@ -184,11 +189,13 @@ PixelOut main(PixelShaderInput IN)
     }
     if(material.HasSpecularTexture)
     {
-        metaltic = MetalticTexture.Sample(TextureSampler, uv).r;
+        
+       metaltic = MetalticTexture.Sample(TextureSampler, uv).r;
     }
     else
     {
-        metaltic = material.Specular.b;
+       
+       metaltic = material.Specular.b;
     }
     
     float3 N;
@@ -221,11 +228,6 @@ PixelOut main(PixelShaderInput IN)
     {
         N = normalize(IN.NormalVS);
     }
-    
-    
-    float gamma = 2.0;
-    
-    diffuse.rgb = pow(diffuse.rgb, (float3) (gamma));
     
     Out.Albedo = diffuse;
     Out.Albedo.a = alpha;
