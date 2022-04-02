@@ -6,6 +6,11 @@
 *.lo
 *.o
 *.obj
+*.assbin
+*.tlog
+*.ilk
+*.log
+*.obj
 
 # Precompiled Headers
 *.gch
