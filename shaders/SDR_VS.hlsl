@@ -1,3 +1,5 @@
+#include "ShaderDefinition.h"
+
 struct Vin
 {
     float3 Pos : POSITION;
@@ -23,7 +25,7 @@ VertexToPixel main(Vin IN)
 		IN.id & 2);
 
 	// Adjust the position based on the UV
-    output.position = float4(output.TexCoord, 0.0f, 1);
+    output.position = float4(output.TexCoord, NEAR_Z_NORM, 1);
     output.position.x = output.position.x * 2 - 1;
     output.position.y = output.position.y * -2 + 1;
 

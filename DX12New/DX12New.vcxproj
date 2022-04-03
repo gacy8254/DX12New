@@ -120,7 +120,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Code\DX12New\include;C:\Code\DX12New\gainput\lib\include;C:\Code\DX12New\DX12New\HLSL;C:\Code\DX12New\packages\directxtex_uwp.2022.3.1.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Code\DX12New\shaders;C:\Code\DX12New\include;C:\Code\DX12New\gainput\lib\include;C:\Code\DX12New\DX12New\HLSL;C:\Code\DX12New\packages\directxtex_uwp.2022.3.1.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -209,6 +209,7 @@
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\shaders\ShaderDefinition.h" />
     <ClInclude Include="Adapter.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="BaseCamera.h" />
@@ -421,7 +422,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\shaders\Base_PS.hlsli" />
-    <None Include="..\shaders\CommonTool.hlsli" />
     <None Include="..\shaders\Deferred_GBuffer_PS.hlsli" />
     <None Include="..\shaders\Deferred_Lighting_PS.hlsli" />
     <None Include="..\shaders\Deferred_PBRLighting_PS.hlsli" />

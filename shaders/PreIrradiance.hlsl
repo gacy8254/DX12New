@@ -1,4 +1,4 @@
-#include "CommonTool.hlsli"
+#include "ShaderDefinition.h"
 
 struct PSInput
 {

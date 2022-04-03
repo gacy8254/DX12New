@@ -5,6 +5,7 @@
 #include "Material.h"
 #include "PipelineStateObject.h"
 #include "RootSignature.h"
+#include "ShaderDefinition.h"
 #include <array>
 
 class BasePSO
@@ -14,7 +15,7 @@ public:
 	{
 		Matrix4 ModelMatrix;
 		Matrix4 ModelViewMatrix;
-		Matrix4 InverseTransposeModelViewMatrix;
+		Matrix4 InverseTransposeModelMatrix;
 		Matrix4 ModelViewProjectionMatrix;
 	};
 

@@ -12,7 +12,7 @@ struct alignas(16) MaterialProperties
 	// To guarantee alignment, the MaterialProperties structure will be allocated in aligned memory.
 	MaterialProperties(
 		const DirectX::XMFLOAT4 diffuse = { 1, 1, 1, 1 },
-		const DirectX::XMFLOAT4 specular = { 1, 1, 1, 1 },
+		const DirectX::XMFLOAT4 ORM = { 1, 1, 0, 1 },
 		const float specularPower = 128.0f,
 		const DirectX::XMFLOAT4 ambient = { 0, 0, 0, 1 },
 		const DirectX::XMFLOAT4 emissive = { 0, 0, 0, 1 },
@@ -21,7 +21,7 @@ struct alignas(16) MaterialProperties
 		const float alphaThreshold = 0.1f
 	)
 		: Diffuse(diffuse)
-		, Specular(specular)
+		, ORM(ORM)
 		, Emissive(emissive)
 		, Ambient(ambient)
 		, Reflectance(reflectance)
@@ -41,7 +41,7 @@ struct alignas(16) MaterialProperties
 
 	DirectX::XMFLOAT4 Diffuse;
 	//------------------------------------ ( 16 bytes )
-	DirectX::XMFLOAT4 Specular;
+	DirectX::XMFLOAT4 ORM;
 	//------------------------------------ ( 16 bytes )
 	DirectX::XMFLOAT4 Emissive;
 	//------------------------------------ ( 16 bytes )
@@ -98,8 +98,8 @@ public:
 	const Vector4& GetEmissiveColor() const;
 	void                     SetEmissiveColor( Vector4 emissive);
 
-	const Vector4& GetSpecularColor() const;
-	void                     SetSpecularColor( Vector4 specular);
+	const Vector4& GetORMColor() const;
+	void                     SetORMColor( Vector4 specular);
 
 	float GetSpecularPower() const;
 	void  SetSpecularPower(float specularPower);

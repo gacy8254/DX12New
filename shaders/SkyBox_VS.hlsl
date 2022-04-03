@@ -1,3 +1,4 @@
+#include "ShaderDefinition.h"
 struct Mat
 {
     matrix ModelMat;
@@ -28,6 +29,7 @@ VertexOutput main(VertexInput IN)
     VertexOutput VSOUT;
     
     VSOUT.Position = mul(MatCB.ModelViewPorjMat, float4(IN.Position, 1.0f));
+    VSOUT.Position.z = VSOUT.Position.w * FAR_Z_NORM;
     VSOUT.TexCoord = IN.Position;
 
     return VSOUT;

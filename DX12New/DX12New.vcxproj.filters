@@ -419,6 +419,9 @@
     <ClInclude Include="IntegrateBRDFPSO.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\shaders\ShaderDefinition.h">
+      <Filter>Common\Shaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\shaders\HDR_PS.hlsl">
@@ -481,9 +484,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="..\shaders\CommonTool.hlsli">
-      <Filter>Common\Shaders</Filter>
-    </None>
     <None Include="..\shaders\Base_PS.hlsli">
       <Filter>Common\Shaders</Filter>
     </None>

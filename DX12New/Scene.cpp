@@ -202,7 +202,7 @@ void Scene::ImportMaterial(CommandList& _commandList, const aiMaterial& _materia
 	}
 	if (_material.Get(AI_MATKEY_COLOR_SPECULAR, specularColor) == aiReturn_SUCCESS)
 	{
-		pMaterial->SetSpecularColor(Vector4(specularColor.r, specularColor.g, specularColor.b, specularColor.a));
+		pMaterial->SetORMColor(Vector4(specularColor.r, specularColor.g, specularColor.b, specularColor.a));
 	}
 	if (_material.Get(AI_MATKEY_SHININESS, shininess) == aiReturn_SUCCESS)
 	{

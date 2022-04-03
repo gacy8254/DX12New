@@ -1,5 +1,6 @@
 #include "BaseCamera.h"
-
+#include "ShaderDefinition.h"
+#include <complex>
 
 BaseCamera::BaseCamera()
 {
@@ -50,8 +51,17 @@ void BaseCamera::SetProjection(float _fovY, float _aspect, float _zNear, float _
 {
 	m_Fov = _fovY;
 	m_Aspect = _aspect;
+
+#if USE_REVERSE_Z
+	m_ZFar = _zNear;
+	m_ZNear = _zFar;
+	//m_ZFar = _zFar;
+	//m_ZNear = _zNear;
+#else
 	m_ZFar = _zFar;
 	m_ZNear = _zNear;
+#endif
+	
 
 	m_ProjDirty = true;
 	m_InverseProjDirty = true;
@@ -194,8 +204,23 @@ void BaseCamera::UpdateInerseMatrix() const
 
 void BaseCamera::UpdateProjMatrix() const
 {
-	pData->m_ProjMatrix = Transform::MatrixPerspectiveForLH(DirectX::XMConvertToRadians(m_Fov), m_Aspect, m_ZNear, m_ZFar);
+	float fov = DirectX::XMConvertToRadians(m_Fov);
+	pData->m_ProjMatrix = Transform::MatrixPerspectiveForLH(fov, m_Aspect, m_ZNear, m_ZFar);
 
+	float xf = m_ZNear / (m_ZNear - m_ZFar);
+	float x = std::tan(m_Fov * 0.5f);
+
+	Vector4 r1 = Vector4(1 / (m_Aspect * x), 0, 0, 0);
+	Vector4 r2 = Vector4(0, 1 / x, 0, 0);
+	Vector4 r3 = Vector4(0, 0, xf, 1);
+	Vector4 r4 = Vector4(0, 0, -m_ZFar * xf, 0);
+
+	//Vector4 r1 = Vector4(0, 0, xf, 1);
+	//Vector4 r2 = Vector4(x / m_Aspect, 0, 0, 0);
+	//Vector4 r3 = Vector4(0, x, 0, 0);
+	//Vector4 r4 = Vector4(0, 0, -m_ZFar * xf, 0);
+
+	//pData->m_ProjMatrix = Matrix4(r1, r2, r3, r4);
 	m_ProjDirty = false;
 	m_InverseProjDirty = true;
 }

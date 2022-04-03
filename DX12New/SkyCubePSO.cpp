@@ -65,6 +65,7 @@ SkyCubePSO::SkyCubePSO(std::shared_ptr<Device> _device, bool _isPreCal, bool _pr
 		CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT  DSVFormat;
 		CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS RTVFormats;
 		CD3DX12_PIPELINE_STATE_STREAM_SAMPLE_DESC           SampleDesc;
+		CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL1        DepthStencil;
 	} pipelineStateStream;
 
 	//创建一个具有SRGB的颜色缓冲,为了gamma矫正
@@ -92,6 +93,15 @@ SkyCubePSO::SkyCubePSO(std::shared_ptr<Device> _device, bool _isPreCal, bool _pr
 	pipelineStateStream.DSVFormat = depthBufferFormat;
 	pipelineStateStream.RTVFormats = rtvFormats;
 	pipelineStateStream.SampleDesc = { 1, 0 };
+
+	CD3DX12_DEPTH_STENCIL_DESC1 p = CD3DX12_DEPTH_STENCIL_DESC1(D3D12_DEFAULT);
+	p.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+#if USE_REVERSE_Z
+	p.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+#else
+	p.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+#endif
+	pipelineStateStream.DepthStencil = p;
 
 	m_PSO = m_Device->CreatePipelineStateObject(pipelineStateStream);
 }
@@ -156,7 +166,7 @@ void SkyCubePSO::Apply(CommandList& _commandList)
 		m.ModelMatrix = m_pAlignedMVP->World;
 		m.ModelViewMatrix = m_pAlignedMVP->World * m_pAlignedMVP->View;
 		m.ModelViewProjectionMatrix = m.ModelViewMatrix * m_pAlignedMVP->Projection;
-		m.InverseTransposeModelViewMatrix = Transform::MatrixTranspose(Transform::InverseMatrix(nullptr, m.ModelMatrix));
+		m.InverseTransposeModelMatrix = Transform::MatrixTranspose(Transform::InverseMatrix(nullptr, m.ModelMatrix));
 
 		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MatricesCB, m);
 	}

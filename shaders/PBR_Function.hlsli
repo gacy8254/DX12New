@@ -1,38 +1,85 @@
-#include "CommonTool.hlsli"
+#include "ShaderDefinition.h"
+
+//#if ENABLE_LIGHTING
+struct PointLight
+{
+    float4 PositionWS; // Light position in world space.
+    //----------------------------------- (16 byte boundary)
+    float4 PositionVS; // Light position in view space.
+    //----------------------------------- (16 byte boundary)
+    float4 Color;
+    //----------------------------------- (16 byte boundary)
+    float range;
+    float Intensity;
+    float LinearAttenuation;
+    float QuadraticAttenuation;
+    //----------------------------------- (16 byte boundary)
+    // Total:                              16 * 4 = 64 bytes
+};
+
+struct SpotLight
+{
+    float4 PositionWS; // Light position in world space.
+    //----------------------------------- (16 byte boundary)
+    float4 PositionVS; // Light position in view space.
+    //----------------------------------- (16 byte boundary)
+    float4 DirectionWS; // Light direction in world space.
+    //----------------------------------- (16 byte boundary)
+    float4 DirectionVS; // Light direction in view space.
+    //----------------------------------- (16 byte boundary)
+    float4 Color;
+    //----------------------------------- (16 byte boundary)
+    float range;
+    float SpotAngle;
+    float Intensity;
+    float LinearAttenuation;
+    //----------------------------------- (16 byte boundary)
+    // Total:                              16 * 6 = 96 bytes
+};
+
+struct DirectionalLight
+{
+    float4 DirectionWS; // Light direction in world space.
+    //----------------------------------- (16 byte boundary)
+    float4 DirectionVS; // Light direction in view space.
+    //----------------------------------- (16 byte boundary)
+    float4 Color;
+    //----------------------------------- (16 byte boundary)
+    float Intensity;
+    float3 Padding;
+    //----------------------------------- (16 byte boundary)
+    // Total:                              16 * 4 = 64 bytes
+};
+
+struct LightProperties
+{
+    uint NumPointLights;
+    uint NumSpotLights;
+    uint NumDirectionalLights;
+};
+
+ConstantBuffer<LightProperties> LightPropertiesCB : register(b0);
+
+StructuredBuffer<PointLight> PointLights : register(t0);
+StructuredBuffer<SpotLight> SpotLights : register(t1);
+StructuredBuffer<DirectionalLight> DirectionalLights : register(t2);
+
+//#endif // ENABLE_LIGHTING
 
 //菲涅尔方程
 //返回物体表面光线被反射的百分比
-float3 FresnelSchlick(float _conTheta, float3 _F0)
+float3 FresnelSchlick(float3 _halfVec, float3 _toCam, float3 _F0)
 {
-    return _F0 + (1.0f - _F0) * pow(clamp(1.0f - _conTheta, 0.0f, 1.0f), 5.0f);
-}
-
-//计算菲涅尔项
-float3 CalFresnel(float3 _halfVec, float3 _toCam, float3 _albedo, float _metallic)
-{
-    float3 F0 = float3(0.04, 0.04, 0.04);
-    F0 = lerp(F0, _albedo, _metallic);
-    
-    float3 f = FresnelSchlick(clamp(dot(_halfVec, _toCam), 0.0f, 1.0f), F0);
-    
-    return f;
+    float cosTheta = clamp(dot(_halfVec, _toCam), 0.0f, 1.0f);
+    return _F0 + (1.0f - _F0) * exp2((-5.55473 * cosTheta - 6.98316) * cosTheta);
+   // return _F0 + (1.0f - _F0) * pow(clamp(1.0f - conTheta, 0.0f, 1.0f), 5.0f);
 }
 
 //带粗糙度的菲涅尔方程
-float3 FresnelSchlickRoughness(float _conTheta, float3 _F0, float _roughness)
+float3 FresnelSchlickRoughness(float3 _halfVec, float3 _toCam, float3 _F0, float _roughness)
 {
-    return _F0 + (max((float3) (1.0f - _roughness), _F0) - _F0) * pow(clamp(1.0f - _conTheta, 0.0f, 1.0f), 5.0f);
-}
-
-//计算菲涅尔项
-float3 CalFresnelRoughness(float3 _halfVec, float3 _toCam, float3 _albedo, float _metallic, float _roughness)
-{
-    float3 F0 = float3(0.04, 0.04, 0.04);
-    F0 = lerp(F0, _albedo.rgb, _metallic);
-    
-    float3 f = FresnelSchlickRoughness(clamp(dot(_halfVec, _toCam), 0.0f, 1.0f), F0, _roughness);
-    
-    return f;
+    float conTheta = clamp(dot(_halfVec, _toCam), 0.0f, 1.0f);
+    return _F0 + (max((float3) (1.0f - _roughness), _F0) - _F0) * pow(clamp(1.0f - conTheta, 0.0f, 1.0f), 5.0f);
 }
 
 //正态分布函数
@@ -164,4 +211,188 @@ float2 IntegrateBRDF(float NdotV, float roughness)
     A /= float(SAMPLE_COUNT);
     B /= float(SAMPLE_COUNT);
     return float2(A, B);
+}
+
+//计算衰减
+float DoAttenuation(float3 _position, float _range, float3 _worldPos)
+{
+#if UNREAL_LIGHT_ATTENUATION
+    
+    float dist = distance(_position, _worldPos);
+    float numer = dist / _range;
+    numer = numer * numer;
+    numer = numer * numer;
+    numer = saturate(1 - numer);
+    numer = numer * numer;
+    float demon = dist * dist  + 1;
+    return numer / demon;
+    
+#else
+    
+    float dist = distance(_position, _worldPos);
+    float att = saturate(1.0f - (dist * dist) / (_range * _range));
+    
+    return att;
+    
+#endif
+}
+
+//射灯衰减
+float DoSpotCone(float3 spotDir, float3 L, float spotAngle)
+{
+    float minCos = cos(spotAngle);
+    float maxCos = (minCos + 1.0f) / 2.0f;
+    float cosAngle = dot(spotDir, -L);
+    return smoothstep(minCos, maxCos, cosAngle);
+}
+
+float3 CookTorrance(float3 _normal, float3 _toLight, float3 _toCamera, float _roughness, float _metallic, float3 _f0, out float3 _ks)
+{
+    float3 result = (float3) 0.0f;
+    
+    float3 halfVec = normalize(_toCamera + _toLight);
+    
+    float D = DistributionGGX(_normal, halfVec, _roughness);
+    float F = FresnelSchlick(halfVec, _toCamera, _f0);
+    float G = GeometrySmith(_normal, _toCamera, _toLight, _roughness, false);
+    
+    _ks = F;
+    
+    float3 numerator = D * G * F;
+    float demoninator = 4.0 * max(dot(_normal, _toCamera), 0.0f) * max(dot(_normal, _toLight), 0.0f) + 0.0001f;
+    
+    float3 specular = numerator / demoninator;
+    
+    return specular;
+}
+
+float3 LamberDiffuse(float3 _ks, float3 _albedo, float _metallic)
+{
+    float3 KD = (float3) 1.0f - _ks;
+    KD *= 1.0f - _metallic;
+    
+    return (KD * _albedo / PI);
+}
+
+//计算直接光照
+float3 DirectPBR(float _lightInstensity, float3 _lightColor,
+float3 _toLight, float3 _normal,
+float3 _worldPos, float3 _toCamera,
+float3 _albedo, float _roughness,
+float _metallic, float3 _f0,
+float _shadowAmount = 1.0f)
+{
+    float3 result;
+    
+    float3 KS = float3(0.0f, 0.0f, 0.0f);
+    
+    float3 specularBRDF = CookTorrance(_normal, _toLight, _toCamera, _roughness, _metallic, _f0, KS);
+    float3 diffuseBRDF = LamberDiffuse(KS, _albedo, _metallic);
+    
+    float NdotL = max(dot(_normal, _toLight), 0.0);
+    
+    result = (specularBRDF + diffuseBRDF) * NdotL * _lightInstensity * _lightColor;
+
+    return result;
+}
+
+float3 DoPointLight(PointLight light, float3 _normal, float3 _worldPos, float3 _toCamera, float3 _albedo, float _roughness, float _metallic, float3 _f0)
+{
+    float3 result;
+    
+    float3 toLight = normalize(light.PositionWS.xyz - _worldPos);
+
+    float att = DoAttenuation(light.PositionWS.xyz, light.range, _worldPos);
+    float instensity = att * light.Intensity;
+    
+    result = DirectPBR(instensity, light.Color.rgb, toLight, _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, _f0);
+
+    return result;
+}
+
+float3 DoSpotLight(SpotLight light, float3 _normal, float3 _worldPos, float3 _toCamera, float3 _albedo, float _roughness, float _metallic, float3 _f0)
+{
+    float3 result;
+    float3 toLight = normalize(light.PositionWS.xyz - _worldPos);
+    
+    float spotAtt = DoSpotCone(light.DirectionWS.xyz, toLight, light.SpotAngle);
+    float att = DoAttenuation(light.PositionWS.xyz, light.range, _worldPos);
+   
+    float instensity = att * light.Intensity * spotAtt;
+    
+    result = DirectPBR(instensity, light.Color.rgb, toLight, _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, _f0);
+    return result;
+}
+
+float3 DoDirectionalLight(DirectionalLight light, float3 _normal, float3 _worldPos, float3 _toCamera, float3 _albedo, float _roughness, float _metallic, float3 _f0)
+{
+    float3 result = (float3) 0;
+    
+    float3 toLight = normalize(light.DirectionWS.xyz);
+    float instensity = light.Intensity;
+    
+    result = DirectPBR(instensity, light.Color.rgb, toLight, _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, _f0);
+
+    return result;
+}
+
+//计算所有灯光的直接光照
+float3 DoLighting(float3 _normal, float3 _worldPos, float3 _toCamera, float3 _albedo, float _roughness, float _metallic, float _shadowAmount = 1.0f)
+{
+    float3 totalResult = (float3) 0.0f;
+    int i = 0;
+    
+    float3 F0 = float3(0.04, 0.04, 0.04);
+    F0 = lerp(F0, _albedo.rgb, _metallic);
+    
+    for (i = 0; i < LightPropertiesCB.NumPointLights; ++i)
+    {
+        float3 result = DoPointLight(PointLights[i], _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, F0);
+
+        totalResult += result;
+    }
+
+    // Iterate spot lights.
+    for (i = 0; i < LightPropertiesCB.NumSpotLights; ++i)
+    {
+        float3 result = DoSpotLight(SpotLights[i], _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, F0);
+
+        totalResult += result;
+    }
+
+    // Iterate directinal lights
+    for (i = 0; i < LightPropertiesCB.NumDirectionalLights; ++i)
+    {
+        float3 result = DoDirectionalLight(DirectionalLights[i], _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, F0);
+
+        totalResult += result;
+    }
+    
+    return totalResult;
+}
+
+//计算环境光照
+//分别返回环境漫反射光照和镜面反射光照
+void AmbientPBR(float3 _normal, float3 _worldPos, 
+float3 _toCamera, float3 _albedo, 
+float _roughness, float _metallic, 
+float3 _irradiance, float3 _prefilteredColor, 
+float2 _brdf, float _shadowAmount, float2 _aoRO,
+inout float3 _ambientDiffuse, inout float3 _ambientSpecular)
+{
+    float3 totalResult = (float3) 0.0f;
+    
+    float3 F0 = float3(0.04, 0.04, 0.04);
+    F0 = lerp(F0, _albedo.rgb, _metallic);
+    
+    float3 KS = FresnelSchlickRoughness(_normal, _toCamera, F0, _roughness);
+    
+    float3 kD = float3(1.0f, 1.0f, 1.0f) - KS;
+    kD *= (1.0f - _metallic);
+    
+    float3 specular = _prefilteredColor * (KS * _brdf.x + _brdf.y);
+    float3 diffuse = _irradiance * _albedo;
+    
+    _ambientDiffuse = kD * diffuse * _aoRO.r;
+    _ambientSpecular = specular * _aoRO.r;
 }

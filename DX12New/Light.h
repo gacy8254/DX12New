@@ -38,8 +38,8 @@ struct PointLight
         : PositionWS(0.0f, 0.0f, 0.0f, 1.0f)
         , PositionVS(0.0f, 0.0f, 0.0f, 1.0f)
         , Color(1.0f, 1.0f, 1.0f, 1.0f)
-        , Ambient(0.01f)
-        , ConstantAttenuation(1.0f)
+        , Range(0.01f)
+        , Instensity(1.0f)
         , LinearAttenuation(0.0f)
         , QuadraticAttenuation(0.0f)
     {}
@@ -50,8 +50,8 @@ struct PointLight
     //----------------------------------- (16 byte boundary)
     DirectX::XMFLOAT4 Color;
     //----------------------------------- (16 byte boundary)
-    float Ambient;
-    float ConstantAttenuation;
+    float Range;
+    float Instensity;
     float LinearAttenuation;
     float QuadraticAttenuation;
     //----------------------------------- (16 byte boundary)
@@ -66,9 +66,9 @@ struct SpotLight
         , DirectionWS(0.0f, 0.0f, 1.0f, 0.0f)
         , DirectionVS(0.0f, 0.0f, 1.0f, 0.0f)
         , Color(1.0f, 1.0f, 1.0f, 1.0f)
-        , Ambient(0.01f)
+        , Range(1.0f)
         , SpotAngle(DirectX::XM_PIDIV2)
-        , ConstantAttenuation(1.0f)
+        , Intensity(1.0f)
         , LinearAttenuation(0.0f)
         , QuadraticAttenuation(0.0f)
     {}
@@ -83,9 +83,9 @@ struct SpotLight
     //----------------------------------- (16 byte boundary)
     DirectX::XMFLOAT4 Color;
     //----------------------------------- (16 byte boundary)
-    float Ambient;
+    float Range;
     float SpotAngle;
-    float ConstantAttenuation;
+    float Intensity;
     float LinearAttenuation;
     //----------------------------------- (16 byte boundary)
     float QuadraticAttenuation;
@@ -100,7 +100,7 @@ struct DirectionalLight
         : DirectionWS(0.0f, 0.0f, 1.0f, 0.0f)
         , DirectionVS(0.0f, 0.0f, 1.0f, 0.0f)
         , Color(1.0f, 1.0f, 1.0f, 1.0f)
-        , Ambient(0.01f)
+        , Intensity(1.0f)
     {}
 
     DirectX::XMFLOAT4 DirectionWS;  // Light direction in world space.
@@ -109,7 +109,7 @@ struct DirectionalLight
     //----------------------------------- (16 byte boundary)
     DirectX::XMFLOAT4 Color;
     //----------------------------------- (16 byte boundary)
-    float Ambient;
+    float Intensity;
     float Padding[3];
     //----------------------------------- (16 byte boundary)
     // Total:                              16 * 4 = 64 bytes

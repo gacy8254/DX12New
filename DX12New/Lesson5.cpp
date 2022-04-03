@@ -7,6 +7,7 @@
 #include <iostream>
 #include <DirectXColors.h>
 #include "MeshHelper.h"
+#include "ShaderDefinition.h"
 using namespace DirectX;
 
 Matrix4 XM_CALLCONV LookAtMatrix(Vector4 _position, Vector4 _direction, Vector4  _up)
@@ -86,8 +87,8 @@ void Lesson5::LoadContent()
 
 	// Start the loading task to perform async loading of the scene file.
 
-	LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\MaterialMesh.FBX");
-	//LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj");
+	//LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\MaterialMesh.FBX");
+	LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj");
 
 
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
@@ -133,7 +134,7 @@ void Lesson5::LoadContent()
 	m_LDRPSO = std::make_unique<FinalLDRPSO>(m_Device);
 
 	//构建灯光
-	BuildLighting(4, 0, 0);
+	BuildLighting(4, 1, 1);
 	BuildCubemapCamera();
 
 	//执行命令列表
@@ -172,7 +173,11 @@ void Lesson5::LoadContent()
 			0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 		D3D12_CLEAR_VALUE depthClearValue;
 		depthClearValue.Format = depthDesc.Format;
+#if USE_REVERSE_Z
+		depthClearValue.DepthStencil = { 0.0f, 0 };
+#else
 		depthClearValue.DepthStencil = { 1.0f, 0 };
+#endif
 
 		auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
 		depthTexture->SetName(L"Depth Render Target");
@@ -210,7 +215,11 @@ void Lesson5::LoadContent()
 				0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 		D3D12_CLEAR_VALUE depthClearValue;
 		depthClearValue.Format = depthDesc.Format;
+#if USE_REVERSE_Z
+		depthClearValue.DepthStencil = { 0.0f, 0 };
+#else
 		depthClearValue.DepthStencil = { 1.0f, 0 };
+#endif
 
 		auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
 		depthTexture->SetName(L"Depth Render Target");
@@ -297,6 +306,13 @@ void Lesson5::OnRender()
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	auto  commandList = commandQueue.GetCommandList();
 
+	float DepthClearValue;
+#if USE_REVERSE_Z
+	DepthClearValue = 0.0f;
+#else
+	DepthClearValue = 1.0f;
+#endif
+
 	//进行预计算光照,只在第一次循环执行一次
 	static bool isfirst = true;
 	if (isfirst)
@@ -317,8 +333,6 @@ void Lesson5::OnRender()
 	}
 	else
 	{
-
-		
 		//创建Pass
 		SceneVisitor opaquePass(*commandList, m_Camera, *m_GBufferPso, false);
 		SceneVisitor transparentPass(*commandList, m_Camera, *m_GBufferDecalPso, true);
@@ -332,7 +346,7 @@ void Lesson5::OnRender()
 		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color2), clearColor);
 		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color3), clearColor);
 		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color4), clearColor);
-		commandList->ClearDepthStencilTexture(rendertarget.GetTexture(AttachmentPoint::DepthStencil),D3D12_CLEAR_FLAG_DEPTH);
+		commandList->ClearDepthStencilTexture(rendertarget.GetTexture(AttachmentPoint::DepthStencil),D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 		//设置命令列表
 		commandList->SetViewport(m_Viewport);
 		commandList->SetScissorRect(m_ScissorRect);
@@ -344,10 +358,9 @@ void Lesson5::OnRender()
 
 		DrawSphere(opaquePass, false);
 		
-		
 		//计算光照(PBR PASS)
 		commandList->ClearTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
-		commandList->ClearDepthStencilTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
+		commandList->ClearDepthStencilTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 		commandList->SetRenderTarget(m_HDRRenderTarget);
 
 		//获取GBuffer贴图
@@ -380,7 +393,7 @@ void Lesson5::OnRender()
 
 		//HDR转LDR
 		commandList->ClearTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
-		commandList->ClearDepthStencilTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
+		commandList->ClearDepthStencilTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 		commandList->SetRenderTarget(m_LDRRenderTarget);
 		m_LDRPSO->SetTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0));
 		m_LDRPSO->Apply(*commandList);
@@ -477,7 +490,7 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 		auto scale = 1.0f / (s.Radius * 2.0f);
 		s.Radius *= scale;
 
-		Vector4 qu = Transform::QuaternionRotationRollPitchYaw(DirectX::XMConvertToRadians(90), 0, 0);
+		Vector4 qu = Transform::QuaternionRotationRollPitchYaw(DirectX::XMConvertToRadians(0), 0, 0);
 		auto trans = Transform::MatrixTranslateFromVector(Vector4(0, 0, -5,0));
 		auto scal = Transform::MatrixScaling(0.01, 0.01, 0.01);
 		auto rota = Transform::MatrixRotationQuaternion(qu);
@@ -592,7 +605,6 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 	static const XMVECTORF32 LightColors[] = { Colors::Red,     Colors::Green,  Colors::Blue,   Colors::Cyan,
 											   Colors::Magenta, Colors::Yellow, Colors::Purple, Colors::White };
 
-	auto viewMatrix = m_Camera.GetViewMatrix();
 	static float lightAnimTime = 0.0f;
 	if (m_AnimateLights)
 	{
@@ -636,11 +648,11 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 		XMVECTOR positionVS = positionWS;
 		XMStoreFloat4(&l.PositionVS, positionVS);
 
-		l.Color = XMFLOAT4(100, 100, 100, 0);
-		l.ConstantAttenuation = 1.0f;
+		l.Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 0);
+		l.Instensity = 1.0f;
 		l.LinearAttenuation = 0.08f;
 		l.QuadraticAttenuation = 0.1f;
-		l.Ambient = 0.0f;
+		l.Range = 1.0f;
 	}
 
 	m_SpotLights.resize(numSpotLights);
@@ -650,18 +662,19 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 
 		float angle = lightAnimTime + spotLightOffset * i + pointLightOffset / 2.0;
 
-		l.PositionWS = { 10, 10, 5, 1};
+		l.PositionWS = { 0, 8, 0, 1};
 		l.PositionVS = l.PositionWS;
 
-		Vector4 directionWS(0.01, -0.8, 0, 0);
+		Vector4 directionWS(0.0f, -0.8f, 0, 0);
 		Vector4 directionVS = directionWS;
 		XMStoreFloat4(&l.DirectionWS, directionWS);
 		XMStoreFloat4(&l.DirectionVS, directionVS);
 
 		l.Color = XMFLOAT4(LightColors[(i + numPointLights) % _countof(LightColors)]);
 		l.Color = XMFLOAT4(10, 1, 1, 0);
-		l.SpotAngle = XMConvertToRadians(45.0f);
-		l.ConstantAttenuation = 1.0f;
+		l.Range = 5.0f;
+		l.SpotAngle = XMConvertToRadians(90.0f);
+		l.Intensity = 10.0f;
 		l.LinearAttenuation = 0.08f;
 		l.QuadraticAttenuation = 0.0f;
 	}
@@ -673,16 +686,14 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 
 		float angle = lightAnimTime + directionalLightOffset * i;
 
-		XMVECTORF32 positionWS = { static_cast<float>(std::sin(angle)) * radius, radius,
-								   static_cast<float>(std::cos(angle)) * radius, 1.0f };
-
-		XMVECTOR directionWS = XMVector3Normalize(XMVectorNegate(positionWS));
-		XMVECTOR directionVS = directionWS;
+		Vector4 directionWS = Vector4(1, 1, 1, 0);
+		Vector4 directionVS = directionWS;
 
 		XMStoreFloat4(&l.DirectionWS, directionWS);
 		XMStoreFloat4(&l.DirectionVS, directionVS);
 
-		l.Color = XMFLOAT4(Colors::White);
+		l.Color = XMFLOAT4(0.9,0.9,0.6,0);
+		l.Intensity = 1.0f;
 	}
 }
 
@@ -782,7 +793,11 @@ void Lesson5::CreateGBufferRT()
 		0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 	D3D12_CLEAR_VALUE depthClearValue;
 	depthClearValue.Format = depthDesc.Format;
+#if USE_REVERSE_Z
+	depthClearValue.DepthStencil = { 0.0f, 0 };
+#else
 	depthClearValue.DepthStencil = { 1.0f, 0 };
+#endif
 
 	auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
 	depthTexture->SetName(L"Depth Render Target");
@@ -811,7 +826,7 @@ void Lesson5::DrawSphere(SceneVisitor& _pass, bool isNormal)
 			m_Sphere->GetRootNode()->SetLocalTransform(o);
 			float roughness = Clamp(((x + 5.0f) / 10.0f), 0.0f, 0.99f);
 			float metallic = Clamp(((y + 5.0f) / 10.0f), 0.0f, 0.99f);
-			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetSpecularColor(Vector4(1, roughness, metallic, 1.0f));
+			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetORMColor(Vector4(1, roughness, metallic, 1.0f));
 			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetDiffuseColor(Vector4(1.0f, 0.0, 0.0, 0));
 			m_Sphere->Accept(_pass);
 		}
@@ -856,6 +871,7 @@ void Lesson5::BuildCubemapCamera()
 	for (int i = 0; i < 6; i++)
 	{
 		m_CubeMapCamera[i].SetLookAt(center, targets[i], ups[i]);
+
 		m_CubeMapCamera[i].SetProjection(90.0f, 1.0f, 0.1f, 1000.0f);
 	}
 }
@@ -891,7 +907,13 @@ void Lesson5::PreIrradiance(std::shared_ptr<CommandList> _commandList)
 		0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 	D3D12_CLEAR_VALUE depthClearValue;
 	depthClearValue.Format = depthDesc.Format;
+#if USE_REVERSE_Z
+	float DepthClearValue = 0.0f;
+	depthClearValue.DepthStencil = { 0.0f, 0 };
+#else
+	float DepthClearValue = 1.0f;
 	depthClearValue.DepthStencil = { 1.0f, 0 };
+#endif
 
 	//深度图
 	auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
@@ -915,7 +937,7 @@ void Lesson5::PreIrradiance(std::shared_ptr<CommandList> _commandList)
 		_commandList->GetGraphicsCommandList()->OMSetRenderTargets(1, &rtv, true, &dsv);
 
 		_commandList->GetGraphicsCommandList()->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
-		_commandList->ClearDepthStencilTexture(m_IrradianceRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
+		_commandList->ClearDepthStencilTexture(m_IrradianceRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 		SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[i], *m_PreCalPso, false);
 		cube->Accept(skyBoxPass);
 	}
@@ -955,7 +977,13 @@ void Lesson5::Prefilter(std::shared_ptr<CommandList> _commandList)
 		0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 	D3D12_CLEAR_VALUE depthClearValue;
 	depthClearValue.Format = depthDesc.Format;
+#if USE_REVERSE_Z
+	float DepthClearValue = 0.0f;
+	depthClearValue.DepthStencil = { 0.0f, 0 };
+#else
+	float DepthClearValue = 1.0f;
 	depthClearValue.DepthStencil = { 1.0f, 0 };
+#endif
 
 	//深度图
 	auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
@@ -984,7 +1012,7 @@ void Lesson5::Prefilter(std::shared_ptr<CommandList> _commandList)
 			_commandList->GetGraphicsCommandList()->OMSetRenderTargets(1, &rtv, true, &dsv);
 
 			_commandList->GetGraphicsCommandList()->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
-			_commandList->ClearDepthStencilTexture(m_PrefilterRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
+			_commandList->ClearDepthStencilTexture(m_PrefilterRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 			SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[j], *m_PrefilterPso, false);
 			cube->Accept(skyBoxPass);
 		}

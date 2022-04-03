@@ -1,9 +1,9 @@
 struct PixelShaderInput
 {
-    float4 PositionVS : POSITION;
-    float3 NormalVS : NORMAL;
-    float3 TangentVS : TANGENT;
-    float3 BitangentVS : BITANGENT;
+    float4 PositionWS : POSITION;
+    float3 NormalWS : NORMAL;
+    float3 TangentWS : TANGENT;
+    float3 BitangentWS : BITANGENT;
     float2 TexCoord : TEXCOORD;
 };
 
@@ -25,12 +25,12 @@ struct Material
     float BumpIntensity; // When using bump textures (height maps) we need
                               // to scale the height values so the normals are visible.
     //------------------------------------ ( 16 bytes )
-    bool HasAmbientTexture;
+    bool HasAOTexture;
     bool HasEmissiveTexture;
     bool HasDiffuseTexture;
-    bool HasSpecularTexture;
+    bool HasMetalticTexture;
     //------------------------------------ ( 16 bytes )
-    bool HasSpecularPowerTexture;
+    bool HasRoughnessTexture;
     bool HasNormalTexture;
     bool HasBumpTexture;
     bool HasOpacityTexture;
@@ -153,8 +153,10 @@ PixelOut main(PixelShaderInput IN)
     float metaltic = 0;
     float roughness = 1.0f;
     float2 uv = IN.TexCoord.xy;
+    
+    float gamma = 2.2;
 
-    if (material.HasAmbientTexture)
+    if (material.HasAOTexture)
     {
         AO = AOTexture.Sample(TextureSampler, uv).r;
     }
@@ -162,23 +164,27 @@ PixelOut main(PixelShaderInput IN)
     {
         AO = material.Specular.r;
     }
+    
     if (material.HasEmissiveTexture)
     {
         emissive = EmissiveTexture.Sample(TextureSampler, uv);
+        emissive.rgb = pow(emissive.rgb, gamma);
     }
+    else
+    {
+        emissive = material.Emissive;
+    }
+    
     if (material.HasDiffuseTexture)
     {
-        diffuse.rgb = float3(0.5, 0.0, 0.0);
         diffuse = DiffuseTexture.Sample(TextureSampler, uv);
-        float gamma = 2.2;
-    
         diffuse.rgb = pow(diffuse.rgb, gamma);
     }
     else
     {
         diffuse = material.Diffuse;
     }
-    if (material.HasSpecularPowerTexture)
+    if (material.HasRoughnessTexture)
     {
         
        roughness = RoughnessTexture.Sample(TextureSampler, uv).r;
@@ -187,7 +193,7 @@ PixelOut main(PixelShaderInput IN)
     {
         roughness = material.Specular.g;
     }
-    if(material.HasSpecularTexture)
+    if(material.HasMetalticTexture)
     {
         
        metaltic = MetalticTexture.Sample(TextureSampler, uv).r;
@@ -202,9 +208,9 @@ PixelOut main(PixelShaderInput IN)
     // Normal mapping
     if (material.HasNormalTexture)
     {
-        float3 tangent = normalize(IN.TangentVS);
-        float3 bitangent = normalize(IN.BitangentVS);
-        float3 normal = normalize(IN.NormalVS);
+        float3 tangent = normalize(IN.TangentWS);
+        float3 bitangent = normalize(IN.BitangentWS);
+        float3 normal = normalize(IN.NormalWS);
 
         float3x3 TBN = float3x3(tangent,
                                  bitangent,
@@ -214,9 +220,9 @@ PixelOut main(PixelShaderInput IN)
     }
     else if (material.HasBumpTexture)
     {
-        float3 tangent = normalize(IN.TangentVS);
-        float3 bitangent = normalize(IN.BitangentVS);
-        float3 normal = normalize(IN.NormalVS);
+        float3 tangent = normalize(IN.TangentWS);
+        float3 bitangent = normalize(IN.BitangentWS);
+        float3 normal = normalize(IN.NormalWS);
 
         float3x3 TBN = float3x3(tangent,
                                  bitangent,
@@ -226,7 +232,7 @@ PixelOut main(PixelShaderInput IN)
     }
     else
     {
-        N = normalize(IN.NormalVS);
+        N = normalize(IN.NormalWS);
     }
     
     Out.Albedo = diffuse;
@@ -236,7 +242,7 @@ PixelOut main(PixelShaderInput IN)
     Out.ORM.g = roughness;
     Out.ORM.b = metaltic;
     Out.Emissive = emissive;
-    Out.WorldPos.rgb = IN.PositionVS;
+    Out.WorldPos.rgb = IN.PositionWS;
     
     return Out;
 }

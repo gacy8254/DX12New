@@ -54,14 +54,14 @@ void Material::SetEmissiveColor(Vector4 emissive)
 	m_MaterialProperties->Emissive = emissive.GetFloat4();
 }
 
-const Vector4& Material::GetSpecularColor() const
+const Vector4& Material::GetORMColor() const
 {
-	return m_MaterialProperties->Specular;
+	return m_MaterialProperties->ORM;
 }
 
-void Material::SetSpecularColor(Vector4 specular)
+void Material::SetORMColor(Vector4 _orm)
 {
-	m_MaterialProperties->Specular = specular.GetFloat4();
+	m_MaterialProperties->ORM = _orm.GetFloat4();
 }
 
 float Material::GetSpecularPower() const
