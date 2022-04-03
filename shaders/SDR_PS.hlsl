@@ -31,7 +31,12 @@ struct TonemapParameters
 ConstantBuffer<TonemapParameters> TonemapParametersCB : register(b0);
 
 Texture2D<float3> HDRTexture : register(t0);
-SamplerState LinearClampSampler : register(s0);
+SamplerState SamPointWrap : register(s0);
+SamplerState SamPointClamp : register(s1);
+SamplerState SamLinearWarp : register(s2);
+SamplerState SamLinearClamp : register(s3);
+SamplerState SamAnisotropicWarp : register(s4);
+SamplerState SamAnisotropicClamp : register(s5);
 
 //线性映射
 float3 Linear(float3 _hdr, float _max)
@@ -62,10 +67,10 @@ float3 ACESFilmic(float3 _x, float _a, float _b, float _c, float _d, float _e, f
 
 float4 main(float2 TexCoord : TEXCOORD) : SV_TARGET0
 {
-    float3 HDR = HDRTexture.SampleLevel(LinearClampSampler, TexCoord, 0);
+    float3 HDR = HDRTexture.Sample(SamAnisotropicClamp, TexCoord);
     
     //根据曝光度调整结果
-   HDR *= exp2(TonemapParametersCB.Exposure);
+    HDR *= exp2(TonemapParametersCB.Exposure);
     
     float3 sdr = HDR;
     

@@ -1,5 +1,0 @@
-﻿  main.cpp
-C:\Code\DX12New\DX12New\main.cpp(89,23): warning C4018: “<”: 有符号/无符号不匹配
-C:\Code\DX12New\DX12New\main.cpp(612,57): warning C4554: “&”: 检查运算符优先级是否存在的可能的错误；使用括号阐明优先级
-C:\Code\DX12New\DX12New\main.cpp(656): warning C4715: “WndProc”: 不是所有的控件路径都返回值
-  DX12New.vcxproj -> C:\Code\DX12New\Debug\DX12New.exe

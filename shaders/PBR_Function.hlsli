@@ -24,7 +24,6 @@ float3 FresnelSchlickRoughness(float _conTheta, float3 _F0, float _roughness)
     return _F0 + (max((float3) (1.0f - _roughness), _F0) - _F0) * pow(clamp(1.0f - _conTheta, 0.0f, 1.0f), 5.0f);
 }
 
-
 //计算菲涅尔项
 float3 CalFresnelRoughness(float3 _halfVec, float3 _toCam, float3 _albedo, float _metallic, float _roughness)
 {
@@ -56,6 +55,7 @@ float GeometrySchlickGGX(float _NdotV, float _roughness, bool _ibl = false)
 {
     float r = (_roughness + 1.0f);
     float k;
+    
     if (_ibl)
     {
         k = (_roughness * _roughness) / 2.0f;
@@ -104,6 +104,7 @@ float2 Hammersley(uint i, uint N)
 //重要性采样
 float3 ImportanceSampleGGX(float2 Xi, float3 N, float roughness)
 {
+
     float a = roughness * roughness;
 
     float phi = 2.0 * PI * Xi.x;
@@ -148,15 +149,16 @@ float2 IntegrateBRDF(float NdotV, float roughness)
         float NdotL = max(L.z, 0.0);
         float NdotH = max(H.z, 0.0);
         float VdotH = max(dot(V, H), 0.0);
-
+        float G;
         if (NdotL > 0.0)
         {
-            float G = GeometrySmith(N, V, L, roughness, true);
+            G = GeometrySmith(N, V, L, roughness, true);
             float G_Vis = (G * VdotH) / (NdotH * NdotV);
             float Fc = pow(1.0 - VdotH, 5.0);
 
             A += (1.0 - Fc) * G_Vis;
             B += Fc * G_Vis;
+           
         }
     }
     A /= float(SAMPLE_COUNT);

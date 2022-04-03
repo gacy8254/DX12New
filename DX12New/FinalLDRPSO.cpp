@@ -27,10 +27,10 @@ FinalLDRPSO::FinalLDRPSO(std::shared_ptr<Device> _device)
 	rootParameter[RootParameters::Textures].InitAsDescriptorTable(1, &descriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::TonemapParameters].InitAsConstants(sizeof(Tonemap) / 4, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 
-	CD3DX12_STATIC_SAMPLER_DESC anisotropicSampler(0, D3D12_FILTER_MAXIMUM_MIN_MAG_MIP_LINEAR);
+	auto sampler = GetStaticSamplers();
 
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rsDesc;
-	rsDesc.Init_1_1(RootParameters::NumRootParameters, rootParameter, 1, &anisotropicSampler, rootSignatureFlags);
+	rsDesc.Init_1_1(RootParameters::NumRootParameters, rootParameter, sampler.size(), sampler.data(), rootSignatureFlags);
 
 	m_RootSignature = m_Device->CreateRootSignature(rsDesc.Desc_1_1);
 
@@ -47,7 +47,7 @@ FinalLDRPSO::FinalLDRPSO(std::shared_ptr<Device> _device)
 	} pipelineStateStream;
 
 	//创建一个具有SRGB的颜色缓冲,为了gamma矫正
-	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
 	D3D12_RT_FORMAT_ARRAY rtvFormats = {};
 	rtvFormats.NumRenderTargets = 1;

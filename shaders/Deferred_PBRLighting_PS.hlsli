@@ -278,7 +278,9 @@ float4 main(PixelShaderInput IN) : SV_Target
     float3 WorldPos = WorldPosText.Sample(SamAnisotropicWarp, IN.TexCoord.xy);
     float4 albedo = AlbedoText.Sample(SamAnisotropicWarp, IN.TexCoord.xy);
     float ao = ORMText.Sample(SamAnisotropicWarp, IN.TexCoord.xy).r;
+    //float roughness = 1;
     float roughness = ORMText.Sample(SamAnisotropicWarp, IN.TexCoord.xy).g;
+    //float metallic = 1;
     float metallic = ORMText.Sample(SamAnisotropicWarp, IN.TexCoord.xy).b;
     float4 normal = NormalText.Sample(SamAnisotropicWarp, IN.TexCoord.xy);
     float4 emissive = EmissiveText.Sample(SamAnisotropicWarp, IN.TexCoord.xy);
@@ -303,7 +305,10 @@ float4 main(PixelShaderInput IN) : SV_Target
     
     const float MAX_REFLECTION_LOD = 4.0F;
     float3 prefilterColor = PrefilterText.SampleLevel(SamAnisotropicClamp, reflectVec, roughness * MAX_REFLECTION_LOD).rgb;
-    float2 brdf = IntegrateBRDFText.SampleLevel(SamLinearClamp, float2(max(dot(normal.rgb, toCamera), 0.0f), roughness), 0.0f).rg;
+    float2 brdf = IntegrateBRDFText.Sample(SamAnisotropicClamp, float2(max(dot(normal.rgb, toCamera), 0.0f), roughness)).rg;
+    float gamma = 2.2;
+    
+    brdf.rg = pow(brdf.rg, gamma);
     float3 specular = prefilterColor * (F * brdf.x + brdf.y);
     
     float3 ambient = (KD * diffuse + specular) * ao;
@@ -313,7 +318,7 @@ float4 main(PixelShaderInput IN) : SV_Target
 //#endif // ENABLE_LIGHTING
 
     return float4(color * shadow, alpha);
-    float3 ccc = (float3) (specular);
+    float3 ccc = (float3) (color.rgg);
     //return float4(ccc, alpha);
 }
 

@@ -82,7 +82,7 @@ uint32_t Lesson5::Run()
 void Lesson5::LoadContent()
 {
 	m_Device = Device::Create();
-	m_SwapChain = m_Device->CreateSwapChain(m_Window->GetWindowHandle(), DXGI_FORMAT_R8G8B8A8_UNORM);
+	m_SwapChain = m_Device->CreateSwapChain(m_Window->GetWindowHandle(), DXGI_FORMAT_R16G16B16A16_FLOAT);
 
 	// Start the loading task to perform async loading of the scene file.
 
@@ -182,7 +182,7 @@ void Lesson5::LoadContent()
 
 	//LDR
 	{
-		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 		DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
 
 		DXGI_SAMPLE_DESC sampleDesc = m_Device->GetMultisampleQualityLevels(backBufferFormat);
@@ -340,7 +340,7 @@ void Lesson5::OnRender()
 
 		//渲染场景(GBUFFER  PASS)
 		m_Scene->Accept(opaquePass);
-		//m_Scene->Accept(transparentPass);
+		m_Scene->Accept(transparentPass);
 
 		DrawSphere(opaquePass, false);
 		
@@ -360,7 +360,7 @@ void Lesson5::OnRender()
 		gBufferTexture[DeferredLightingPSO::WorldPosText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color4);
 		gBufferTexture[DeferredLightingPSO::IrradianceText] = m_IrradianceRenderTarget.GetTexture(AttachmentPoint::Color0);
 		gBufferTexture[DeferredLightingPSO::PrefilterText] = m_PrefilterRenderTarget.GetTexture(AttachmentPoint::Color0);
-		gBufferTexture[DeferredLightingPSO::IntegrateBRDFText] = m_LUT;
+		gBufferTexture[DeferredLightingPSO::IntegrateBRDFText] = m_IntegrateBRDFRenderTarget.GetTexture(AttachmentPoint::Color0);
 		
 		m_DeferredLightingPso->SetCameraPos(m_Camera.GetFocalPoint());
 		m_DeferredLightingPso->SetTexture(gBufferTexture);
@@ -636,7 +636,7 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 		XMVECTOR positionVS = positionWS;
 		XMStoreFloat4(&l.PositionVS, positionVS);
 
-		l.Color = XMFLOAT4(10, 10, 10, 0);
+		l.Color = XMFLOAT4(100, 100, 100, 0);
 		l.ConstantAttenuation = 1.0f;
 		l.LinearAttenuation = 0.08f;
 		l.QuadraticAttenuation = 0.1f;
@@ -812,7 +812,7 @@ void Lesson5::DrawSphere(SceneVisitor& _pass, bool isNormal)
 			float roughness = Clamp(((x + 5.0f) / 10.0f), 0.0f, 0.99f);
 			float metallic = Clamp(((y + 5.0f) / 10.0f), 0.0f, 0.99f);
 			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetSpecularColor(Vector4(1, roughness, metallic, 1.0f));
-			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetDiffuseColor(Vector4(0.5, 0.0, 0.0, 0));
+			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetDiffuseColor(Vector4(1.0f, 0.0, 0.0, 0));
 			m_Sphere->Accept(_pass);
 		}
 	}
@@ -1020,8 +1020,8 @@ void Lesson5::IntegrateBRDF(std::shared_ptr<CommandList> _commandList)
 	_commandList->ClearTexture(m_IntegrateBRDFRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
 
 	//设置命令列表
-	_commandList->SetViewport(m_Viewport);
-	_commandList->SetScissorRect(m_ScissorRect);
+	_commandList->SetViewport(m_IntegrateBRDFRenderTarget.GetViewport());
+	_commandList->SetScissorRect(m_IntegrateBRDFRenderTarget.GetScissorRect());
 	_commandList->SetRenderTarget(m_IntegrateBRDFRenderTarget);
 	_commandList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
