@@ -1163,16 +1163,16 @@ std::shared_ptr<Scene> CommandList::CreateScene(const VertexCollection& _vertice
 	auto vertexBuffer = CopyVertexBuffer(_vertices);
 	std::shared_ptr<IndexBuffer> indexBuffer = CopyIndexBuffer(_indicies);
 
-	auto mesh = std::make_shared<Mesh>();
+	auto actor = std::make_shared<Actor>();
 
 	auto material = std::make_shared<Material>(Material::White);
 
-	mesh->SetVertexBuffer(0, vertexBuffer);
-	mesh->SetIndexBuffer(indexBuffer);
-	mesh->SetMaterial(material);
+	actor->SetVertexBuffer(0, vertexBuffer);
+	actor->SetIndexBuffer(indexBuffer);
+	actor->SetMaterial(material);
 
 	auto node = std::make_shared<SceneNode>();
-	node->AddMesh(mesh);
+	node->AddActor(actor);
 
 	auto scene = std::make_shared<Scene>();
 	scene->SetRootNode(node);

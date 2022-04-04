@@ -1,6 +1,6 @@
 #include "SceneNode.h"
 #include "Visitor.h"
-#include "Mesh.h"
+#include "Actor.h"
 
 using namespace DirectX;
 
@@ -176,51 +176,64 @@ void SceneNode::SetParent(std::shared_ptr<SceneNode> parentNode)
 	}
 }
 
-size_t SceneNode::AddMesh(std::shared_ptr<Mesh> _mesh)
+std::shared_ptr<SceneNode> SceneNode::GetChildNode(size_t _index)
+{
+	if (_index == -1)
+	{
+		return this->shared_from_this();
+	}
+	else
+	{
+		return m_Children[_index];
+	}
+	
+}
+
+size_t SceneNode::AddActor(std::shared_ptr<Actor> _actor)
 {
 	size_t index = (size_t)-1;
 
-	if (_mesh)
+	if (_actor)
 	{
-		MeshList::iterator it = std::find(m_Meshes.begin(), m_Meshes.end(), _mesh);
-		if (it == m_Meshes.cend())
+		ActorList::iterator it = std::find(m_Actors.begin(), m_Actors.end(), _actor);
+		if (it == m_Actors.cend())
 		{
-			index = m_Meshes.size();
-			m_Meshes.push_back(_mesh);
+			index = m_Actors.size();
+			m_Actors.push_back(_actor);
 
 			//ºÏ²¢°üÎ§ºÐ
-			BoundingBox::CreateMerged(m_AABB, m_AABB, _mesh->GetAABB());
+			BoundingBox::CreateMerged(m_AABB, m_AABB, _actor->GetAABB());
 		}
 		else
 		{
-			index = it - m_Meshes.begin();
+			index = it - m_Actors.begin();
 		}
 	}
 
 	return index;
 }
 
-void SceneNode::RemoveMesh(std::shared_ptr<Mesh> _mesh)
+void SceneNode::RemoveActor(std::shared_ptr<Actor> _actor)
 {
-	if (_mesh)
+	if (_actor)
 	{
-		MeshList::const_iterator iter = std::find(m_Meshes.begin(), m_Meshes.end(), _mesh);
-		if (iter != m_Meshes.end())
+		ActorList::const_iterator iter = std::find(m_Actors.begin(), m_Actors.end(), _actor);
+		if (iter != m_Actors.end())
 		{
-			m_Meshes.erase(iter);
+			m_Actors.erase(iter);
 		}
 	}
 }
 
-std::shared_ptr<Mesh> SceneNode::GetMesh(size_t _index /*= 0*/)
+std::shared_ptr<Actor> SceneNode::GetActor(size_t _index /*= 0*/)
 {
-	std::shared_ptr<Mesh> mesh = nullptr;
+	std::shared_ptr<Actor> actor = nullptr;
 
-	if (_index < m_Meshes.size()) {
-		mesh = m_Meshes[_index];
+	if (_index < m_Actors.size()) {
+		actor = m_Actors[_index];
 	}
 
-	return mesh;
+	return actor;
 }
 
 const DirectX::BoundingBox& SceneNode::GetAABB() const
@@ -233,9 +246,9 @@ void SceneNode::Accept(Visitor& _visitor)
 	_visitor.Visit(*this);
 
 	// Visit meshes
-	for (auto& mesh : m_Meshes)
+	for (auto& actor : m_Actors)
 	{
-		mesh->Accept(_visitor);
+		actor->Accept(_visitor);
 	}
 
 	// Visit children
@@ -245,9 +258,14 @@ void SceneNode::Accept(Visitor& _visitor)
 	}
 }
 
-size_t SceneNode::GetSize()
+size_t SceneNode::GetActorCount()
 {
-	return m_Meshes.size();
+	return m_Actors.size();
+}
+
+size_t SceneNode::GetChildCount()
+{
+	return m_Children.size();
 }
 
 Matrix4 SceneNode::GetParentWorldTransform() const

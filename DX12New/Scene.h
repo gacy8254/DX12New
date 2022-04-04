@@ -23,7 +23,7 @@ class aiNode;
 class CommandList;
 class Device;
 class SceneNode;
-class Mesh;
+class Actor;
 class Material;
 class Visitor;
 
@@ -62,11 +62,11 @@ private:
 
 	using MaterialMap = std::map<std::string, std::shared_ptr<Material>>;
 	using MaterialList = std::vector<std::shared_ptr<Material>>;
-	using MeshList = std::vector<std::shared_ptr<Mesh>>;
+	using ActorList = std::vector<std::shared_ptr<Actor>>;
 
 	MaterialMap m_MaterilMap;
 	MaterialList m_MaterialList;
-	MeshList m_Meshes;
+	ActorList m_Actors;
 
 	std::shared_ptr<SceneNode> m_RootNode;
 

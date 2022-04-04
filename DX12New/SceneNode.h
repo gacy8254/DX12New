@@ -13,7 +13,7 @@
 
 
 
-class Mesh;
+class Actor;
 class CommandList;
 class Visitor;
 
@@ -56,14 +56,15 @@ public:
 	void SetParent(std::shared_ptr<SceneNode> parentNode);
 
 	//获取所有子节点
+	std::shared_ptr<SceneNode> GetChildNode(size_t _index);
 
 	//增加一个网格到场景节点
 	//返回网格在网格列表中的索引
-	size_t AddMesh(std::shared_ptr<Mesh> _mesh);
-	void RemoveMesh(std::shared_ptr<Mesh> _mesh);
+	size_t AddActor(std::shared_ptr<Actor> _actor);
+	void RemoveActor(std::shared_ptr<Actor> _actor);
 
 	//获取场景节点中的模型
-	std::shared_ptr<Mesh> GetMesh(size_t _index = 0);
+	std::shared_ptr<Actor> GetActor(size_t _index = 0);
 
 
 	//获取AABB包围盒,是所有模型的AABB
@@ -72,7 +73,8 @@ public:
 	//接受一个观察者
 	void Accept(Visitor& _visitor);
 
-	size_t GetSize();
+	size_t GetActorCount();
+	size_t GetChildCount();
 
 protected:
 	Matrix4 GetParentWorldTransform() const;
@@ -81,7 +83,7 @@ private:
 	using NodePtr = std::shared_ptr<SceneNode>;
 	using NodeList = std::vector<NodePtr>;
 	using NodeNameMap = std::multimap<std::string, NodePtr>;
-	using MeshList = std::vector<std::shared_ptr<Mesh>>;
+	using ActorList = std::vector<std::shared_ptr<Actor>>;
 
 	void UpdateLocalTransform() const;
 
@@ -100,7 +102,7 @@ private:
 	std::weak_ptr<SceneNode> m_ParentNode;
 	NodeList m_Children;
 	NodeNameMap m_ChildrenByName;
-	MeshList m_Meshes;
+	ActorList m_Actors;
 
 	bool m_DirtyData = true;
 

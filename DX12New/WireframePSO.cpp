@@ -1,4 +1,4 @@
-#include "NormalVisualizePSO.h"
+#include "WireframePSO.h"
 #include "d3dx12.h"
 #include <d3dcompiler.h>
 
@@ -7,14 +7,11 @@
 using namespace Microsoft::WRL;
 using namespace DirectX;
 
-NormalVisualizePSO::NormalVisualizePSO(std::shared_ptr<Device> _device)
+WireframePSO::WireframePSO(std::shared_ptr<Device> _device)
 	:BasePSO(_device)
 {
 	ComPtr<ID3DBlob> vertexShaderBlob;
-	ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\NormalVisualize_VS.cso", &vertexShaderBlob));
-
-	ComPtr<ID3DBlob> geometryShaderBlob;
-	ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\NormalVisualize_GS.cso", &geometryShaderBlob));
+	ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\StandardVS.cso", &vertexShaderBlob));
 
 	ComPtr<ID3DBlob> pixelShaderBlob;
 	ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\NormalVisualize_PS.cso", &pixelShaderBlob));
@@ -40,7 +37,6 @@ NormalVisualizePSO::NormalVisualizePSO(std::shared_ptr<Device> _device)
 		CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE        pRootSignature;
 		CD3DX12_PIPELINE_STATE_STREAM_VS                    VS;
 		CD3DX12_PIPELINE_STATE_STREAM_PS                    PS;
-		CD3DX12_PIPELINE_STATE_STREAM_GS                    GS;
 		CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER            RasterizerState;
 		CD3DX12_PIPELINE_STATE_STREAM_INPUT_LAYOUT          InputLayout;
 		CD3DX12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY    PrimitiveTopologyType;
@@ -54,21 +50,20 @@ NormalVisualizePSO::NormalVisualizePSO(std::shared_ptr<Device> _device)
 	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
 
-
 	D3D12_RT_FORMAT_ARRAY rtvFormats = {};
 	rtvFormats.NumRenderTargets = 1;
 	rtvFormats.RTFormats[0] = backBufferFormat;
 
 	CD3DX12_RASTERIZER_DESC rasterizerState(D3D12_DEFAULT);
+	rasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 
 	//ÉèÖÃPSOÊôÐÔ
 	pipelineStateStream.pRootSignature = m_RootSignature->GetRootSignature().Get();
 	pipelineStateStream.VS = CD3DX12_SHADER_BYTECODE(vertexShaderBlob.Get());
 	pipelineStateStream.PS = CD3DX12_SHADER_BYTECODE(pixelShaderBlob.Get());
-	pipelineStateStream.GS = CD3DX12_SHADER_BYTECODE(geometryShaderBlob.Get());
 	pipelineStateStream.RasterizerState = rasterizerState;
 	pipelineStateStream.InputLayout = VertexPositionNormalTangentBitangentTexture::InputLayout;
-	pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+	pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	pipelineStateStream.DSVFormat = depthBufferFormat;
 	pipelineStateStream.RTVFormats = rtvFormats;
 	pipelineStateStream.SampleDesc = { 1, 0 };
@@ -85,44 +80,45 @@ NormalVisualizePSO::NormalVisualizePSO(std::shared_ptr<Device> _device)
 	m_PSO = m_Device->CreatePipelineStateObject(pipelineStateStream);
 }
 
-NormalVisualizePSO::~NormalVisualizePSO()
+WireframePSO::~WireframePSO()
 {
+
 }
 
-void XM_CALLCONV NormalVisualizePSO::SetWorldMatrix(Matrix4 worldMatrix)
+void XM_CALLCONV WireframePSO::SetWorldMatrix(Matrix4 worldMatrix)
 {
 	m_pAlignedMVP->World = worldMatrix;
 	m_DirtyFlags |= DF_Matrices;
 }
 
-Matrix4 NormalVisualizePSO::GetWorldMatrix() const
+Matrix4 WireframePSO::GetWorldMatrix() const
 {
 	return m_pAlignedMVP->World;
 }
 
-void XM_CALLCONV NormalVisualizePSO::SetViewMatrix(Matrix4 viewMatrix)
+void XM_CALLCONV WireframePSO::SetViewMatrix(Matrix4 viewMatrix)
 {
 	m_pAlignedMVP->View = viewMatrix;
 	m_DirtyFlags |= DF_Matrices;
 }
 
-Matrix4 NormalVisualizePSO::GetViewMatrix() const
+Matrix4 WireframePSO::GetViewMatrix() const
 {
 	return m_pAlignedMVP->View;
 }
 
-void XM_CALLCONV NormalVisualizePSO::SetProjectionMatrix(Matrix4 projectionMatrix)
+void XM_CALLCONV WireframePSO::SetProjectionMatrix(Matrix4 projectionMatrix)
 {
 	m_pAlignedMVP->Projection = projectionMatrix;
 	m_DirtyFlags |= DF_Matrices;
 }
 
-Matrix4 NormalVisualizePSO::GetProjectionMatrix() const
+Matrix4 WireframePSO::GetProjectionMatrix() const
 {
 	return m_pAlignedMVP->Projection;
 }
 
-void NormalVisualizePSO::Apply(CommandList& _commandList)
+void WireframePSO::Apply(CommandList& _commandList)
 {
 	_commandList.SetPipelineState(m_PSO);
 	_commandList.SetGraphicsRootSignature(m_RootSignature);

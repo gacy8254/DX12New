@@ -4,7 +4,7 @@
 #include "CommandList.h"
 #include "IndexBuffer.h"
 #include "Material.h"
-#include "Mesh.h"
+#include "Actor.h"
 #include "SceneNode.h"
 
 #include <DirectXMath.h>
@@ -19,10 +19,10 @@ SceneVisitor::SceneVisitor(CommandList& _commandList, const BaseCamera& _camera,
 {
 }
 
-void SceneVisitor::Visit(Mesh& _mesh)
+void SceneVisitor::Visit(Actor& _actor)
 {
 	//获取材质,判断材质与当前PASS的透明度设置是否一致
-	auto material = _mesh.GetMaterial();
+	auto material = _actor.GetMaterial();
 	if (material->IsTransparent() == m_Transparent)
 	{
 		//设置材质到渲染管线
@@ -30,7 +30,7 @@ void SceneVisitor::Visit(Mesh& _mesh)
 		m_LightingPSO.Apply(m_CommandList);
 
 		//Draw
-		_mesh.Draw(m_CommandList);
+		_actor.Draw(m_CommandList);
 	}
 }
 

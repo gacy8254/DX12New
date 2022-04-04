@@ -115,7 +115,7 @@ void Lesson5::LoadContent()
 	m_Cube = MeshHelper::CreateCube(commandList, 5000.0f, true);
 	m_Axis = commandList->LoadSceneFromFile(L"C:\\Code\\DX12New\\Assets\\Models\\axis_of_evil.nff");
 
-	m_Cube->GetRootNode()->GetMesh()->GetMaterial()->SetTexture(Material::TextureType::Diffuse, m_CubeMap);
+	m_Cube->GetRootNode()->GetActor()->GetMaterial()->SetTexture(Material::TextureType::Diffuse, m_CubeMap);
 
 	//创建PSO
 	m_UnlitPso = std::make_unique<EffectPSO>(m_Device, false, false);
@@ -132,9 +132,12 @@ void Lesson5::LoadContent()
 
 	m_LDRPSO = std::make_unique<FinalLDRPSO>(m_Device);
 
+	m_WireframePSO = std::make_unique<WireframePSO>(m_Device);
+
 	//构建灯光
 	BuildLighting(4, 1, 1);
 	BuildCubemapCamera();
+	
 
 	//执行命令列表
 	auto fence = commandQueue.ExecuteCommandList(commandList);
@@ -246,11 +249,6 @@ void Lesson5::OnUpdate(UpdateEventArgs& e)
 	if (totalTime > 1.0)
 	{
 		m_FPS = frameCount / totalTime;
-
-		wchar_t buffer[512];
-		::swprintf_s(buffer, L"Models [FPS: %f]", m_FPS);
-		m_Window->SetWindowTitle(buffer);
-
 		frameCount = 0;
 		totalTime = 0.0;
 	}
@@ -338,70 +336,89 @@ void Lesson5::OnRender()
 		SceneVisitor unlitPass(*commandList, m_Camera, *m_UnlitPso, false);
 		SceneVisitor skyBoxPass(*commandList, m_Camera, *m_SkyBoxPso, false);
 		SceneVisitor LinePass(*commandList, m_Camera, *m_NormalVisualizePso, false);
+		SceneVisitor WireFramePass(*commandList, m_Camera, *m_WireframePSO, false);
 	
-		//清空缓冲区
-		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color0), clearColor);
-		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color1), clearColor);
-		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color2), clearColor);
-		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color3), clearColor);
-		commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color4), clearColor);
-		commandList->ClearDepthStencilTexture(rendertarget.GetTexture(AttachmentPoint::DepthStencil),D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 		//设置命令列表
 		commandList->SetViewport(m_Viewport);
 		commandList->SetScissorRect(m_ScissorRect);
-		commandList->SetRenderTarget(rendertarget);
 
-		//渲染场景(GBUFFER  PASS)
-		m_Scene->Accept(opaquePass);
-		m_Axis->Accept(opaquePass);
-		m_Scene->Accept(transparentPass);
+		if (!m_IsWireFrameMode)
+		{
+			//清空缓冲区
+			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color0), clearColor);
+			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color1), clearColor);
+			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color2), clearColor);
+			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color3), clearColor);
+			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color4), clearColor);
+			commandList->ClearDepthStencilTexture(rendertarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
+			commandList->SetRenderTarget(rendertarget);
 
-		DrawSphere(opaquePass, false);
+			//渲染场景(GBUFFER  PASS)
+			m_Scene->Accept(opaquePass);
+
+			m_Scene->Accept(transparentPass);
+
+			DrawSphere(opaquePass, false);
+
+			//计算光照(PBR PASS)
+			commandList->ClearTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
+			commandList->ClearDepthStencilTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
+			commandList->SetRenderTarget(m_HDRRenderTarget);
+
+			//获取GBuffer贴图
+			std::vector<std::shared_ptr<Texture>> gBufferTexture;
+			gBufferTexture.resize(DeferredLightingPSO::NumTextures);
+			gBufferTexture[DeferredLightingPSO::AlbedoText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color0);
+			gBufferTexture[DeferredLightingPSO::NormalText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color1);
+			gBufferTexture[DeferredLightingPSO::ORMText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color2);
+			gBufferTexture[DeferredLightingPSO::EmissiveText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color3);
+			gBufferTexture[DeferredLightingPSO::WorldPosText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color4);
+			gBufferTexture[DeferredLightingPSO::IrradianceText] = m_IrradianceRenderTarget.GetTexture(AttachmentPoint::Color0);
+			gBufferTexture[DeferredLightingPSO::PrefilterText] = m_PrefilterRenderTarget.GetTexture(AttachmentPoint::Color0);
+			gBufferTexture[DeferredLightingPSO::IntegrateBRDFText] = m_IntegrateBRDFRenderTarget.GetTexture(AttachmentPoint::Color0);
+
+			//设置PBR光照计算需要的数据
+			m_DeferredLightingPso->SetCameraPos(m_Camera.GetFocalPoint());
+			m_DeferredLightingPso->SetTexture(gBufferTexture);
+			m_DeferredLightingPso->Apply(*commandList);
+			commandList->Draw(4);
+
+			//将深度图拷贝到HDR渲染目标,渲染辅助附体
+			commandList->CopyResource(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), m_GBufferRenderTarget.GetTexture(AttachmentPoint::DepthStencil));
+
+			commandList->TransitionBarrier(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+			commandList->FlushResourceBarriers();
+
+			m_Axis->Accept(unlitPass);
+			DrawLightMesh(unlitPass);
+			m_Cube->Accept(skyBoxPass);
+
+			//HDR转LDR
+			commandList->ClearTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
+			commandList->ClearDepthStencilTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
+			commandList->SetRenderTarget(m_LDRRenderTarget);
+			m_LDRPSO->SetTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0));
+			m_LDRPSO->Apply(*commandList);
+			commandList->Draw(4);
+
+			const auto& rt = m_SwapChain->GetRenderTarget().GetTexture(AttachmentPoint::Color0);
+			commandList->CopyResource(rt, m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0));
+		}
+		else
+		{
+			commandList->ClearTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
+			commandList->ClearDepthStencilTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
+			commandList->SetRenderTarget(m_LDRRenderTarget);
+			m_Scene->Accept(WireFramePass);
+			DrawSphere(WireFramePass, false);
+			m_Axis->Accept(WireFramePass);
+			DrawLightMesh(WireFramePass);
+			m_Cube->Accept(WireFramePass);
+
+			const auto& rt = m_SwapChain->GetRenderTarget().GetTexture(AttachmentPoint::Color0);
+			commandList->CopyResource(rt, m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0));
+		}
 		
-		//计算光照(PBR PASS)
-		commandList->ClearTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
-		commandList->ClearDepthStencilTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
-		commandList->SetRenderTarget(m_HDRRenderTarget);
-
-		//获取GBuffer贴图
-		std::vector<std::shared_ptr<Texture>> gBufferTexture;
-		gBufferTexture.resize(DeferredLightingPSO::NumTextures);
-		gBufferTexture[DeferredLightingPSO::AlbedoText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color0);
-		gBufferTexture[DeferredLightingPSO::NormalText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color1);
-		gBufferTexture[DeferredLightingPSO::ORMText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color2);
-		gBufferTexture[DeferredLightingPSO::EmissiveText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color3);
-		gBufferTexture[DeferredLightingPSO::WorldPosText] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color4);
-		gBufferTexture[DeferredLightingPSO::IrradianceText] = m_IrradianceRenderTarget.GetTexture(AttachmentPoint::Color0);
-		gBufferTexture[DeferredLightingPSO::PrefilterText] = m_PrefilterRenderTarget.GetTexture(AttachmentPoint::Color0);
-		gBufferTexture[DeferredLightingPSO::IntegrateBRDFText] = m_IntegrateBRDFRenderTarget.GetTexture(AttachmentPoint::Color0);
-		
-		m_DeferredLightingPso->SetCameraPos(m_Camera.GetFocalPoint());
-		m_DeferredLightingPso->SetTexture(gBufferTexture);
-		m_DeferredLightingPso->Apply(*commandList);
-		commandList->Draw(4);
-
-		//将深度图拷贝到HDR渲染目标,渲染辅助附体
-		commandList->CopyResource(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), m_GBufferRenderTarget.GetTexture(AttachmentPoint::DepthStencil));
-
-		commandList->TransitionBarrier(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-		commandList->FlushResourceBarriers();
-
-		
-	
-		DrawLightMesh(unlitPass);
-		m_Cube->Accept(skyBoxPass);
-		//DrawSphere(LinePass, true);
-
-		//HDR转LDR
-		commandList->ClearTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
-		commandList->ClearDepthStencilTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
-		commandList->SetRenderTarget(m_LDRRenderTarget);
-		m_LDRPSO->SetTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0));
-		m_LDRPSO->Apply(*commandList);
-		commandList->Draw(4);
-
-		const auto& rt = m_SwapChain->GetRenderTarget().GetTexture(AttachmentPoint::Color0);
-		commandList->CopyResource(rt, m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0));
 	}
 	OnGUI(commandList, m_SwapChain->GetRenderTarget());
 
@@ -483,6 +500,8 @@ void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const Rende
 	m_GUI->NewFrame();
 	static bool show_demo_window = false;
 	static bool showDetail = false;
+	static bool showTree = false;
+
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 	//进度条
 	if (m_IsLoading)
@@ -531,6 +550,7 @@ void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const Rende
 		{
 			ImGui::MenuItem("show_demo", nullptr, &show_demo_window);
 			ImGui::MenuItem("Detail", nullptr, &showDetail);
+			ImGui::MenuItem("Tree", nullptr, &showTree);
 
 			ImGui::EndMenu();
 		}
@@ -542,6 +562,8 @@ void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const Rende
 			{
 				m_SwapChain->SetVSync(vSync);
 			}
+
+			if (ImGui::MenuItem("WireFrameMode", "", &m_IsWireFrameMode)) {}
 
 			bool fullscreen = m_Window->IsFullScreen();
 			if (ImGui::MenuItem("Full screen", "Alt+Enter", &fullscreen))
@@ -584,7 +606,11 @@ void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const Rende
 	{
 		GUILayout(&showDetail);
 	}
-	
+
+	if (showTree)
+	{
+		GUITree(&showTree);
+	}
 
 	// Rendering
 	m_GUI->Render(commandList, renderTarget);
@@ -611,6 +637,7 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 		scene->GetRootNode()->SetScale(Vector4(0.5, 0.5, 0.5, 0));
 
 		m_Scene = scene;
+		BuildScene();
 	}
 
 	commandQueue.ExecuteCommandList(commandList);
@@ -820,7 +847,7 @@ void Lesson5::DrawLightMesh(SceneVisitor& _pass)
 
 		m_Sphere->GetRootNode()->SetPosition(lightPos);
 		m_Sphere->GetRootNode()->SetScale(Vector4(0.5, 0.5, 0.5, 0));
-		m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetMaterialProperties(lightMaterial);
+		m_Sphere->GetRootNode()->GetActor()->GetMaterial()->SetMaterialProperties(lightMaterial);
 		m_Sphere->Accept(_pass);
 	}
 
@@ -835,7 +862,7 @@ void Lesson5::DrawLightMesh(SceneVisitor& _pass)
 
 		m_Cone->GetRootNode()->SetPosition(lightPos);
 		m_Cone->GetRootNode()->SetScale(Vector4(5, 5, 5, 0));
-		m_Cone->GetRootNode()->GetMesh()->GetMaterial()->SetMaterialProperties(lightMaterial);
+		m_Cone->GetRootNode()->GetActor()->GetMaterial()->SetMaterialProperties(lightMaterial);
 		m_Cone->Accept(_pass);
 	}
 }
@@ -913,13 +940,13 @@ void Lesson5::CreateGBufferRT()
 
 void Lesson5::DrawSphere(SceneVisitor& _pass, bool isNormal)
 {
-	if (isNormal)
+	/*if (isNormal)
 	{
-		m_Sphere->GetRootNode()->GetMesh()->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+		m_Sphere->GetRootNode()->GetActor()->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 	}
 	else
 	{
-		m_Sphere->GetRootNode()->GetMesh()->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		m_Sphere->GetRootNode()->GetActor()->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	}
 	int i = 0;
 	for (int x = -5; x < 6; x++)
@@ -930,11 +957,11 @@ void Lesson5::DrawSphere(SceneVisitor& _pass, bool isNormal)
 			m_Sphere->GetRootNode()->SetPosition(Vector4(x * 1.3, y * 1.3, 0, 0));
 			float roughness = Clamp(((x + 5.0f) / 10.0f), 0.0f, 0.99f);
 			float metallic = Clamp(((y + 5.0f) / 10.0f), 0.0f, 0.99f);
-			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetORMColor(Vector4(1, roughness, metallic, 1.0f));
-			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetDiffuseColor(Vector4(1.0,0,0,0));
+			m_Sphere->GetRootNode()->GetActor()->GetMaterial()->SetORMColor(Vector4(1, roughness, metallic, 1.0f));
+			m_Sphere->GetRootNode()->GetActor()->GetMaterial()->SetDiffuseColor(Vector4(1.0,0,0,0));
 			m_Sphere->Accept(_pass);
 		}
-	}
+	}*/
 }
 
 void Lesson5::BuildCubemapCamera()
@@ -1030,7 +1057,7 @@ void Lesson5::PreIrradiance(std::shared_ptr<CommandList> _commandList)
 	
 	m_PreCalPso = std::make_unique<SkyCubePSO>(m_Device, true);
 	//渲染环境图
-	cube->GetRootNode()->GetMesh()->GetMaterial()->SetTexture(Material::TextureType::Diffuse, m_CubeMap);
+	cube->GetRootNode()->GetActor()->GetMaterial()->SetTexture(Material::TextureType::Diffuse, m_CubeMap);
 	for (int i = 0; i < 6; i++)
 	{
 		//设置渲染目标
@@ -1094,7 +1121,7 @@ void Lesson5::Prefilter(std::shared_ptr<CommandList> _commandList)
 
 	FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
 
-	cube->GetRootNode()->GetMesh()->GetMaterial()->SetTexture(Material::TextureType::Diffuse, m_CubeMap);
+	cube->GetRootNode()->GetActor()->GetMaterial()->SetTexture(Material::TextureType::Diffuse, m_CubeMap);
 	for (auto mip = 0u; mip < 5; mip++)
 	{
 		UINT width = 128 * std::pow(0.5, mip);
@@ -1179,18 +1206,42 @@ void Lesson5::GUILayout(bool* _open)
 
 		if (m_Scene)
 		{// Left
-			static int selected = 0;
+			static int selectedNode = -1;
 			{
-				ImGui::BeginChild("left pane", ImVec2(150, 0), true);
-
-				for (int i = 0; i < m_Scene->GetRootNode()->GetSize(); i++)
+				ImGui::BeginChild("Node", ImVec2(150, 0), true);
+				int uu = m_Scene->GetRootNode()->GetChildCount();
+				for (int i = -1; i < uu; i++)
 				{
 					// FIXME: Good candidate to use ImGuiSelectableFlags_SelectOnNav
-					char label[128];
-					sprintf_s(label, "MyObject %d", i);
-					if (ImGui::Selectable(label, selected == i))
-						selected = i;
+					char name[128];
+					sprintf_s(name, "node %d", i);
+					//const char* name = m_Scene->GetRootNode()->GetChildNode(i)->GetName().c_str();
+					if (ImGui::Selectable(name, selectedNode == i))
+						selectedNode = i;
 				}
+				ImGui::EndChild();
+			}
+			ImGui::SameLine();
+
+			static int previousNode = -9;
+			static int selectMesh = 0;
+			{
+				ImGui::BeginChild("Mesh", ImVec2(200, 0), true);
+				for (int i = 0; i < m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActorCount(); i++)
+				{
+					// FIXME: Good candidate to use ImGuiSelectableFlags_SelectOnNav
+					char name[128];
+					sprintf_s(name, "mesh %d", i);
+					if (ImGui::Selectable(name, selectMesh == i))
+						selectMesh = i;
+
+					if (previousNode != selectedNode)
+					{
+						previousNode = selectedNode;
+						selectMesh = 0;
+					}
+				}
+
 				ImGui::EndChild();
 			}
 			ImGui::SameLine();
@@ -1198,16 +1249,24 @@ void Lesson5::GUILayout(bool* _open)
 			{
 				ImGui::BeginGroup();
 				ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
-				ImGui::Text("MyObject: %d", selected);
+				ImGui::Text("MyObject: %d", selectMesh);
 				ImGui::Separator();
 				if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_None))
 				{
 					if (ImGui::BeginTabItem("Material"))
 					{
 						static float color[4];
+						static float orm[4];
+						static float emissive[4];
+						BindMaterial(color, orm, emissive, m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActor(selectMesh));
+
 						ImGui::ColorEdit4("color", color);
-						Vector4 e = Vector4(color);
-						m_Scene->GetRootNode()->GetMesh(selected)->GetMaterial()->SetORMColor(e);
+						ImGui::ColorEdit4("orm", orm);
+						ImGui::ColorEdit4("emissive", emissive);
+
+						 m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActor(selectMesh)->GetMaterial()->SetDiffuseColor(Vector4(color));
+						 m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActor(selectMesh)->GetMaterial()->SetORMColor(Vector4(orm));
+						 m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActor(selectMesh)->GetMaterial()->SetEmissiveColor(Vector4(emissive));
 						ImGui::EndTabItem();
 					}
 					if (ImGui::BeginTabItem("Details"))
@@ -1215,15 +1274,15 @@ void Lesson5::GUILayout(bool* _open)
 						static float pos[4];
 						static float sacle[4];
 						static float rotation[4];
-						BindTransform(pos, rotation, sacle, m_Scene->GetRootNode());
+						BindTransform(pos, rotation, sacle,  m_Scene->GetRootNode()->GetChildNode(selectedNode));
 
 						ImGui::DragFloat3("pos", pos);
 						ImGui::DragFloat3("rotation", rotation);
 						ImGui::DragFloat3("sacle", sacle);
 
-						m_Scene->GetRootNode()->SetPosition(Vector4(pos));
-						m_Scene->GetRootNode()->SetRotation(Vector4(rotation));
-						m_Scene->GetRootNode()->SetScale(Vector4(sacle));
+						 m_Scene->GetRootNode()->GetChildNode(selectedNode)->SetPosition(Vector4(pos));
+						 m_Scene->GetRootNode()->GetChildNode(selectedNode)->SetRotation(Vector4(rotation));
+						 m_Scene->GetRootNode()->GetChildNode(selectedNode)->SetScale(Vector4(sacle));
 
 						ImGui::EndTabItem();
 					}
@@ -1235,6 +1294,141 @@ void Lesson5::GUILayout(bool* _open)
 		}
 	}
 	ImGui::End();
+}
+
+void Lesson5::GUITree(bool* _open)
+{
+	if (!ImGui::CollapsingHeader("Scene", _open))
+	{
+		return;
+	}
+		
+	static bool disable_all = false; // The Checkbox for that is inside the "Disabled" section at the bottom
+	if (disable_all)
+	{
+		ImGui::BeginDisabled();
+	}
+
+	if (ImGui::TreeNode("Advanced, with Selectable nodes"))
+	{
+
+		static ImGuiTreeNodeFlags base_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
+		static bool test_drag_and_drop = false;
+		ImGui::Checkbox("Test tree node as drag source", &test_drag_and_drop);
+		ImGui::Text("Hello!");
+
+		// 'selection_mask' is dumb representation of what may be user-side selection state.
+		//  You may retain selection state inside or outside your objects in whatever format you see fit.
+		// 'node_clicked' is temporary storage of what node we have clicked to process selection at the end
+		/// of the loop. May be a pointer to your own node type, etc.
+		static int selection_mask = (1 << 2);
+		int node_clicked = -1;
+		for (int i = 0; i < 6; i++)
+		{
+			// Disable the default "open on single-click behavior" + set Selected flag according to our selection.
+			// To alter selection we use IsItemClicked() && !IsItemToggledOpen(), so clicking on an arrow doesn't alter selection.
+			ImGuiTreeNodeFlags node_flags = base_flags;
+			const bool is_selected = (selection_mask & (1 << i)) != 0;
+			if (is_selected)
+				node_flags |= ImGuiTreeNodeFlags_Selected;
+			if (i < 3)
+			{
+				// Items 0..2 are Tree Node
+				bool node_open = ImGui::TreeNodeEx((void*)(intptr_t)i, node_flags, "Selectable Node %d", i);
+				if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
+					node_clicked = i;
+				if (test_drag_and_drop && ImGui::BeginDragDropSource())
+				{
+					ImGui::SetDragDropPayload("_TREENODE", NULL, 0);
+					ImGui::Text("This is a drag and drop source");
+					ImGui::EndDragDropSource();
+				}
+				if (node_open)
+				{
+					int subClicked = -1;
+					for (int j = 0; j < 3; j++)
+					{
+						bool subNode = ImGui::TreeNodeEx((void*)(intptr_t)j, ImGuiTreeNodeFlags_Selected, "Selectable Node %d", j);
+						if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
+							subClicked = j;
+						if (subNode)
+						{
+							ImGui::TreePop();
+						}
+
+					}
+					ImGui::TreePop();
+				}
+			}
+			else
+			{
+				// Items 3..5 are Tree Leaves
+				// The only reason we use TreeNode at all is to allow selection of the leaf. Otherwise we can
+				// use BulletText() or advance the cursor by GetTreeNodeToLabelSpacing() and call Text().
+				node_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen; // ImGuiTreeNodeFlags_Bullet
+				ImGui::TreeNodeEx((void*)(intptr_t)i, node_flags, "Selectable Leaf %d", i);
+				if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
+					node_clicked = i;
+				if (test_drag_and_drop && ImGui::BeginDragDropSource())
+				{
+					ImGui::SetDragDropPayload("_TREENODE", NULL, 0);
+					ImGui::Text("This is a drag and drop source");
+					ImGui::EndDragDropSource();
+				}
+			}
+		}
+		if (node_clicked != -1)
+		{
+			// Update selection state
+			// (process outside of tree loop to avoid visual inconsistencies during the clicking frame)
+			if (ImGui::GetIO().KeyCtrl)
+				selection_mask ^= (1 << node_clicked);          // CTRL+click to toggle
+			else //if (!(selection_mask & (1 << node_clicked))) // Depending on selection behavior you want, may want to preserve selection when clicking on item that is part of the selection
+				selection_mask = (1 << node_clicked);           // Click to single-select
+		}
+		ImGui::TreePop();
+	}
+
+
+	if (disable_all)
+		ImGui::EndDisabled();
+
+	if (ImGui::TreeNode("Disable block"))
+	{
+		ImGui::Checkbox("Disable entire section above", &disable_all);
+		ImGui::SameLine(); 
+		ImGui::TreePop();
+	}
+}
+
+void Lesson5::BuildScene()
+{
+	
+	int i = 0;
+	for (int x = -5; x < 6; x++)
+	{
+		for (int y = -5; y < 6; y++)
+		{
+			std::shared_ptr<SceneNode> node = std::make_shared<SceneNode>();
+			std::shared_ptr<Actor> actor = std::make_shared<Actor>();
+			auto mesh = m_Sphere->GetRootNode()->GetActor(0)->GetMesh();
+			actor->SetMesh(mesh);
+
+			float roughness = Clamp(((x + 5.0f) / 10.0f), 0.0f, 0.99f);
+			float metallic = Clamp(((y + 5.0f) / 10.0f), 0.0f, 0.99f);
+			MaterialProperties material = m_Sphere->GetRootNode()->GetActor()->GetMaterial()->GetMaterialProperties();
+			material.ORM = Vector4(1, roughness, metallic, 1.0f).GetFloat4();
+			material.Diffuse = Vector4(1.0, 0, 0, 0).GetFloat4();
+			actor->GetMaterial()->SetMaterialProperties(material);
+
+			node->AddActor(actor);
+			node->SetScale(Vector4(0.6, 0.6, 0.6, 0));
+			node->SetPosition(Vector4(x * 1.3, y * 1.3, 0, 0));
+
+			m_Scene->GetRootNode()->AddChild(node);
+			//m_Sphere->Accept(_pass);
+		}
+	}
 }
 
 void Lesson5::BindTransform(float* _pos, float* _rotation, float* _scale, std::shared_ptr<SceneNode> _node)
@@ -1250,5 +1444,23 @@ void Lesson5::BindTransform(float* _pos, float* _rotation, float* _scale, std::s
 	_scale[0] = _node->GetScale().GetX();
 	_scale[1] = _node->GetScale().GetY();
 	_scale[2] = _node->GetScale().GetZ();
+}
+
+void Lesson5::BindMaterial(float* _color, float* _orm, float* _emissive, std::shared_ptr<Actor> _actor)
+{
+	_color[0] = _actor->GetMaterial()->GetDiffuseColor().GetX();
+	_color[1] = _actor->GetMaterial()->GetDiffuseColor().GetY();
+	_color[2] = _actor->GetMaterial()->GetDiffuseColor().GetZ();
+	_color[3] = _actor->GetMaterial()->GetDiffuseColor().GetW();
+	
+	_orm[0] = _actor->GetMaterial()->GetORMColor().GetX();
+	_orm[1] = _actor->GetMaterial()->GetORMColor().GetY();
+	_orm[2] = _actor->GetMaterial()->GetORMColor().GetZ();
+	_orm[3] = _actor->GetMaterial()->GetORMColor().GetW();
+	
+	_emissive[0] = _actor->GetMaterial()->GetEmissiveColor().GetX();
+	_emissive[1] = _actor->GetMaterial()->GetEmissiveColor().GetY();
+	_emissive[2] = _actor->GetMaterial()->GetEmissiveColor().GetZ();
+	_emissive[3] = _actor->GetMaterial()->GetEmissiveColor().GetW();
 }
 

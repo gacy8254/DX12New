@@ -68,16 +68,6 @@ size_t Mesh::GetVertexCount() const
 	return vertexCount;
 }
 
-void Mesh::SetMaterial(std::shared_ptr<Material> material)
-{
-	m_Material = material;
-}
-
-std::shared_ptr<Material> Mesh::GetMaterial() const
-{
-	return m_Material;
-}
-
 void Mesh::Draw(CommandList& commandList, uint32_t instanceCount, uint32_t startInstance)
 {
 	commandList.SetPrimitiveTopology(GetPrimitiveTopology());
@@ -99,11 +89,6 @@ void Mesh::Draw(CommandList& commandList, uint32_t instanceCount, uint32_t start
 	{
 		commandList.Draw(vertexCount, instanceCount, 0u, startInstance);
 	}
-}
-
-void Mesh::Accept(Visitor& visitor)
-{
-	visitor.Visit(*this);
 }
 
 void Mesh::SetAABB(const DirectX::BoundingBox& aabb) {

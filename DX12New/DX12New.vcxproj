@@ -154,6 +154,7 @@
     <ClCompile Include="..\Imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="..\Imgui\imgui_tables.cpp" />
     <ClCompile Include="..\Imgui\imgui_widgets.cpp" />
+    <ClCompile Include="Actor.cpp" />
     <ClCompile Include="Adapter.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="BaseCamera.cpp" />
@@ -212,6 +213,7 @@
     <ClCompile Include="VertexType.cpp" />
     <ClCompile Include="Visitor.cpp" />
     <ClCompile Include="Window.cpp" />
+    <ClCompile Include="WireframePSO.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Imgui\imconfig.h" />
@@ -223,6 +225,7 @@
     <ClInclude Include="..\Imgui\imstb_textedit.h" />
     <ClInclude Include="..\Imgui\imstb_truetype.h" />
     <ClInclude Include="..\shaders\ShaderDefinition.h" />
+    <ClInclude Include="Actor.h" />
     <ClInclude Include="Adapter.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="BaseCamera.h" />
@@ -291,6 +294,7 @@
     <ClInclude Include="VertexType.h" />
     <ClInclude Include="Visitor.h" />
     <ClInclude Include="Window.h" />
+    <ClInclude Include="WireframePSO.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\shaders\Decal.hlsl">

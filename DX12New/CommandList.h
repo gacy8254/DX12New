@@ -10,7 +10,7 @@
 #include "Scene.h"
 #include "TextureUsage.hpp"
 #include "RootSignature.h"
-#include "Mesh.h"
+#include "Actor.h"
 #include "MeshHelper.h"
 #include "SceneNode.h"
 #include <functional>

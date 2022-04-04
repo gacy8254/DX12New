@@ -3,7 +3,7 @@
 #include "CommandList.h"
 #include "Device.h"
 #include "Material.h"
-#include "Mesh.h"
+#include "Actor.h"
 #include "SceneNode.h"
 #include "Texture.h"
 #include "VertexType.h"
@@ -154,7 +154,7 @@ void Scene::ImportScene(CommandList& _commandList, const aiScene& _scene, std::f
 
 	m_MaterilMap.clear();
 	m_MaterialList.clear();
-	m_Meshes.clear();
+	m_Actors.clear();
 
 	for (unsigned int i = 0; i < _scene.mNumMaterials; ++i)
 	{
@@ -313,12 +313,12 @@ void Scene::ImportMaterial(CommandList& _commandList, const aiMaterial& _materia
 
 void Scene::ImportMesh(CommandList& _commandList, const aiMesh& _mesh)
 {
-	auto mesh = std::make_shared<Mesh>();
+	auto actor = std::make_shared<Actor>();
 
 	std::vector<VertexPositionNormalTangentBitangentTexture> vertexData(_mesh.mNumVertices);
 
 	assert(_mesh.mMaterialIndex < m_MaterialList.size());
-	mesh->SetMaterial(m_MaterialList[_mesh.mMaterialIndex]);
+	actor->SetMaterial(m_MaterialList[_mesh.mMaterialIndex]);
 
 	unsigned int i;
 	if (_mesh.HasPositions())
@@ -356,7 +356,7 @@ void Scene::ImportMesh(CommandList& _commandList, const aiMesh& _mesh)
 	}
 
 	auto vertexBuffer = _commandList.CopyVertexBuffer(vertexData);
-	mesh->SetVertexBuffer(0, vertexBuffer);
+	actor->SetVertexBuffer(0, vertexBuffer);
 
 	if (_mesh.HasFaces())
 	{
@@ -375,13 +375,13 @@ void Scene::ImportMesh(CommandList& _commandList, const aiMesh& _mesh)
 		if (indices.size() > 0)
 		{
 			std::shared_ptr<IndexBuffer> indexBuffer = _commandList.CopyIndexBuffer(indices);
-			mesh->SetIndexBuffer(indexBuffer);
+			actor->SetIndexBuffer(indexBuffer);
 		}
 	}
 
-	mesh->SetAABB(CreateBoundingBox(_mesh.mAABB));
+	actor->SetAABB(CreateBoundingBox(_mesh.mAABB));
 
-	m_Meshes.push_back(mesh);
+	m_Actors.push_back(actor);
 }
 
 std::shared_ptr<SceneNode> Scene::ImportSceneNode(CommandList& _commandList, std::shared_ptr<SceneNode> _parent, const aiNode* _aiNode)
@@ -401,10 +401,10 @@ std::shared_ptr<SceneNode> Scene::ImportSceneNode(CommandList& _commandList, std
 
 	for (unsigned int i = 0; i < _aiNode->mNumMeshes; ++i)
 	{
-		assert(_aiNode->mMeshes[i] < m_Meshes.size());
+		assert(_aiNode->mMeshes[i] < m_Actors.size());
 
-		std::shared_ptr<Mesh> pMesh = m_Meshes[_aiNode->mMeshes[i]];
-		node->AddMesh(pMesh);
+		std::shared_ptr<Actor> pMesh = m_Actors[_aiNode->mMeshes[i]];
+		node->AddActor(pMesh);
 	}
 
 	for (unsigned int i = 0; i < _aiNode->mNumChildren; ++i)

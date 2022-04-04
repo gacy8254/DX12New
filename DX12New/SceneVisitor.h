@@ -11,7 +11,7 @@ class SceneVisitor :
 public:
     SceneVisitor(CommandList& _commandList, const BaseCamera& _camera, BasePSO& _pso, bool _transparent);
 
-    virtual void Visit(Mesh& _mesh) override;
+    virtual void Visit(Actor& _actor) override;
     virtual void Visit(SceneNode& sceneNode) override;
     virtual void Visit(Scene& scene) override;
 

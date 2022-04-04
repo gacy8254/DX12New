@@ -21,6 +21,7 @@
 #include "NormalVisualizePSO.h"
 #include "FinalLDRPSO.h"
 #include "IntegrateBRDFPSO.h"
+#include "WireframePSO.h"
 #include "GUI.h"
 
 #include <d3d12.h>
@@ -100,7 +101,13 @@ private:
 
     void GUILayout(bool* _open);
 
+    void GUITree(bool* _open);
+
+    void BuildScene();
+
     void BindTransform(float* _pos, float* _rotation, float* _scale, std::shared_ptr<SceneNode> _node);
+
+    void BindMaterial(float* _color, float* _orm, float* _emissive, std::shared_ptr<Actor> _mesh);
 
     //贴图
     std::shared_ptr<Texture> m_CubeMap;
@@ -125,6 +132,9 @@ private:
 
     std::unique_ptr<IntegrateBRDFPSO> m_IntegrateBRDFPSO;
 
+    std::unique_ptr<WireframePSO> m_WireframePSO;
+
+
     //设备
     std::shared_ptr<Device> m_Device;
     std::shared_ptr<SwapChain> m_SwapChain;
@@ -137,6 +147,7 @@ private:
     std::shared_ptr<Scene> m_Cube;
     std::shared_ptr<Scene> m_Cone;
     std::shared_ptr<Window> m_Window;
+
 
     //HDR渲染目标
     RenderTarget m_HDRRenderTarget;
@@ -164,6 +175,7 @@ private:
     int m_Width;
     int m_Height;
     bool m_VSync;
+    bool m_IsWireFrameMode = false;
 
 	// Define some lights.
 	std::vector<PointLight> m_PointLights;
