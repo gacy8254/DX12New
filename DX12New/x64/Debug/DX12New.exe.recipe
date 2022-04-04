@@ -58,10 +58,16 @@
       <FullPath>C:\Code\DX12New\x64\Debug\StandardVS.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Code\DX12New\x64\Debug\Unlit.cso</FullPath>
+      <FullPath>C:\Code\DX12New\x64\Debug\Unlit_PS.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Code\DX12New\x64\Debug\Unlit_PS.cso</FullPath>
+      <FullPath>C:\Code\DX12New\x64\Debug\ImGui_PS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\ImGui_VS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\NormalVisualize_PS.cso</FullPath>
     </ContentFile>
   </ContentFiles>
   <SatelliteDlls />

@@ -32,7 +32,7 @@ EffectPSO::EffectPSO(std::shared_ptr<Device> _device, bool _enableLighting, bool
 	}
 	else
 	{
-		ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\Unlit.cso", &pixelShaderBlob));
+		ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\Unlit_PS.cso", &pixelShaderBlob));
 	}
 
 	//设置根签名的标签,防止一些无必要的访问
@@ -46,11 +46,6 @@ EffectPSO::EffectPSO(std::shared_ptr<Device> _device, bool _enableLighting, bool
 	CD3DX12_ROOT_PARAMETER1 rootParameter[RootParameters::NumRootParameters];
 	rootParameter[RootParameters::MatricesCB].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
 	rootParameter[RootParameters::MaterialCB].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParameter[RootParameters::LightPropertiesCB].InitAsConstants(sizeof(LightProperties) / 4, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParameter[RootParameters::PointLights].InitAsShaderResourceView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParameter[RootParameters::SpotLights].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParameter[RootParameters::DirectionalLights].InitAsShaderResourceView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParameter[RootParameters::Textures].InitAsDescriptorTable(1, &descriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	CD3DX12_STATIC_SAMPLER_DESC anisotropicSampler(0, D3D12_FILTER_ANISOTROPIC);
 
@@ -137,44 +132,8 @@ void EffectPSO::Apply(CommandList& _commandList)
 			const auto materialProps = m_Material->GetMaterialProperties();
 
 			_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MaterialCB, materialProps);
-
-			//设置贴图
-			BindTexture(_commandList, 0, m_Material->GetTexture(Material::TextureType::AO), RootParameters::Textures);
-			BindTexture(_commandList, 1, m_Material->GetTexture(Material::TextureType::Emissive), RootParameters::Textures);
-			BindTexture(_commandList, 2, m_Material->GetTexture(Material::TextureType::Diffuse), RootParameters::Textures);
-			BindTexture(_commandList, 3, m_Material->GetTexture(Material::TextureType::Metaltic), RootParameters::Textures);
-			BindTexture(_commandList, 4, m_Material->GetTexture(Material::TextureType::Roughness), RootParameters::Textures);
-			BindTexture(_commandList, 5, m_Material->GetTexture(Material::TextureType::Normal), RootParameters::Textures);
-			BindTexture(_commandList, 6, m_Material->GetTexture(Material::TextureType::Bump), RootParameters::Textures);
-			BindTexture(_commandList, 7, m_Material->GetTexture(Material::TextureType::Opacity), RootParameters::Textures);
 		}
 	}
-
-	if (m_DirtyFlags & DF_PointLights)
-	{
-		_commandList.SetGraphicsDynamicStructuredBuffer(RootParameters::PointLights, m_PointLights);
-	}
-
-	if (m_DirtyFlags & DF_SpotLights)
-	{
-		_commandList.SetGraphicsDynamicStructuredBuffer(RootParameters::SpotLights, m_SpotLights);
-	}
-
-	if (m_DirtyFlags & DF_DirectionalLights)
-	{
-		_commandList.SetGraphicsDynamicStructuredBuffer(RootParameters::DirectionalLights, m_DirectionalLights);
-	}
-
-	if (m_DirtyFlags & (DF_PointLights | DF_SpotLights | DF_DirectionalLights))
-	{
-		LightProperties LightProps;
-		LightProps.NumPointLights = static_cast<uint32_t>(m_PointLights.size());
-		LightProps.NumSpotLights = static_cast<uint32_t>(m_SpotLights.size());
-		LightProps.NumDirectionalLights = static_cast<uint32_t>(m_DirectionalLights.size());
-
-		_commandList.SetGraphics32BitConstants(RootParameters::LightPropertiesCB, LightProps);
-	}
-
 	//清空标志
 	m_DirtyFlags = DF_None;
 }

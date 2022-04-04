@@ -20,15 +20,15 @@
 
 #pragma region Class adapters for std::make_shared
 
-//class MakeGUI : public GUI
-//{
-//public:
-//	MakeGUI(Device& device, HWND hWnd, const RenderTarget& renderTarget)
-//		: GUI(device, hWnd, renderTarget)
-//	{}
-//
-//	virtual ~MakeGUI() {}
-//};
+class MakeGUI : public GUI
+{
+public:
+	MakeGUI(Device& device, HWND hWnd, const RenderTarget& renderTarget)
+		: GUI(device, hWnd, renderTarget)
+	{}
+
+	virtual ~MakeGUI() {}
+};
 
 class MakeUnorderedAccessView : public UnorderedAccessView
 {
@@ -245,7 +245,7 @@ std::shared_ptr<SwapChain> Device::CreateSwapChain(HWND _hwnd, DXGI_FORMAT _back
 
 std::shared_ptr<GUI> Device::CreateGUI(HWND _hwnd, const RenderTarget& _rt)
 {
-	std::shared_ptr<GUI> gui = std::make_shared<GUI>();
+	std::shared_ptr<GUI> gui = std::make_shared<MakeGUI>(*this, _hwnd, _rt);
 
 	return gui;
 }

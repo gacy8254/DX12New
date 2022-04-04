@@ -126,6 +126,9 @@ public:
 	const MaterialProperties& GetMaterialProperties() const;
 	void                      SetMaterialProperties(const MaterialProperties& materialProperties);
 
+	bool IsDirty() const { return m_MaterialDirty; }
+	void SetDirty(bool _v) { m_MaterialDirty = _v; }
+
     // Define some interesting materials.
 	static const MaterialProperties Zero;
 	static const MaterialProperties Red;
@@ -169,4 +172,6 @@ private:
 
 	MaterialPropertiesPtr m_MaterialProperties;
 	TextureMap            m_Textures;
+
+	bool m_MaterialDirty = true;
 };

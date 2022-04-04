@@ -33,9 +33,13 @@ namespace Transform
 
 	//根据rollPitchYaw计算旋转四元数
 	Vector4 QuaternionRotationRollPitchYaw(float _pitch, float _yaw, float _roll);
+	Vector4 QuaternionRotationRollPitchYaw(Vector4 _radians);
 
 	//计算缩放矩阵
 	Matrix4 MatrixScaling(float _x, float _y, float _z);
+
+	//计算缩放矩阵
+	Matrix4 MatrixScaling(Vector4 _scale);
 
 	//计算两个向量是否相等
 	bool Vector3Equal(Vector4 _v1, Vector4 _v2);
@@ -54,5 +58,8 @@ namespace Transform
 
 	//使用矩阵进行旋转缩放变化,忽略矩阵的位移部分
 	Vector4 Vector3TransformNormal(Vector4 _v, Matrix4 _mat);
+
+	//将角度制转换为弧度
+	Vector4 ConvertToRadians(Vector4 _angle);
 }
 

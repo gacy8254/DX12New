@@ -4,6 +4,7 @@
 #include <d3dcompiler.h>
 
 #include <wrl/client.h>
+#include <iostream>
 
 using namespace Microsoft::WRL;
 using namespace DirectX;
@@ -171,14 +172,14 @@ void DeferredGBufferPSO::Apply(CommandList& _commandList)
 		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MatricesCB, m);
 	}
 
-	if (m_DirtyFlags & DF_Material)
+	if (m_DirtyFlags & DF_Material || m_Material->IsDirty())
 	{
 		if (m_Material)
 		{
 			const auto materialProps = m_Material->GetMaterialProperties();
 
 			_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MaterialCB, materialProps);
-
+			//std::cout << m_Material->IsDirty() << std::endl;
 			//ÉèÖÃÌùÍ¼
 			BindTexture(_commandList, 0, m_Material->GetTexture(Material::TextureType::AO), RootParameters::Textures);
 			BindTexture(_commandList, 1, m_Material->GetTexture(Material::TextureType::Emissive), RootParameters::Textures);
@@ -188,6 +189,8 @@ void DeferredGBufferPSO::Apply(CommandList& _commandList)
 			BindTexture(_commandList, 5, m_Material->GetTexture(Material::TextureType::Normal), RootParameters::Textures);
 			BindTexture(_commandList, 6, m_Material->GetTexture(Material::TextureType::Bump), RootParameters::Textures);
 			BindTexture(_commandList, 7, m_Material->GetTexture(Material::TextureType::Opacity), RootParameters::Textures);
+
+			m_Material->SetDirty(false);
 		}
 	}
 

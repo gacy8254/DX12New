@@ -51,9 +51,19 @@ Vector4 Transform::QuaternionRotationRollPitchYaw(float _pitch, float _yaw, floa
 	return Vector4(XMQuaternionRotationRollPitchYaw(_pitch, _yaw, _roll));
 }
 
+Vector4 Transform::QuaternionRotationRollPitchYaw(Vector4 _radians)
+{
+	return Vector4(XMQuaternionRotationRollPitchYaw(_radians.GetX(), _radians.GetY(), _radians.GetZ()));
+}
+
 Matrix4 Transform::MatrixScaling(float _x, float _y, float _z)
 {
 	return Matrix4(XMMatrixScaling(_x, _y, _z));
+}
+
+Matrix4 Transform::MatrixScaling(Vector4 _scale)
+{
+	return Matrix4(XMMatrixScalingFromVector(_scale));
 }
 
 bool Transform::Vector3Equal(Vector4 _v1, Vector4 _v2)
@@ -84,5 +94,13 @@ Matrix4 Transform::MatrixRotationX(float _angle)
 Vector4 Transform::Vector3TransformNormal(Vector4 _v, Matrix4 _mat)
 {
 	return Vector4(XMVector3TransformNormal(_v, _mat));
+}
+
+Vector4 Transform::ConvertToRadians(Vector4 _angle)
+{
+	return Vector4(DirectX::XMConvertToRadians(_angle.GetX()),
+		DirectX::XMConvertToRadians(_angle.GetY()),
+		DirectX::XMConvertToRadians(_angle.GetZ()),
+		0);
 }
 

@@ -17,7 +17,7 @@ NormalVisualizePSO::NormalVisualizePSO(std::shared_ptr<Device> _device)
 	ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\NormalVisualize_GS.cso", &geometryShaderBlob));
 
 	ComPtr<ID3DBlob> pixelShaderBlob;
-	ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\Unlit_PS.cso", &pixelShaderBlob));
+	ThrowIfFailed(D3DReadFileToBlob(L"C:\\Code\\DX12New\\x64\\Debug\\NormalVisualize_PS.cso", &pixelShaderBlob));
 
 
 	//设置根签名的标签,防止一些无必要的访问

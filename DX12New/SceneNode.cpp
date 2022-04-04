@@ -10,6 +10,9 @@ SceneNode::SceneNode(const Matrix4& _localTransform /*= Matrix4Identity()*/)
 {
 	m_AlignedData = (AlignedData*)_aligned_malloc(sizeof(AlignedData), 16);
 	m_AlignedData->m_LocalTransform = _localTransform;
+	m_AlignedData->m_Rotation = Vector4(Tag::ZERO);
+	m_AlignedData->m_Scale = Vector4(Tag::ONE);
+	m_AlignedData->m_Translate = Vector4(Tag::ONE);
 	m_AlignedData->m_InverseTransform = Transform::InverseMatrix(nullptr, _localTransform);
 }
 
@@ -30,6 +33,10 @@ void SceneNode::SetName(const std::string& _name)
 
 Matrix4 SceneNode::GetLocalTransform() const
 {
+	if (m_DirtyData)
+	{
+		UpdateLocalTransform();
+	}
 	return m_AlignedData->m_LocalTransform;
 }
 
@@ -46,12 +53,49 @@ Matrix4 SceneNode::GetInverseLocalTransform() const
 
 Matrix4 SceneNode::GetWorldTransform() const
 {
+	if (m_DirtyData)
+	{
+		UpdateLocalTransform();
+	}
 	return m_AlignedData->m_LocalTransform * GetParentWorldTransform();
 }
 
 Matrix4 SceneNode::GetInverseWorldTransform() const
 {
 	return Transform::InverseMatrix(nullptr, GetWorldTransform());
+}
+
+Vector4 SceneNode::GetPosition() const
+{
+	return m_AlignedData->m_Translate;
+}
+
+void SceneNode::SetPosition(Vector4 _pos)
+{
+	m_AlignedData->m_Translate = _pos;
+	m_DirtyData = true;
+}
+
+Vector4 SceneNode::GetRotation() const
+{
+	return m_AlignedData->m_Rotation;
+}
+
+void SceneNode::SetRotation(Vector4 _rotation)
+{
+	m_AlignedData->m_Rotation = _rotation;
+	m_DirtyData = true;
+}
+
+Vector4 SceneNode::GetScale() const
+{
+	return m_AlignedData->m_Scale;
+}
+
+void SceneNode::SetScale(Vector4 _scale)
+{
+	m_AlignedData->m_Scale = _scale;
+	m_DirtyData = true;
 }
 
 void SceneNode::AddChild(std::shared_ptr<SceneNode> childNode)
@@ -201,6 +245,11 @@ void SceneNode::Accept(Visitor& _visitor)
 	}
 }
 
+size_t SceneNode::GetSize()
+{
+	return m_Meshes.size();
+}
+
 Matrix4 SceneNode::GetParentWorldTransform() const
 {
 	Matrix4 parentTransform = Matrix4();
@@ -210,4 +259,18 @@ Matrix4 SceneNode::GetParentWorldTransform() const
 	}
 
 	return parentTransform;
+}
+
+void SceneNode::UpdateLocalTransform() const
+{
+	if (m_DirtyData)
+	{
+		Matrix4 translate = Transform::MatrixTranslateFromVector(m_AlignedData->m_Translate);
+		Vector4 quaternion = Transform::QuaternionRotationRollPitchYaw(Transform::ConvertToRadians(m_AlignedData->m_Rotation));
+		Matrix4 rotation = Transform::MatrixRotationQuaternion(quaternion);
+		Matrix4 scale = Transform::MatrixScaling(m_AlignedData->m_Scale);
+
+		m_AlignedData->m_LocalTransform = scale * rotation * translate;
+		m_AlignedData->m_InverseTransform = Transform::InverseMatrix(nullptr, m_AlignedData->m_LocalTransform);
+	}
 }

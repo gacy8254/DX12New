@@ -125,3 +125,19 @@ D3D12_RECT RenderTarget::GetScissorRect()
 
 	return resc;
 }
+
+DXGI_SAMPLE_DESC RenderTarget::GetSamplerDesc() const
+{
+	DXGI_SAMPLE_DESC sampleDesc = { 1, 0 };
+	for (int i = AttachmentPoint::Color0; i <= AttachmentPoint::Color7; ++i)
+	{
+		auto texture = m_Textures[i];
+		if (texture)
+		{
+			sampleDesc = texture->GetResourceDesc().SampleDesc;
+			break;
+		}
+	}
+
+	return sampleDesc;
+}

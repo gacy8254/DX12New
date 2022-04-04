@@ -26,6 +26,7 @@ public:
 	};
 
 	CameraController(BaseCamera& _camera);
+	virtual ~CameraController();
 
 	//重置为默认视角
 	void ResetView();

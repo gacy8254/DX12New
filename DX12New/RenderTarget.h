@@ -59,6 +59,8 @@ public:
 
 	D3D12_RECT GetScissorRect();
 
+	DXGI_SAMPLE_DESC GetSamplerDesc() const;
+
 private:
 	using RenderTargetList = std::vector<std::shared_ptr<Texture>>;
 

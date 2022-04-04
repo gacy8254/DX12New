@@ -28,8 +28,6 @@ Matrix4 XM_CALLCONV LookAtMatrix(Vector4 _position, Vector4 _direction, Vector4 
 	return M;
 }
 
-
-
 Lesson5::Lesson5(const std::wstring& _name, int _width, int _height, bool _vSync /*= false*/)
 	:m_ScissorRect{0, 0, LONG_MAX, LONG_MAX},
 	m_Viewport(CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(_width), static_cast<float>(_height))),
@@ -45,6 +43,7 @@ Lesson5::Lesson5(const std::wstring& _name, int _width, int _height, bool _vSync
 	m_FPS(0.0f),
 	m_CameraController(m_Camera)
 {
+	Vector4 a = Vector4(1.0, 1.0, 1.0, 1.0);
 #if defined(_DEBUG)
 	Device::EnableDebufLayer();
 #endif
@@ -57,11 +56,11 @@ Lesson5::Lesson5(const std::wstring& _name, int _width, int _height, bool _vSync
 	m_Window->KeyPressed += KeyboardEvent::slot(&Lesson5::OnKeyPressed, this);
 	m_Window->KeyReleased += KeyboardEvent::slot(&Lesson5::OnKeyReleased, this);
 	m_Window->MouseMoved += MouseMotionEvent::slot(&Lesson5::OnMouseMoved, this);
+	 
 }
 
 Lesson5::~Lesson5()
 {
-	std::cout << "5析构" << std::endl;
 }
 
 uint32_t Lesson5::Run()
@@ -85,11 +84,13 @@ void Lesson5::LoadContent()
 	m_Device = Device::Create();
 	m_SwapChain = m_Device->CreateSwapChain(m_Window->GetWindowHandle(), DXGI_FORMAT_R16G16B16A16_FLOAT);
 
-	// Start the loading task to perform async loading of the scene file.
+	//创建GUI
+	m_GUI = m_Device->CreateGUI(m_Window->GetWindowHandle(), m_SwapChain->GetRenderTarget());
+	Application::Get().WndProcHandler += WndProcEvent::slot(&GUI::WndProcHandler, m_GUI);
 
 	//LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\MaterialMesh.FBX");
-	LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj");
-
+	//LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj");
+	m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj"));
 
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
 	auto commandList = commandQueue.GetCommandList();
@@ -101,8 +102,6 @@ void Lesson5::LoadContent()
 	desc.Width = 1024;
 	desc.DepthOrArraySize = 6;
 	desc.MipLevels = 6;
-
-	m_LUT = commandList->LoadTextureFromFile(L"C:\\Code\\DX12New\\Assets\\Textures\\lut.tga", false);
 
 	m_CubeMap = m_Device->CreateTexture(desc, true);
 	
@@ -261,12 +260,12 @@ void Lesson5::OnUpdate(UpdateEventArgs& e)
 	m_DeferredLightingPso->SetDirectionalLights(m_DirectionalLights);
 	m_DeferredLightingPso->SetSpotLights(m_SpotLights);
 
-	Matrix4 viewMatrix = m_Camera.GetViewMatrix();
+	Vector4 cameraPoint = m_Camera.GetFocalPoint();
 
-	Vector4 cameraPoint = Vector4(0, 0, 0, 1);
-	Matrix4 translationMatrix = Transform::MatrixTranslateFromVector(cameraPoint);
-	Matrix4 scaleMatrix = Transform::MatrixScaling(0.01f, 0.01f, 0.01f);
-	m_Axis->GetRootNode()->SetLocalTransform(scaleMatrix * translationMatrix);
+	m_Axis->GetRootNode()->SetScale(Vector4(0.3, 0.3, 0.3, 0));
+	m_Axis->GetRootNode()->SetPosition(Vector4(0,0,0,0));
+	//m_Axis->GetRootNode()->SetPosition(cameraPoint);
+	//m_Axis->GetRootNode()->SetScale(Vector4(0.1, 0.1, 0.1, 0));
 
 	m_SwapChain->WaitForSwapChain();
 
@@ -322,7 +321,7 @@ void Lesson5::OnRender()
 		IntegrateBRDF(commandList);
 		isfirst = false;
 	}
-	IntegrateBRDF(commandList);
+
 	const auto& rendertarget = m_IsLoading ? m_SwapChain->GetRenderTarget() : m_GBufferRenderTarget;
 
 	FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
@@ -354,6 +353,7 @@ void Lesson5::OnRender()
 
 		//渲染场景(GBUFFER  PASS)
 		m_Scene->Accept(opaquePass);
+		m_Axis->Accept(opaquePass);
 		m_Scene->Accept(transparentPass);
 
 		DrawSphere(opaquePass, false);
@@ -386,7 +386,8 @@ void Lesson5::OnRender()
 		commandList->TransitionBarrier(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		commandList->FlushResourceBarriers();
 
-		m_Axis->Accept(unlitPass);
+		
+	
 		DrawLightMesh(unlitPass);
 		m_Cube->Accept(skyBoxPass);
 		//DrawSphere(LinePass, true);
@@ -398,74 +399,195 @@ void Lesson5::OnRender()
 		m_LDRPSO->SetTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0));
 		m_LDRPSO->Apply(*commandList);
 		commandList->Draw(4);
+
+		const auto& rt = m_SwapChain->GetRenderTarget().GetTexture(AttachmentPoint::Color0);
+		commandList->CopyResource(rt, m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0));
 	}
-	
+	OnGUI(commandList, m_SwapChain->GetRenderTarget());
+
 	commandQueue.ExecuteCommandList(commandList);
 
-	m_SwapChain->Present(m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0));
+	m_SwapChain->Present();
 }
 
 void Lesson5::OnKeyPressed(KeyEventArgs& e)
 {
-	switch (e.Key)
+	if (!ImGui::GetIO().WantCaptureKeyboard)
 	{
-	case KeyCode::Escape:
-		Application::Get().Stop();
-		break;
-	case KeyCode::Space:
-		m_AnimateLights = !m_AnimateLights;
-		break;
-	case KeyCode::Enter:
-		if (e.Alt)
+		switch (e.Key)
 		{
-	case KeyCode::F11:
-		if (m_AllowFullscreenToggle)
-		{
-			m_Fullscreen = !m_Fullscreen;  // Defer window resizing until OnUpdate();
-			// Prevent the key repeat to cause multiple resizes.
-			m_AllowFullscreenToggle = false;
+		case KeyCode::Escape:
+			Application::Get().Stop();
+			break;
+		case KeyCode::Space:
+			m_AnimateLights = !m_AnimateLights;
+			break;
+		case KeyCode::Enter:
+			if (e.Alt)
+			{
+		case KeyCode::F11:
+			if (m_AllowFullscreenToggle)
+			{
+				m_Fullscreen = !m_Fullscreen;  // Defer window resizing until OnUpdate();
+				// Prevent the key repeat to cause multiple resizes.
+				m_AllowFullscreenToggle = false;
+			}
+			break;
+			}
+		case KeyCode::V:
+			m_SwapChain->ToggleVSync();
+			break;
+		case KeyCode::R:
+			m_CameraController.ResetView();
+			break;
+		case KeyCode::O:
+			if (e.Control)
+			{
+				OpenFile();
+			}
+			break;
 		}
-		break;
-		}
-	case KeyCode::V:
-		m_SwapChain->ToggleVSync();
-		break;
-	case KeyCode::R:
-		m_CameraController.ResetView();
-		break;
-	case KeyCode::O:
-		if (e.Control)
-		{
-			OpenFile();
-		}
-		break;
 	}
+
 }
 
 void Lesson5::OnKeyReleased(KeyEventArgs& e)
 {
-	switch (e.Key)
+	if (!ImGui::GetIO().WantCaptureKeyboard)
 	{
-	case KeyCode::Enter:
-		if (e.Alt)
+		switch (e.Key)
 		{
-	case KeyCode::F11:
-		m_AllowFullscreenToggle = true;
+		case KeyCode::Enter:
+			if (e.Alt)
+			{
+		case KeyCode::F11:
+			m_AllowFullscreenToggle = true;
+			}
+			break;
 		}
-		break;
 	}
 }
-
+	
 void Lesson5::OnMouseMoved(MouseMotionEventArgs& e)
 {
+	if (!ImGui::GetIO().WantCaptureMouse){}
 }
 
 void Lesson5::OnDPIScaleChanged(DPIScaleEventArgs& e)
 {
+	m_GUI->SetScaling(e.DPIScale);
 }
 
 void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const RenderTarget& renderTarget)
 {
+	m_GUI->NewFrame();
+	static bool show_demo_window = false;
+	static bool showDetail = false;
+	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+	//进度条
+	if (m_IsLoading)
+	{
+		ImGui::SetNextWindowPos(ImVec2(m_Window->GetWidth() / 2.0f, m_Window->GetHeight() / 2.0f), 0, ImVec2(0.5f, 0.5f));
+
+		ImGui::SetNextWindowSize(ImVec2(m_Window->GetWidth() / 2.0f, 0.0f));
+
+		ImGui::Begin("Loading", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
+
+		ImGui::ProgressBar(m_LoadingProgress);
+		ImGui::Text(m_LoadingText.c_str());
+
+		if (!m_CancelLoading)
+		{
+			if (ImGui::Button("cancel"))
+			{
+				m_CancelLoading = true;
+			}
+		}
+		else
+		{
+			ImGui::Text("Cancel Loading....");
+		}
+
+		ImGui::End();
+	}
+	
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::MenuItem("Open file...", "Ctrl+O", nullptr, !m_IsLoading))
+			{
+				m_ShowFileOpenDialog = true;
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Exit", "Esc"))
+			{
+				Application::Get().Stop();
+			}
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("View"))
+		{
+			ImGui::MenuItem("show_demo", nullptr, &show_demo_window);
+			ImGui::MenuItem("Detail", nullptr, &showDetail);
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("Options"))
+		{
+			bool vSync = m_SwapChain->GetVSync();
+			if (ImGui::MenuItem("V-Sync", "V", &vSync))
+			{
+				m_SwapChain->SetVSync(vSync);
+			}
+
+			bool fullscreen = m_Window->IsFullScreen();
+			if (ImGui::MenuItem("Full screen", "Alt+Enter", &fullscreen))
+			{
+				m_Fullscreen = fullscreen;
+			}
+
+			ImGui::MenuItem("Animate Lights", "Space", &m_AnimateLights);
+
+			bool invertY = m_CameraController.IsInverseY();
+			if (ImGui::MenuItem("Inverse Y", nullptr, &invertY))
+			{
+				m_CameraController.SetInverseY(invertY);
+			}
+			if (ImGui::MenuItem("Reset view", "R"))
+			{
+				m_CameraController.ResetView();
+			}
+
+			ImGui::EndMenu();
+		}
+
+		char buffer[256];
+		{
+			sprintf_s(buffer, _countof(buffer), "FPS: %.2f (%.2f ms)  ", m_FPS, 1.0 / m_FPS * 1000.0);
+			auto fpsTextSize = ImGui::CalcTextSize(buffer);
+			ImGui::SameLine(ImGui::GetWindowWidth() - fpsTextSize.x);
+			ImGui::Text(buffer);
+		}
+
+		ImGui::EndMainMenuBar();
+	}
+
+	if (show_demo_window)
+	{ 
+		ImGui::ShowDemoWindow(&show_demo_window);	
+	}
+	
+	if (showDetail)
+	{
+		GUILayout(&showDetail);
+	}
+	
+
+	// Rendering
+	m_GUI->Render(commandList, renderTarget);
 }
 
 bool Lesson5::LoadScene(const std::wstring& sceneFile)
@@ -484,18 +606,9 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 
 	if (scene)
 	{
-		//缩放场景,以适合摄像机时锥
-		DirectX::BoundingSphere s;
-		BoundingSphere::CreateFromBoundingBox(s, scene->GetAABB());
-		auto scale = 1.0f / (s.Radius * 2.0f);
-		s.Radius *= scale;
-
-		Vector4 qu = Transform::QuaternionRotationRollPitchYaw(DirectX::XMConvertToRadians(0), 0, 0);
-		auto trans = Transform::MatrixTranslateFromVector(Vector4(0, 0, -5,0));
-		auto scal = Transform::MatrixScaling(0.01, 0.01, 0.01);
-		auto rota = Transform::MatrixRotationQuaternion(qu);
-		auto o = rota * scal * trans;
-		scene->GetRootNode()->SetLocalTransform(o);
+		scene->GetRootNode()->SetPosition(Vector4(0, -10, 0, 0));
+		//scene->GetRootNode()->SetRotation(Vector4(0, -10, 0, 0));
+		scene->GetRootNode()->SetScale(Vector4(0.5, 0.5, 0.5, 0));
 
 		m_Scene = scene;
 	}
@@ -702,33 +815,26 @@ void Lesson5::DrawLightMesh(SceneVisitor& _pass)
 	MaterialProperties lightMaterial = Material::Black;
 	for (const auto& l : m_PointLights)
 	{
-		lightMaterial.Emissive = l.Color;
+		lightMaterial.Diffuse = l.Color;
 		auto lightPos = Vector4(l.PositionWS);
-		auto transform = Transform::MatrixTranslateFromVector(lightPos);
 
-		Matrix4 scale = Transform::MatrixScaling(0.1, 0.1, 0.1);
-		auto o = scale * transform;
-		m_Sphere->GetRootNode()->SetLocalTransform(o);
-
-		//m_Sphere->GetRootNode()->SetLocalTransform(worldMatrix);
+		m_Sphere->GetRootNode()->SetPosition(lightPos);
+		m_Sphere->GetRootNode()->SetScale(Vector4(0.5, 0.5, 0.5, 0));
 		m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetMaterialProperties(lightMaterial);
 		m_Sphere->Accept(_pass);
 	}
 
 	for (const auto& l : m_SpotLights)
 	{
-		lightMaterial.Emissive = l.Color;
+		lightMaterial.Diffuse = l.Color;
 		Vector4 lightPos = Vector4(l.PositionWS);
 		Vector4 lightDir = Vector4(l.DirectionWS);
 		Vector4 up = Vector4(0, 1, 0, 0);
 
 		// Rotate the cone so it is facing the Z axis.
 
-		auto scale = Transform::MatrixScaling(1, 1, 1);
-		auto rotationMatrix = Transform::MatrixRotationX(XMConvertToRadians(-90.0f));
-		auto worldMatrix = scale * rotationMatrix * LookAtMatrix(lightPos, lightDir, up);
-
-		m_Cone->GetRootNode()->SetLocalTransform(worldMatrix);
+		m_Cone->GetRootNode()->SetPosition(lightPos);
+		m_Cone->GetRootNode()->SetScale(Vector4(5, 5, 5, 0));
 		m_Cone->GetRootNode()->GetMesh()->GetMaterial()->SetMaterialProperties(lightMaterial);
 		m_Cone->Accept(_pass);
 	}
@@ -820,19 +926,15 @@ void Lesson5::DrawSphere(SceneVisitor& _pass, bool isNormal)
 	{
 		for (int y = -5; y < 6; y++)
 		{
-			Matrix4 scale = Transform::MatrixScaling(0.6, 0.6, 0.6);
-			Matrix4 transform = Transform::MatrixTranslateFromVector(Vector4(x * 1.3, y * 1.3, 0, 0));
-			auto o = scale * transform;
-			m_Sphere->GetRootNode()->SetLocalTransform(o);
+			m_Sphere->GetRootNode()->SetScale(Vector4(0.6, 0.6, 0.6, 0));
+			m_Sphere->GetRootNode()->SetPosition(Vector4(x * 1.3, y * 1.3, 0, 0));
 			float roughness = Clamp(((x + 5.0f) / 10.0f), 0.0f, 0.99f);
 			float metallic = Clamp(((y + 5.0f) / 10.0f), 0.0f, 0.99f);
 			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetORMColor(Vector4(1, roughness, metallic, 1.0f));
-			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetDiffuseColor(Vector4(1.0f, 0.0, 0.0, 0));
+			m_Sphere->GetRootNode()->GetMesh()->GetMaterial()->SetDiffuseColor(Vector4(1.0,0,0,0));
 			m_Sphere->Accept(_pass);
 		}
 	}
-	
-	
 }
 
 void Lesson5::BuildCubemapCamera()
@@ -1057,3 +1159,96 @@ void Lesson5::IntegrateBRDF(std::shared_ptr<CommandList> _commandList)
 	m_IntegrateBRDFPSO->Apply(*_commandList);
 	_commandList->Draw(4);
 }
+
+void Lesson5::GUILayout(bool* _open)
+{
+	//std::cout << *_open << std::endl;
+	ImGui::SetNextWindowSize(ImVec2(500, 440), ImGuiCond_FirstUseEver);
+	bool b = ImGui::Begin("Example: Simple layout", _open, ImGuiWindowFlags_MenuBar);
+	if (b)
+	{
+		if (ImGui::BeginMenuBar())
+		{
+			if (ImGui::BeginMenu("File"))
+			{
+				if (ImGui::MenuItem("Close")) *_open = false;
+				ImGui::EndMenu();
+			}
+			ImGui::EndMenuBar();
+		}
+
+		if (m_Scene)
+		{// Left
+			static int selected = 0;
+			{
+				ImGui::BeginChild("left pane", ImVec2(150, 0), true);
+
+				for (int i = 0; i < m_Scene->GetRootNode()->GetSize(); i++)
+				{
+					// FIXME: Good candidate to use ImGuiSelectableFlags_SelectOnNav
+					char label[128];
+					sprintf_s(label, "MyObject %d", i);
+					if (ImGui::Selectable(label, selected == i))
+						selected = i;
+				}
+				ImGui::EndChild();
+			}
+			ImGui::SameLine();
+			// Right
+			{
+				ImGui::BeginGroup();
+				ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
+				ImGui::Text("MyObject: %d", selected);
+				ImGui::Separator();
+				if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_None))
+				{
+					if (ImGui::BeginTabItem("Material"))
+					{
+						static float color[4];
+						ImGui::ColorEdit4("color", color);
+						Vector4 e = Vector4(color);
+						m_Scene->GetRootNode()->GetMesh(selected)->GetMaterial()->SetORMColor(e);
+						ImGui::EndTabItem();
+					}
+					if (ImGui::BeginTabItem("Details"))
+					{
+						static float pos[4];
+						static float sacle[4];
+						static float rotation[4];
+						BindTransform(pos, rotation, sacle, m_Scene->GetRootNode());
+
+						ImGui::DragFloat3("pos", pos);
+						ImGui::DragFloat3("rotation", rotation);
+						ImGui::DragFloat3("sacle", sacle);
+
+						m_Scene->GetRootNode()->SetPosition(Vector4(pos));
+						m_Scene->GetRootNode()->SetRotation(Vector4(rotation));
+						m_Scene->GetRootNode()->SetScale(Vector4(sacle));
+
+						ImGui::EndTabItem();
+					}
+					ImGui::EndTabBar();
+				}
+				ImGui::EndChild();
+				ImGui::EndGroup();
+			}
+		}
+	}
+	ImGui::End();
+}
+
+void Lesson5::BindTransform(float* _pos, float* _rotation, float* _scale, std::shared_ptr<SceneNode> _node)
+{
+	_pos[0] = _node->GetPosition().GetX();
+	_pos[1] = _node->GetPosition().GetY();
+	_pos[2] = _node->GetPosition().GetZ();
+
+	_rotation[0] = _node->GetRotation().GetX();
+	_rotation[1] = _node->GetRotation().GetY();
+	_rotation[2] = _node->GetRotation().GetZ();
+
+	_scale[0] = _node->GetScale().GetX();
+	_scale[1] = _node->GetScale().GetY();
+	_scale[2] = _node->GetScale().GetZ();
+}
+

@@ -6,6 +6,8 @@
 #include "BaseCamera.h"
 #include "Transform.h"
 
+#include "imgui.h"
+
 inline double Lerp(float _v1, float _v2, float _t)
 {
 	return _v1 + _t * (_v2 - _v1);
@@ -73,6 +75,10 @@ CameraController::CameraController(BaseCamera& _camera)
 	ResetView();
 }
 
+CameraController::~CameraController()
+{
+}
+
 void CameraController::ResetView()
 {
 	m_X = m_Y = m_Z = m_PreviousYaw = m_PreviousPitch = 0.0f;
@@ -95,11 +101,19 @@ void CameraController::Update(UpdateEventArgs& _e)
 	float speedScale = m_KMInput->GetBool(Boost) ? 0.1f : 1.0f;
 	float rotationScale = m_KMInput->GetBool(Boost) ? 2.0f : 1.0f;
 
-	float x = m_KMInput->GetFloat(MoveX) * MOVE_SPEED * speedScale * _e.DeltaTime;
-	float y = m_KMInput->GetFloat(MoveY) * MOVE_SPEED * speedScale * _e.DeltaTime;
-	float z = m_KMInput->GetFloat(MoveZ) * MOVE_SPEED * speedScale * _e.DeltaTime;
-	float zoom = m_KMInput->GetBool(ZoomOut) ? 1.0f : 0.0f;
-	zoom -= m_KMInput->GetBool(ZoomIn) ? 1.0f : 0.0f;
+	float x	 = 0.0f;
+	float y	 = 0.0f;
+	float z	 = 0.0f;
+	float zoom = 0.0f;
+
+	if (!ImGui::GetIO().WantCaptureKeyboard && !ImGui::GetIO().WantCaptureMouse)
+	{
+		x = m_KMInput->GetFloat(MoveX) * MOVE_SPEED * speedScale * _e.DeltaTime;
+		y = m_KMInput->GetFloat(MoveY) * MOVE_SPEED * speedScale * _e.DeltaTime;
+		z = m_KMInput->GetFloat(MoveZ) * MOVE_SPEED * speedScale * _e.DeltaTime;
+		zoom = m_KMInput->GetBool(ZoomOut) ? 1.0f : 0.0f;
+		zoom -= m_KMInput->GetBool(ZoomIn) ? 1.0f : 0.0f;
+	}
 
 	Smooth(m_X, x, _e.DeltaTime);
 	Smooth(m_Y, y, _e.DeltaTime);
@@ -107,7 +121,7 @@ void CameraController::Update(UpdateEventArgs& _e)
 	
 	float pitch = 0.0f;
 	float yaw = 0.0f;
-	if (m_KMInput->GetBool(LMB))
+	if (m_KMInput->GetBool(LMB) && !ImGui::GetIO().WantCaptureMouse)
 	{
 		pitch = m_KMInput->GetFloatDelta(Pitch) * MOUSE_SENSITIVITY * rotationScale;
 		yaw = m_KMInput->GetFloatDelta(Yaw) * MOUSE_SENSITIVITY * rotationScale;

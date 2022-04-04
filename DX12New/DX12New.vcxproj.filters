@@ -25,12 +25,18 @@
     <Filter Include="Common\Shaders">
       <UniqueIdentifier>{64d9c211-9ccf-4917-9e96-9c428e2035ad}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Imgui">
+      <UniqueIdentifier>{307c1f4d-25da-4d4b-8d77-0e21d89b5507}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Imgui\Head">
+      <UniqueIdentifier>{4c797a2d-62da-423f-900e-10563f439558}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Imgui\Source">
+      <UniqueIdentifier>{6193e135-0137-441a-8a29-40388f10f76d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Lesson2.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Application.cpp">
@@ -114,13 +120,7 @@
     <ClCompile Include="Window.cpp">
       <Filter>Common\Resource</Filter>
     </ClCompile>
-    <ClCompile Include="Lesson3.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="PipelineStateStream.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Lesson5.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Adapter.cpp">
@@ -207,11 +207,32 @@
     <ClCompile Include="IntegrateBRDFPSO.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="..\Imgui\imgui_widgets.cpp">
+      <Filter>Imgui\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Imgui\imgui_tables.cpp">
+      <Filter>Imgui\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Imgui\imgui_impl_win32.cpp">
+      <Filter>Imgui\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Imgui\imgui_impl_dx12.cpp">
+      <Filter>Imgui\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Imgui\imgui_draw.cpp">
+      <Filter>Imgui\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Imgui\imgui_demo.cpp">
+      <Filter>Imgui\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Imgui\imgui.cpp">
+      <Filter>Imgui\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Lesson5.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Lesson2.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="Application.h">
       <Filter>Common\Head</Filter>
     </ClInclude>
@@ -307,9 +328,6 @@
     </ClInclude>
     <ClInclude Include="Window.h">
       <Filter>Common\Head</Filter>
-    </ClInclude>
-    <ClInclude Include="Lesson3.h">
-      <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="TextureUsage.hpp">
       <Filter>Common\Head</Filter>
@@ -422,6 +440,30 @@
     <ClInclude Include="..\shaders\ShaderDefinition.h">
       <Filter>Common\Shaders</Filter>
     </ClInclude>
+    <ClInclude Include="..\Imgui\imconfig.h">
+      <Filter>Imgui\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Imgui\imgui.h">
+      <Filter>Imgui\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Imgui\imgui_impl_dx12.h">
+      <Filter>Imgui\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Imgui\imgui_impl_win32.h">
+      <Filter>Imgui\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Imgui\imgui_internal.h">
+      <Filter>Imgui\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Imgui\imstb_rectpack.h">
+      <Filter>Imgui\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Imgui\imstb_textedit.h">
+      <Filter>Imgui\Head</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Imgui\imstb_truetype.h">
+      <Filter>Imgui\Head</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\shaders\HDR_PS.hlsl">
@@ -451,9 +493,6 @@
     <FxCompile Include="..\shaders\Decal.hlsl">
       <Filter>Common\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="..\shaders\Unlit.hlsl">
-      <Filter>Common\Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="..\shaders\GBuffer_PS.hlsl">
       <Filter>Common\Shaders</Filter>
     </FxCompile>
@@ -479,6 +518,15 @@
       <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\IntegrateBRDF.hlsl">
+      <Filter>Common\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="ImGui_VS.hlsl">
+      <Filter>Imgui</Filter>
+    </FxCompile>
+    <FxCompile Include="ImGui_PS.hlsl">
+      <Filter>Imgui</Filter>
+    </FxCompile>
+    <FxCompile Include="NormalVisualize_PS.hlsl">
       <Filter>Common\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

@@ -32,6 +32,7 @@ const Vector4& Material::GetAmbientColor() const
 void Material::SetAmbientColor( Vector4 ambient)
 {
 	m_MaterialProperties->Ambient = ambient.GetFloat4();
+	m_MaterialDirty = true;
 }
 
 const Vector4& Material::GetDiffuseColor() const
@@ -42,6 +43,7 @@ const Vector4& Material::GetDiffuseColor() const
 void Material::SetDiffuseColor(Vector4 diffuse)
 {
 	m_MaterialProperties->Diffuse = diffuse.GetFloat4();
+	m_MaterialDirty = true;
 }
 
 const Vector4& Material::GetEmissiveColor() const
@@ -52,6 +54,7 @@ const Vector4& Material::GetEmissiveColor() const
 void Material::SetEmissiveColor(Vector4 emissive)
 {
 	m_MaterialProperties->Emissive = emissive.GetFloat4();
+	m_MaterialDirty = true;
 }
 
 const Vector4& Material::GetORMColor() const
@@ -62,6 +65,7 @@ const Vector4& Material::GetORMColor() const
 void Material::SetORMColor(Vector4 _orm)
 {
 	m_MaterialProperties->ORM = _orm.GetFloat4();
+	m_MaterialDirty = true;
 }
 
 float Material::GetSpecularPower() const
@@ -72,6 +76,7 @@ float Material::GetSpecularPower() const
 void Material::SetSpecularPower(float specularPower)
 {
 	m_MaterialProperties->SpecularPower = specularPower;
+	m_MaterialDirty = true;
 }
 
 const Vector4& Material::GetReflectance() const
@@ -82,6 +87,7 @@ const Vector4& Material::GetReflectance() const
 void Material::SetReflectance(Vector4 reflectance)
 {
 	m_MaterialProperties->Reflectance = reflectance.GetFloat4();
+	m_MaterialDirty = true;
 }
 
 const float Material::GetOpacity() const
@@ -92,6 +98,7 @@ const float Material::GetOpacity() const
 void Material::SetOpacity(float opacity)
 {
 	m_MaterialProperties->Opacity = opacity;
+	m_MaterialDirty = true;
 }
 
 float Material::GetIndexOfRefraction() const
@@ -102,6 +109,7 @@ float Material::GetIndexOfRefraction() const
 void Material::SetIndexOfRefraction(float indexOfRefraction)
 {
 	m_MaterialProperties->IndexOfRefraction = indexOfRefraction;
+	m_MaterialDirty = true;
 }
 
 float Material::GetBumpIntensity() const
@@ -112,6 +120,7 @@ float Material::GetBumpIntensity() const
 void Material::SetBumpIntensity(float bumpIntensity)
 {
 	m_MaterialProperties->BumpIntensity = bumpIntensity;
+	m_MaterialDirty = true;
 }
 
 std::shared_ptr<Texture> Material::GetTexture(TextureType ID) const
@@ -172,6 +181,7 @@ void Material::SetTexture(TextureType type, std::shared_ptr<Texture> texture)
 	}
 	break;
 	}
+	m_MaterialDirty = true;
 }
 
 bool Material::IsTransparent() const
@@ -187,6 +197,7 @@ const MaterialProperties& Material::GetMaterialProperties() const
 void Material::SetMaterialProperties(const MaterialProperties& materialProperties)
 {
 	*m_MaterialProperties = materialProperties;
+	m_MaterialDirty = true;
 }
 
 const MaterialProperties Material::Zero = {

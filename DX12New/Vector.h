@@ -30,6 +30,7 @@ public:
 	inline Vector3(const DirectX::XMFLOAT3& _v) { m_Vec = DirectX::XMLoadFloat3(&_v); }
 	inline Vector3(const Vector3& _v) { m_Vec = _v.m_Vec; }
 	inline Vector3(const float _v) { m_Vec = DirectX::XMVectorReplicate(_v); }
+	inline Vector3(const float* _v) { m_Vec = DirectX::XMVectorSet(_v[0], _v[1], _v[2], _v[2]); }
 	inline explicit Vector3(Vector4 _v);
 	inline explicit Vector3(DirectX::FXMVECTOR _v) { m_Vec = _v; }
 
@@ -79,14 +80,17 @@ public:
 	inline Vector4(const DirectX::XMFLOAT4& _v) { m_Vec = DirectX::XMLoadFloat4(&_v); }
 	inline Vector4(const Vector4& _v) { m_Vec = _v.m_Vec; }
 	inline Vector4(const float _v) { m_Vec = DirectX::XMVectorReplicate(_v); }
+	inline Vector4(const float* _v) { m_Vec = DirectX::XMVectorSet(_v[0], _v[1], _v[2], _v[3]); }
 	inline explicit Vector4(Vector3 _v) { m_Vec = DirectX::XMVectorSelect(DirectX::g_XMIdentityR3, _v, DirectX::g_XMMask3); }
 	inline explicit Vector4(DirectX::FXMVECTOR _v) { m_Vec = _v; }
 
 	inline DirectX::XMFLOAT4 GetFloat4() 
 	{
-		DirectX::XMStoreFloat4(&m_VecFloat4, m_Vec);
-		return m_VecFloat4;
+		DirectX::XMFLOAT4 float4;
+		DirectX::XMStoreFloat4(&float4, m_Vec);
+		return float4;
 	}
+
 	inline DirectX::XMVECTOR* GetPoint() { return &m_Vec; }
 	inline float GetX() const { return DirectX::XMVectorGetX(m_Vec); }
 	inline float GetY() const { return DirectX::XMVectorGetY(m_Vec); }
@@ -122,6 +126,6 @@ public:
 
 private:
 	DirectX::XMVECTOR m_Vec;
-	DirectX::XMFLOAT4 m_VecFloat4;
+	//DirectX::XMFLOAT4 m_VecFloat4;
 };
 

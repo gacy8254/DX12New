@@ -1,4 +1,3 @@
-float4 main() : SV_TARGET
-{
-	return float4(1.0f, 1.0f, 1.0f, 1.0f);
-}
+#define ENABLE_LIGHTING 0
+
+#include "Base_PS.hlsli"

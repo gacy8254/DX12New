@@ -21,6 +21,7 @@
 #include "NormalVisualizePSO.h"
 #include "FinalLDRPSO.h"
 #include "IntegrateBRDFPSO.h"
+#include "GUI.h"
 
 #include <d3d12.h>
 #include <future>
@@ -97,11 +98,14 @@ private:
 
     void IntegrateBRDF(std::shared_ptr<CommandList> _commandList);
 
+    void GUILayout(bool* _open);
+
+    void BindTransform(float* _pos, float* _rotation, float* _scale, std::shared_ptr<SceneNode> _node);
+
     //ÌùÍ¼
     std::shared_ptr<Texture> m_CubeMap;
     std::shared_ptr<Texture> m_CubeMap1;
     std::shared_ptr<Texture> m_PrefilterCubeMap;
-    std::shared_ptr<Texture> m_LUT;
 
     //PSO
     std::unique_ptr<EffectPSO> m_UnlitPso;
@@ -180,5 +184,6 @@ private:
 	std::string       m_LoadingText;
 
 	float m_FPS;
+
 };
 
