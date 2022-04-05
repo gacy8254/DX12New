@@ -22,6 +22,7 @@
 #include "FinalLDRPSO.h"
 #include "IntegrateBRDFPSO.h"
 #include "WireframePSO.h"
+#include "TAAPSO.h"
 #include "GUI.h"
 
 #include <d3d12.h>
@@ -72,6 +73,9 @@ protected:
     void OnGUI(const std::shared_ptr<CommandList>& commandList, const RenderTarget& renderTarget);
 
 private:
+    void TAA(std::shared_ptr<CommandList> _commandList);
+
+
     //加载场景
     bool LoadScene(const std::wstring& sceneFile);
 
@@ -86,8 +90,6 @@ private:
     void DrawLightMesh(SceneVisitor& _pass);
 
     void CreateGBufferRT();
-
-    void DrawSphere(SceneVisitor& _pass, bool isNormal);
 
     //准备渲染立方体贴图所需的相机
     void BuildCubemapCamera();
@@ -133,6 +135,8 @@ private:
     std::unique_ptr<IntegrateBRDFPSO> m_IntegrateBRDFPSO;
 
     std::unique_ptr<WireframePSO> m_WireframePSO;
+    std::unique_ptr<TAAPSO> m_TAAPSO;
+    std::shared_ptr<Texture> m_HistoryTexture;
 
 
     //设备
@@ -147,10 +151,14 @@ private:
     std::shared_ptr<Scene> m_Cube;
     std::shared_ptr<Scene> m_Cone;
     std::shared_ptr<Window> m_Window;
+    std::shared_ptr<Scene> m_Screen;
 
 
     //HDR渲染目标
     RenderTarget m_HDRRenderTarget;
+
+    //TAA渲染目标,0是当前帧,1是历史帧
+    RenderTarget m_TAARenderTarget;
 
     //LDR渲染目标
     RenderTarget m_LDRRenderTarget;
@@ -180,10 +188,7 @@ private:
 	// Define some lights.
 	std::vector<PointLight> m_PointLights;
 	std::vector<SpotLight>  m_SpotLights;
-	std::vector<DirectionalLight> m_DirectionalLights;
-
-	// Rotate the lights in a circle.
-	bool m_AnimateLights;
+    std::vector<DirectionalLight> m_DirectionalLights;
 
 	bool              m_Fullscreen;
 	bool              m_AllowFullscreenToggle;
@@ -197,5 +202,31 @@ private:
 
 	float m_FPS;
 
+
+	// 8x TAA
+	inline static const double Halton_2[8] =
+	{
+		0.0,
+		-1.0 / 2.0,
+		1.0 / 2.0,
+		-3.0 / 4.0,
+		1.0 / 4.0,
+		-1.0 / 4.0,
+		3.0 / 4.0,
+		-7.0 / 8.0
+	};
+
+	// 8x TAA
+	inline static const double Halton_3[8] =
+	{
+		-1.0 / 3.0,
+		1.0 / 3.0,
+		-7.0 / 9.0,
+		-1.0 / 9.0,
+		5.0 / 9.0,
+		-5.0 / 9.0,
+		1.0 / 9.0,
+		7.0 / 9.0
+	};
 };
 

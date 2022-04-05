@@ -98,12 +98,12 @@ void NormalVisualizePSO::Apply(CommandList& _commandList)
 	//依次判断需要更新的属性,并绑定到渲染管线上
 	if (m_DirtyFlags & DF_ObjectCB)
 	{
-		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::ObjectCB, m_pAlignedObjectCB);
+		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::ObjectCB, *m_pAlignedObjectCB);
 	}
 
 	if (m_DirtyFlags & DF_MainPassCB)
 	{
-		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MainPassCB, m_pAlignedMainPassCB);
+		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MainPassCB, *m_pAlignedMainPassCB);
 	}
 
 	//清空标志

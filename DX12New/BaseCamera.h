@@ -27,7 +27,7 @@ public:
 	Matrix4 GetInserseProjMatrix() const;
 
 	//获取透视矩阵的逆
-	void SetUnjitteredProjMatrix(double _jitterX, double _jitterY);
+	void SetJitter(double _jitterX, double _jitterY);
 	Matrix4 GetUnjitteredInverseProjMatrix() const;
 	Matrix4 GetUnjitteredProjMatrix() const;
 
@@ -65,6 +65,7 @@ protected:
 	virtual void UpdateProjMatrix() const;
 	virtual void UpdateInverseProjMatrix() const;
 	virtual void UpdateUnjitteredProjMatrix() const;
+	virtual void UpdateUnjitteredInversedProjMatrix() const;
 
 	__declspec(align(16)) struct AlignedData
 	{
@@ -96,5 +97,7 @@ protected:
 	mutable bool m_ViewDirty = true, m_InverseViewDirty = true;
 	mutable bool m_ProjDirty = true, m_InverseProjDirty = true;
 	mutable bool m_UnjitterProjDirty = true, m_UnjitterInverseProjDirty = true;
+
+
 };
 

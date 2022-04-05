@@ -24,8 +24,8 @@ VertexOutput main(VertexInput IN)
 
     VSOUT.PositionVS = float4(IN.Position, 1.0f);
     VSOUT.NormalVS = IN.Normal;
-    VSOUT.ModelMat = ObjectCB.gWorld;
-    matrix mvp = mul(ObjectCB.gWorld, MainPassCB.gViewProj);
+    VSOUT.ModelMat = gWorld;
+    float4x4 mvp = mul(gViewProj, gWorld);
     VSOUT.ModelViewPorjMat = mvp;
 
     return VSOUT;

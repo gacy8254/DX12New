@@ -31,7 +31,6 @@ Matrix4 XM_CALLCONV LookAtMatrix(Vector4 _position, Vector4 _direction, Vector4 
 Lesson5::Lesson5(const std::wstring& _name, int _width, int _height, bool _vSync /*= false*/)
 	:m_ScissorRect{0, 0, LONG_MAX, LONG_MAX},
 	m_Viewport(CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(_width), static_cast<float>(_height))),
-	m_AnimateLights(false),
 	m_Fullscreen(false),
 	m_AllowFullscreenToggle(true),
 	m_Width(_width),
@@ -113,6 +112,7 @@ void Lesson5::LoadContent()
 	m_Cone = MeshHelper::CreateCone(commandList, 0.1f, 0.2f);
 	m_Cube = MeshHelper::CreateCube(commandList, 5000.0f, true);
 	m_Axis = commandList->LoadSceneFromFile(L"C:\\Code\\DX12New\\Assets\\Models\\axis_of_evil.nff");
+	m_Screen = commandList->LoadSceneFromFile(L"C:\\Code\\DX12New\\Assets\\Models\\ScreenPlane.FBX");
 
 	m_Axis->GetRootNode()->SetScale(Vector4(0.3, 0.3, 0.3, 0));
 	m_Axis->GetRootNode()->SetPosition(Vector4(0, 0, 0, 0));
@@ -135,6 +135,7 @@ void Lesson5::LoadContent()
 	m_LDRPSO = std::make_unique<FinalLDRPSO>(m_Device);
 
 	m_WireframePSO = std::make_unique<WireframePSO>(m_Device);
+	m_TAAPSO = std::make_unique<TAAPSO>(m_Device);
 
 	//构建灯光
 	BuildLighting(4, 1, 1);
@@ -276,7 +277,7 @@ void Lesson5::OnResize(ResizeEventArgs& e)
 	m_Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(m_Width), static_cast<float>(m_Height));
 
 	float aspect = m_Width / (float)m_Height;
-	m_Camera.SetProjection(45.0f, aspect, 0.1f, 1000.0f);
+	m_Camera.SetProjection(45.0f, aspect, 0.1f, 10000.0f);
 
 	m_HDRRenderTarget.Resize(m_Width, m_Height);
 	m_GBufferRenderTarget.Resize(m_Width, m_Height);
@@ -346,13 +347,17 @@ void Lesson5::OnRender()
 			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color4), clearColor);
 			commandList->ClearDepthStencilTexture(rendertarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 			commandList->SetRenderTarget(rendertarget);
+			
+			//抖动
+			UINT subsampleIndex = m_Window->GetFrameCount() % TAA_SAMPLE_COUNT;
+			double jitterX = Halton_2[subsampleIndex] / (double)m_Width * (double)TAA_JITTER_DISTANCE;
+			double jitterY = Halton_3[subsampleIndex] / (double)m_Height * (double)TAA_JITTER_DISTANCE;
+			m_Camera.SetJitter(jitterX, jitterY);
 
 			//渲染场景(GBUFFER  PASS)
 			m_Scene->Accept(opaquePass);
 
-			//m_Scene->Accept(transparentPass);
-
-			//DrawSphere(opaquePass, false);
+			m_Scene->Accept(transparentPass);
 
 			//计算光照(PBR PASS)
 			commandList->ClearTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
@@ -383,15 +388,18 @@ void Lesson5::OnRender()
 			commandList->TransitionBarrier(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 			commandList->FlushResourceBarriers();
 
-			//m_Axis->Accept(unlitPass);
-			//DrawLightMesh(unlitPass);
-			//m_Cube->Accept(skyBoxPass);
+			m_Axis->Accept(unlitPass);
+			DrawLightMesh(unlitPass);
+			m_Cube->Accept(skyBoxPass);
+
+			//TAA PASS
+			TAA(commandList);
 
 			//HDR转LDR
 			commandList->ClearTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
 			commandList->ClearDepthStencilTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 			commandList->SetRenderTarget(m_LDRRenderTarget);
-			m_LDRPSO->SetTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0));
+			m_LDRPSO->SetTexture(m_TAARenderTarget.GetTexture(AttachmentPoint::Color0));
 			m_LDRPSO->Apply(*commandList);
 			commandList->Draw(4);
 
@@ -404,7 +412,6 @@ void Lesson5::OnRender()
 			commandList->ClearDepthStencilTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 			commandList->SetRenderTarget(m_LDRRenderTarget);
 			m_Scene->Accept(WireFramePass);
-			DrawSphere(WireFramePass, false);
 			m_Axis->Accept(WireFramePass);
 			DrawLightMesh(WireFramePass);
 			m_Cube->Accept(WireFramePass);
@@ -431,7 +438,6 @@ void Lesson5::OnKeyPressed(KeyEventArgs& e)
 			Application::Get().Stop();
 			break;
 		case KeyCode::Space:
-			m_AnimateLights = !m_AnimateLights;
 			break;
 		case KeyCode::Enter:
 			if (e.Alt)
@@ -565,8 +571,6 @@ void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const Rende
 				m_Fullscreen = fullscreen;
 			}
 
-			ImGui::MenuItem("Animate Lights", "Space", &m_AnimateLights);
-
 			bool invertY = m_CameraController.IsInverseY();
 			if (ImGui::MenuItem("Inverse Y", nullptr, &invertY))
 			{
@@ -610,6 +614,60 @@ void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const Rende
 	m_GUI->Render(commandList, renderTarget);
 }
 
+void Lesson5::TAA(std::shared_ptr<CommandList> _commandList)
+{
+	FLOAT clearColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	static bool first = true;
+	if (first)
+	{
+		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
+
+		DXGI_SAMPLE_DESC sampleDesc = m_Device->GetMultisampleQualityLevels(backBufferFormat);
+
+		auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
+			0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+		colorDesc.MipLevels = 1;
+		D3D12_CLEAR_VALUE colorClearValue;
+		colorClearValue.Format = colorDesc.Format;
+		colorClearValue.Color[0] = 0.4f;
+		colorClearValue.Color[1] = 0.6f;
+		colorClearValue.Color[2] = 0.9f;
+		colorClearValue.Color[3] = 1.0f;
+
+		std::shared_ptr<Texture> colorTexture;
+		std::shared_ptr<Texture> colorTexture2;
+
+		colorTexture = m_Device->CreateTexture(colorDesc, false, &colorClearValue);
+		colorTexture->SetName(L"CurrentFrame");
+		colorTexture2 = m_Device->CreateTexture(colorDesc, false, &colorClearValue);
+		colorTexture2->SetName(L"HostoryFrame");
+
+		auto colorDesc1 = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
+			0, D3D12_RESOURCE_FLAG_NONE);
+		m_HistoryTexture = m_Device->CreateTexture(colorDesc1, false, nullptr);
+		m_HistoryTexture->SetName(L"HistoryTexture");
+
+		m_TAARenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
+		m_TAARenderTarget.AttachTexture(AttachmentPoint::Color1, colorTexture2);
+		first = false;
+	}
+
+	_commandList->ClearTexture(m_TAARenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
+	_commandList->ClearTexture(m_TAARenderTarget.GetTexture(AttachmentPoint::Color1), clearColor);
+	_commandList->SetRenderTarget(m_TAARenderTarget);
+
+	std::vector<std::shared_ptr<Texture>> taaTexture;
+	taaTexture.resize(TAAPSO::NumTextures);
+	taaTexture[TAAPSO::InputTexture] = m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0);
+	taaTexture[TAAPSO::HistoryTexture] = m_HistoryTexture;
+	m_TAAPSO->SetTexture(taaTexture);
+	SceneVisitor taaPass(*_commandList, m_Camera, *m_TAAPSO, *m_Window, false);
+	m_Screen->Accept(taaPass);
+
+	_commandList->CopyResource(m_HistoryTexture, m_TAARenderTarget.GetTexture(AttachmentPoint::Color0));
+}
+
 bool Lesson5::LoadScene(const std::wstring& sceneFile)
 {
 	//用于表示std:：bind的占位符参数
@@ -639,7 +697,7 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 		m_Scene->GetRootNode()->SetPosition(0,0,0);
 		m_Scene->GetRootNode()->SetRotation(0,0,0);
 		m_Scene->GetRootNode()->SetScale(1,1,1);
-		//BuildScene();
+		BuildScene();
 	}
 
 	commandQueue.ExecuteCommandList(commandList);
@@ -747,12 +805,6 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 	static const XMVECTORF32 LightColors[] = { Colors::Red,     Colors::Green,  Colors::Blue,   Colors::Cyan,
 											   Colors::Magenta, Colors::Yellow, Colors::Purple, Colors::White };
 
-	static float lightAnimTime = 0.0f;
-	if (m_AnimateLights)
-	{
-		//lightAnimTime += static_cast<float>(e.DeltaTime) * 0.5f * XM_PI;
-	}
-
 	// Spin the lights in a circle.
 	const float radius = 1.0f;
 	// Offset angle for light sources.
@@ -765,8 +817,6 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 	for (int i = 0; i < numPointLights; ++i)
 	{
 		PointLight& l = m_PointLights[i];
-
-		float angle = lightAnimTime + pointLightOffset * i;
 
 		if (i == 2)
 		{
@@ -802,8 +852,6 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 	{
 		SpotLight& l = m_SpotLights[i];
 
-		float angle = lightAnimTime + spotLightOffset * i + pointLightOffset / 2.0;
-
 		l.PositionWS = { 0, 8, 0, 1};
 		l.PositionVS = l.PositionWS;
 
@@ -825,8 +873,6 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 	for (int i = 0; i < numDirectionalLights; ++i)
 	{
 		DirectionalLight& l = m_DirectionalLights[i];
-
-		float angle = lightAnimTime + directionalLightOffset * i;
 
 		Vector4 directionWS = Vector4(1, 1, 1, 0);
 		Vector4 directionVS = directionWS;
@@ -939,32 +985,6 @@ void Lesson5::CreateGBufferRT()
 	depthTexture->SetName(L"Depth Render Target");
 
 	m_GBufferRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
-}
-
-void Lesson5::DrawSphere(SceneVisitor& _pass, bool isNormal)
-{
-	/*if (isNormal)
-	{
-		m_Sphere->GetRootNode()->GetActor()->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
-	}
-	else
-	{
-		m_Sphere->GetRootNode()->GetActor()->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	}
-	int i = 0;
-	for (int x = -5; x < 6; x++)
-	{
-		for (int y = -5; y < 6; y++)
-		{
-			m_Sphere->GetRootNode()->SetScale(Vector4(0.6, 0.6, 0.6, 0));
-			m_Sphere->GetRootNode()->SetPosition(Vector4(x * 1.3, y * 1.3, 0, 0));
-			float roughness = Clamp(((x + 5.0f) / 10.0f), 0.0f, 0.99f);
-			float metallic = Clamp(((y + 5.0f) / 10.0f), 0.0f, 0.99f);
-			m_Sphere->GetRootNode()->GetActor()->GetMaterial()->SetORMColor(Vector4(1, roughness, metallic, 1.0f));
-			m_Sphere->GetRootNode()->GetActor()->GetMaterial()->SetDiffuseColor(Vector4(1.0,0,0,0));
-			m_Sphere->Accept(_pass);
-		}
-	}*/
 }
 
 void Lesson5::BuildCubemapCamera()
@@ -1558,11 +1578,9 @@ void Lesson5::GUITree(bool* _open)
 
 void Lesson5::BuildScene()
 {
-	
-	int i = 0;
-	for (int x = -5; x < 6; x++)
+	for (int x = -5; x < 6; x+=2)
 	{
-		for (int y = -5; y < 6; y++)
+		for (int y = -5; y < 6; y+=2)
 		{
 			std::shared_ptr<SceneNode> node = std::make_shared<SceneNode>();
 			std::shared_ptr<Actor> actor = std::make_shared<Actor>();
@@ -1581,7 +1599,6 @@ void Lesson5::BuildScene()
 			node->SetPosition(Vector4(x * 1.3, y * 1.3, 0, 0));
 
 			m_Scene->GetRootNode()->AddChild(node);
-			//m_Sphere->Accept(_pass);
 		}
 	}
 }

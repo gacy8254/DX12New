@@ -234,6 +234,9 @@
     <ClCompile Include="Actor.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="TAAPSO.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
@@ -473,6 +476,9 @@
     <ClInclude Include="Actor.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="TAAPSO.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\shaders\HDR_PS.hlsl">
@@ -536,6 +542,12 @@
       <Filter>Imgui</Filter>
     </FxCompile>
     <FxCompile Include="NormalVisualize_PS.hlsl">
+      <Filter>Common\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\TAA_PS.hlsl">
+      <Filter>Common\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\ScreenPlane_VS.hlsl">
       <Filter>Common\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

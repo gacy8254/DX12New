@@ -39,7 +39,15 @@ void SceneVisitor::Visit(Actor& _actor)
 		m_LightingPSO.Apply(m_CommandList);
 
 		//Draw
-		_actor.Draw(m_CommandList);
+		
+		if (_actor.GetIndexCount() == 6)
+		{
+			m_CommandList.Draw(4);
+		}
+		else
+		{
+			_actor.Draw(m_CommandList);
+		}
 	}
 }
 
@@ -68,10 +76,16 @@ void SceneVisitor::Visit(Scene& scene)
 	m_MainPassCB->JitterY					= m_Camera.GetJitterY();
 	m_MainPassCB->UnjitteredProj			= m_Camera.GetUnjitteredProjMatrix();
 	m_MainPassCB->UnjitteredInverseProj		= m_Camera.GetUnjitteredInverseProjMatrix();
-	
-	
-	m_MainPassCB->ViewProj					= m_Camera.GetInserseViewMatrix() * m_Camera.GetProjMatrix();
+	m_MainPassCB->ViewProj					= m_Camera.GetViewMatrix() * m_Camera.GetProjMatrix();
 	m_MainPassCB->InverseViewProj			= Transform::InverseMatrix(nullptr, m_MainPassCB->ViewProj);
+	m_MainPassCB->UnjitteredViewProj		= m_Camera.GetViewMatrix() * m_Camera.GetUnjitteredProjMatrix();
+	XMMATRIX T(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f
+	);
+	m_MainPassCB->ViewProjTex = m_MainPassCB->ViewProj * T;
 
 	m_LightingPSO.SetMainPassCB(m_MainPassCB);
 }

@@ -20,7 +20,7 @@ struct VertexOutput
 VertexOutput main(VertexInput IN)
 {
     VertexOutput VSOUT;
-    float4x4 mvp = mul(ObjectCB.gWorld, MainPassCB.gViewProj);
+    float4x4 mvp = mul(gViewProj, gWorld);
     VSOUT.Position = mul(mvp, float4(IN.Position, 1.0f));
     VSOUT.Position.z = VSOUT.Position.w * FAR_Z_NORM;
     VSOUT.TexCoord = IN.Position;

@@ -25,6 +25,8 @@ struct MainPass
 	Matrix4 UnjitteredInverseProj;
 	Matrix4 InverseViewProj;
 	Matrix4 ViewProj;
+	Matrix4 UnjitteredViewProj;
+	Matrix4 ViewProjTex;;
 	Vector4 CameraPos;
 	float JitterX;
 	float JitterY;

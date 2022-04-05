@@ -24,13 +24,13 @@ VertexOutput main(VertexInput IN)
 {
     VertexOutput VSOUT;
 
-    matrix mvp = mul(ObjectCB.gWorld, MainPassCB.gViewProj);
+    matrix mvp = mul(gViewProj, gWorld);
     VSOUT.Position = mul(mvp, float4(IN.Position, 1.0f));
-    VSOUT.PositionWS = mul(ObjectCB.gWorld, float4(IN.Position, 1.0f));
-    VSOUT.NormalWS = mul((float3x3) ObjectCB.gInverseTransposeWorld, IN.Normal);
+    VSOUT.PositionWS = mul(gWorld, float4(IN.Position, 1.0f));
+    VSOUT.NormalWS = mul((float3x3) gInverseTransposeWorld, IN.Normal);
     VSOUT.TexCoord = IN.TexCoord.xy;
-    VSOUT.TangentWS = mul((float3x3) ObjectCB.gInverseTransposeWorld, IN.Tangent);
-    VSOUT.BitangentWS = mul((float3x3) ObjectCB.gInverseTransposeWorld, IN.Bitangent);
+    VSOUT.TangentWS = mul((float3x3) gInverseTransposeWorld, IN.Tangent);
+    VSOUT.BitangentWS = mul((float3x3) gInverseTransposeWorld, IN.Bitangent);
 
     return VSOUT;
 }

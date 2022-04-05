@@ -43,6 +43,9 @@
       <FullPath>C:\Code\DX12New\x64\Debug\PreIrradiance.cso</FullPath>
     </ContentFile>
     <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\ScreenPlane_VS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
       <FullPath>C:\Code\DX12New\x64\Debug\SDR_PS.cso</FullPath>
     </ContentFile>
     <ContentFile>
@@ -56,6 +59,9 @@
     </ContentFile>
     <ContentFile>
       <FullPath>C:\Code\DX12New\x64\Debug\StandardVS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\TAA_PS.cso</FullPath>
     </ContentFile>
     <ContentFile>
       <FullPath>C:\Code\DX12New\x64\Debug\Unlit_PS.cso</FullPath>

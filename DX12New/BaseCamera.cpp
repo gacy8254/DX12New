@@ -71,8 +71,9 @@ void BaseCamera::SetProjection(float _fovY, float _aspect, float _zNear, float _
 
 Matrix4 BaseCamera::GetProjMatrix() const
 {
-	if (m_ProjDirty)
+	if (m_ProjDirty || m_UnjitterProjDirty)
 	{
+		UpdateUnjitteredProjMatrix();
 		UpdateProjMatrix();
 	}
 	return pData->m_ProjMatrix;
@@ -88,30 +89,29 @@ Matrix4 BaseCamera::GetInserseProjMatrix() const
 	return pData->m_InverseProjMatrix;
 }
 
-void BaseCamera::SetUnjitteredProjMatrix(double _jitterX, double _jitterY)
+void BaseCamera::SetJitter(double _jitterX, double _jitterY)
 {
 	m_JitterX = (float)_jitterX;
 	m_JitterY = (float)_jitterY;
+
+	m_UnjitterProjDirty = true;
 }
 
 Matrix4 BaseCamera::GetUnjitteredInverseProjMatrix() const
 {
-	if (m_ProjDirty)
+	if (m_UnjitterProjDirty || m_UnjitterInverseProjDirty)
 	{
-		UpdateProjMatrix();
+		UpdateUnjitteredInversedProjMatrix();
 	}
-	UpdateUnjitteredProjMatrix();
-	pData->m_UnjitteredInverseProjMatrix = Transform::InverseMatrix(nullptr, pData->m_UnjitteredProjMatrix);
 	return pData->m_UnjitteredInverseProjMatrix;
 }
 
 Matrix4 BaseCamera::GetUnjitteredProjMatrix() const
 {
-	if (m_ProjDirty)
+	if (m_UnjitterProjDirty)
 	{
-		UpdateProjMatrix();
+		UpdateUnjitteredProjMatrix();
 	}
-	UpdateUnjitteredProjMatrix();
 	return pData->m_UnjitteredProjMatrix;
 }
 
@@ -120,6 +120,8 @@ void BaseCamera::SetFov(float _fovY)
 	if (m_Fov != _fovY)
 	{
 		m_Fov = _fovY;
+		m_UnjitterProjDirty = true;
+		m_UnjitterInverseProjDirty = true;
 		m_ProjDirty = true;
 		m_InverseProjDirty = true;
 	}
@@ -233,27 +235,14 @@ void BaseCamera::UpdateInerseMatrix() const
 
 void BaseCamera::UpdateProjMatrix() const
 {
-	float fov = DirectX::XMConvertToRadians(m_Fov);
-	pData->m_ProjMatrix = Transform::MatrixPerspectiveForLH(fov, m_Aspect, m_ZNear, m_ZFar);
+	DirectX::XMMATRIX proj = pData->m_UnjitteredProjMatrix;
+	proj.r[2].m128_f32[0] += (float)m_JitterX;//_31
+	proj.r[2].m128_f32[1] += (float)m_JitterY;//_32
 
-	float xf = m_ZNear / (m_ZNear - m_ZFar);
-	float x = std::tan(m_Fov * 0.5f);
+	pData->m_ProjMatrix = proj;
 
-	Vector4 r1 = Vector4(1 / (m_Aspect * x), 0, 0, 0);
-	Vector4 r2 = Vector4(0, 1 / x, 0, 0);
-	Vector4 r3 = Vector4(0, 0, xf, 1);
-	Vector4 r4 = Vector4(0, 0, -m_ZFar * xf, 0);
-
-	//Vector4 r1 = Vector4(0, 0, xf, 1);
-	//Vector4 r2 = Vector4(x / m_Aspect, 0, 0, 0);
-	//Vector4 r3 = Vector4(0, x, 0, 0);
-	//Vector4 r4 = Vector4(0, 0, -m_ZFar * xf, 0);
-
-	//pData->m_ProjMatrix = Matrix4(r1, r2, r3, r4);
 	m_ProjDirty = false;
 	m_InverseProjDirty = true;
-	m_UnjitterProjDirty = true;
-	m_UnjitterInverseProjDirty = true;
 }
 
 void BaseCamera::UpdateInverseProjMatrix() const
@@ -264,19 +253,25 @@ void BaseCamera::UpdateInverseProjMatrix() const
 
 void BaseCamera::UpdateUnjitteredProjMatrix() const
 {
-	if (m_ProjDirty)
-	{
-		UpdateProjMatrix();
-	}
-	DirectX::XMMATRIX  temp = pData->m_ProjMatrix;
+	float fov = DirectX::XMConvertToRadians(m_Fov);
+	pData->m_UnjitteredProjMatrix = Transform::MatrixPerspectiveForLH(fov, m_Aspect, m_ZNear, m_ZFar);
 
-	//m_Jitter[0] = (float)_jitterX;
-	//m_Jitter[1] = (float)_jitterY;
-	//
-	//temp.r[2].m128_f32[0] += (float)_jitterX;
-	//temp.r[2].m128_f32[1] += (float)_jitterY;
+	float xf = m_ZNear / (m_ZNear - m_ZFar);
+	float x = std::tan(m_Fov * 0.5f);
 
-	pData->m_UnjitteredProjMatrix = temp;
+	Vector4 r1 = Vector4(1 / (m_Aspect * x), 0, 0, 0);
+	Vector4 r2 = Vector4(0, 1 / x, 0, 0);
+	Vector4 r3 = Vector4(0, 0, xf, 1);
+	Vector4 r4 = Vector4(0, 0, -m_ZFar * xf, 0);
 
+	m_ProjDirty = true;
+	m_InverseProjDirty = true;
 	m_UnjitterProjDirty = false;
+	m_UnjitterInverseProjDirty = true;
+}
+
+void BaseCamera::UpdateUnjitteredInversedProjMatrix() const
+{
+	pData->m_UnjitteredInverseProjMatrix = Transform::InverseMatrix(nullptr, pData->m_UnjitteredProjMatrix);
+	m_UnjitterInverseProjDirty = false;
 }
