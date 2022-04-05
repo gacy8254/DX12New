@@ -25,7 +25,8 @@ WireframePSO::WireframePSO(std::shared_ptr<Device> _device)
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
 	CD3DX12_ROOT_PARAMETER1 rootParameter[RootParameters::NumRootParameters];
-	rootParameter[RootParameters::MatricesCB].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+	rootParameter[RootParameters::ObjectCB].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+	rootParameter[RootParameters::MainPassCB].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
 
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rsDesc;
 	rsDesc.Init_1_1(RootParameters::NumRootParameters, rootParameter, 0, nullptr, rootSignatureFlags);
@@ -85,54 +86,20 @@ WireframePSO::~WireframePSO()
 
 }
 
-void XM_CALLCONV WireframePSO::SetWorldMatrix(Matrix4 worldMatrix)
-{
-	m_pAlignedMVP->World = worldMatrix;
-	m_DirtyFlags |= DF_Matrices;
-}
-
-Matrix4 WireframePSO::GetWorldMatrix() const
-{
-	return m_pAlignedMVP->World;
-}
-
-void XM_CALLCONV WireframePSO::SetViewMatrix(Matrix4 viewMatrix)
-{
-	m_pAlignedMVP->View = viewMatrix;
-	m_DirtyFlags |= DF_Matrices;
-}
-
-Matrix4 WireframePSO::GetViewMatrix() const
-{
-	return m_pAlignedMVP->View;
-}
-
-void XM_CALLCONV WireframePSO::SetProjectionMatrix(Matrix4 projectionMatrix)
-{
-	m_pAlignedMVP->Projection = projectionMatrix;
-	m_DirtyFlags |= DF_Matrices;
-}
-
-Matrix4 WireframePSO::GetProjectionMatrix() const
-{
-	return m_pAlignedMVP->Projection;
-}
-
 void WireframePSO::Apply(CommandList& _commandList)
 {
 	_commandList.SetPipelineState(m_PSO);
 	_commandList.SetGraphicsRootSignature(m_RootSignature);
 
 	//依次判断需要更新的属性,并绑定到渲染管线上
-	if (m_DirtyFlags & DF_Matrices)
+	if (m_DirtyFlags & DF_ObjectCB)
 	{
-		Matrices m;
-		m.ModelMatrix = m_pAlignedMVP->World;
-		m.ModelViewMatrix = m_pAlignedMVP->World * m_pAlignedMVP->View;
-		m.ModelViewProjectionMatrix = m.ModelViewMatrix * m_pAlignedMVP->Projection;
-		m.InverseTransposeModelMatrix = Transform::MatrixTranspose(Transform::InverseMatrix(nullptr, m.ModelMatrix));
+		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::ObjectCB, m_pAlignedObjectCB);
+	}
 
-		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MatricesCB, m);
+	if (m_DirtyFlags & DF_MainPassCB)
+	{
+		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MainPassCB, m_pAlignedMainPassCB);
 	}
 
 	//清空标志

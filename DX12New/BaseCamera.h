@@ -26,9 +26,20 @@ public:
 	//获取透视矩阵的逆
 	Matrix4 GetInserseProjMatrix() const;
 
+	//获取透视矩阵的逆
+	void SetUnjitteredProjMatrix(double _jitterX, double _jitterY);
+	Matrix4 GetUnjitteredInverseProjMatrix() const;
+	Matrix4 GetUnjitteredProjMatrix() const;
+
 	void SetFov(float _fovY);
 
 	float GetFov();
+
+	float GetNearZ() const { return m_ZNear; }
+	float GetFarZ() const { return m_ZFar; }
+
+	float GetJitterX() const { return m_JitterX; }
+	float GetJitterY() const { return m_JitterY; }
 
 	//设置相机的位置在世界空间
 	void XM_CALLCONV SetTranslation(Vector4 _translation);
@@ -53,6 +64,7 @@ protected:
 	virtual void UpdateInerseMatrix() const;
 	virtual void UpdateProjMatrix() const;
 	virtual void UpdateInverseProjMatrix() const;
+	virtual void UpdateUnjitteredProjMatrix() const;
 
 	__declspec(align(16)) struct AlignedData
 	{
@@ -65,6 +77,7 @@ protected:
 
 		Matrix4 m_ViewMatrix, m_InverseViewMatrix;
 		Matrix4 m_ProjMatrix, m_InverseProjMatrix;
+		Matrix4 m_UnjitteredProjMatrix, m_UnjitteredInverseProjMatrix;
 	};
 	AlignedData* pData;
 
@@ -73,6 +86,8 @@ protected:
 	float m_ZNear = 0.1f;
 	float m_ZFar = 1000.0f;
 
+	float m_JitterX;
+	float m_JitterY;
 
 	//存储相机的前，右，上，三个向量
 	Matrix3 m_Basis;
@@ -80,5 +95,6 @@ protected:
 	//如果为真表示矩阵需要更新
 	mutable bool m_ViewDirty = true, m_InverseViewDirty = true;
 	mutable bool m_ProjDirty = true, m_InverseProjDirty = true;
+	mutable bool m_UnjitterProjDirty = true, m_UnjitterInverseProjDirty = true;
 };
 

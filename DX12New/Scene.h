@@ -35,7 +35,14 @@ public:
 
 	void SetRootNode(std::shared_ptr<SceneNode> _node) { m_RootNode = _node; }
 
-	std::shared_ptr<SceneNode> GetRootNode() const { return m_RootNode; }
+	std::shared_ptr<SceneNode> GetRootNode() 
+	{ 
+		if (!m_RootNode)
+		{
+			m_RootNode = std::make_shared<SceneNode>();
+		}
+		return m_RootNode; 
+	}
 
 	//获取整个场景的包围盒
 	DirectX::BoundingBox GetAABB() const;
@@ -58,8 +65,6 @@ private:
 	void ImportMesh(CommandList& _commandList, const aiMesh& _mesh);
 	std::shared_ptr<SceneNode> ImportSceneNode(CommandList& _commandList, std::shared_ptr<SceneNode> _parent, const aiNode* _aiNode);
 
-
-
 	using MaterialMap = std::map<std::string, std::shared_ptr<Material>>;
 	using MaterialList = std::vector<std::shared_ptr<Material>>;
 	using ActorList = std::vector<std::shared_ptr<Actor>>;
@@ -68,7 +73,7 @@ private:
 	MaterialList m_MaterialList;
 	ActorList m_Actors;
 
-	std::shared_ptr<SceneNode> m_RootNode;
+	std::shared_ptr<SceneNode> m_RootNode = nullptr;
 
 	std::wstring m_SceneFile;
 };

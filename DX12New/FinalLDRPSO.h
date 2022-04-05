@@ -73,7 +73,7 @@ public:
 	void SetTonemapParameters(Tonemap _tonemapParameters) 
 	{ 
 		m_TonemapParameters = _tonemapParameters; 
-		m_DirtyFlags |= DF_Matrices;
+		m_DirtyFlags |= DF_ObjectCB;
 	}
 	Tonemap GetTonemapParameters() const { return m_TonemapParameters; }
 

@@ -124,6 +124,8 @@ public:
 	inline friend Vector4 operator* (float _v1, Vector4 _v2) { return Vector4(_v1) * _v2; }
 	inline friend Vector4 operator/ (float _v1, Vector4 _v2) { return Vector4(_v1) / _v2; }
 
+	inline void Rotation(Vector4 _qua) { m_Vec = DirectX::XMVector3Rotate(m_Vec, _qua); }
+
 private:
 	DirectX::XMVECTOR m_Vec;
 	//DirectX::XMFLOAT4 m_VecFloat4;

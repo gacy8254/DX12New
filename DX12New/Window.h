@@ -47,6 +47,10 @@ public:
 	void Show() { ::ShowWindow(m_HWND, SW_SHOW); }
 	void Hide() { ::ShowWindow(m_HWND, SW_HIDE); }
 
+	uint64_t GetFrameCount() { return m_FrameCount; }
+	double GetTotalTime() { return m_Timer.TotalSeconds(); }
+	double GetDeltaTime() { return m_Timer.ElapsedSeconds(); }
+
 	//窗口需要更新时被调用
 	UpdateEvent Update;
 
@@ -192,5 +196,7 @@ private:
 
 	int m_PreviousMouseX;
 	int m_PreviousMouseY;
+
+	uint64_t m_FrameCount = 0u;
 };
 

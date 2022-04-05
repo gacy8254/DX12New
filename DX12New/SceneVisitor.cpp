@@ -1,22 +1,31 @@
 #include "SceneVisitor.h"
-#include "BasePSO.h"
 #include "BaseCamera.h"
 #include "CommandList.h"
 #include "IndexBuffer.h"
 #include "Material.h"
 #include "Actor.h"
 #include "SceneNode.h"
+#include "Window.h"
 
 #include <DirectXMath.h>
 
 using namespace DirectX;
 
-SceneVisitor::SceneVisitor(CommandList& _commandList, const BaseCamera& _camera, BasePSO& _pso, bool _transparent)
+SceneVisitor::SceneVisitor(CommandList& _commandList, const BaseCamera& _camera, BasePSO& _pso, Window& _window, bool _transparent)
 	:m_CommandList(_commandList),
 	m_Camera(_camera),
 	m_LightingPSO(_pso),
-	m_Transparent(_transparent)
+	m_Transparent(_transparent),
+	m_Window(_window)
 {
+	m_ObjectCB = std::make_shared<ObjectCB>();
+	m_MainPassCB = std::make_shared<MainPass>();
+}
+
+SceneVisitor::~SceneVisitor()
+{
+	//_aligned_free(m_ObjectCB);
+	//_aligned_free(m_MainPassCB);
 }
 
 void SceneVisitor::Visit(Actor& _actor)
@@ -37,14 +46,30 @@ void SceneVisitor::Visit(Actor& _actor)
 void SceneVisitor::Visit(SceneNode& sceneNode)
 {
 	//设置世界矩阵
-	auto world = sceneNode.GetWorldTransform();
-	m_LightingPSO.SetWorldMatrix(world);
+	m_ObjectCB->World = sceneNode.GetWorldTransform();
+	m_ObjectCB->InverseTransposeWorld = Transform::MatrixTranspose(Transform::InverseMatrix(nullptr, sceneNode.GetWorldTransform()));
+	m_ObjectCB->TexcoordTransform = sceneNode.GetTexcoordTransform();
+	m_LightingPSO.SetObjectCB(m_ObjectCB);
 }
 
 void SceneVisitor::Visit(Scene& scene)
 {
-	//设置观察矩阵和投影矩阵
-	m_LightingPSO.SetViewMatrix(m_Camera.GetViewMatrix());
-	m_LightingPSO.SetProjectionMatrix(m_Camera.GetProjMatrix());
-	m_LightingPSO.SetCameraPos(m_Camera.GetTranslation());
+	m_MainPassCB->CameraPos					= m_Camera.GetTranslation();
+	m_MainPassCB->DeltaTime					= m_Window.GetDeltaTime();
+	m_MainPassCB->TotalTime					= m_Window.GetTotalTime();
+	m_MainPassCB->NearZ						= m_Camera.GetNearZ();
+	m_MainPassCB->FarZ						= m_Camera.GetFarZ();
+	m_MainPassCB->FrameCount				= m_Window.GetFrameCount();
+	m_MainPassCB->InverseProj				= m_Camera.GetUnjitteredInverseProjMatrix();
+	m_MainPassCB->InverseView				= m_Camera.GetInserseViewMatrix();
+	m_MainPassCB->JitterX					= m_Camera.GetJitterX();
+	m_MainPassCB->JitterY					= m_Camera.GetJitterY();
+	m_MainPassCB->Proj						= m_Camera.GetUnjitteredProjMatrix();
+	m_MainPassCB->UnjitteredInverseProj		= m_Camera.GetInserseProjMatrix();
+	m_MainPassCB->UnjitteredProj			= m_Camera.GetProjMatrix();
+	m_MainPassCB->View						= m_Camera.GetViewMatrix();
+	m_MainPassCB->ViewProj					= m_Camera.GetInserseViewMatrix() * m_Camera.GetUnjitteredProjMatrix();
+	m_MainPassCB->InverseViewProj			= Transform::InverseMatrix(nullptr, m_MainPassCB->ViewProj);
+
+	m_LightingPSO.SetMainPassCB(m_MainPassCB);
 }

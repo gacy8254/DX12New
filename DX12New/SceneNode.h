@@ -40,14 +40,22 @@ public:
 	//获取世界变换的逆
 	Matrix4 GetInverseWorldTransform() const;
 
+	void SetTexcoordTransform(Matrix4 _mat) { m_AlignedData->m_TexcoordTransform = _mat; }
+	//获取贴图变换
+	Matrix4 GetTexcoordTransform() const { return m_AlignedData->m_TexcoordTransform; }
+
+
 	Vector4 GetPosition() const;
 	void SetPosition(Vector4 _pos);
+	void SetPosition(float _x, float _y, float _z);
 
 	Vector4 GetRotation() const;
 	void SetRotation(Vector4 _rotation);
+	void SetRotation(float _x, float _y, float _z);
 
 	Vector4 GetScale() const;
 	void SetScale(Vector4 _scale);
+	void SetScale(float _x, float _y, float _z);
 
 	//增加一个子节点到场景节点
 	//如果父节点被删除,且没有另外的节点引用,所有子节点将会被删除
@@ -94,6 +102,7 @@ private:
 	{
 		Matrix4 m_LocalTransform;
 		Matrix4 m_InverseTransform;
+		Matrix4 m_TexcoordTransform;
 		Vector4 m_Translate;
 		Vector4 m_Rotation;
 		Vector4 m_Scale;

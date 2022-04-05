@@ -8,6 +8,8 @@ BaseCamera::BaseCamera()
 	pData->m_Translation = Vector4(Tag::ZERO);
 	pData->m_Rotation = Vector4(Tag::ONE);
 	pData->m_FocalPoint = Vector4(Tag::ZERO);
+	m_JitterX = 0.0f;
+	m_JitterY = 0.0f;
 }
 
 BaseCamera::~BaseCamera()
@@ -84,6 +86,33 @@ Matrix4 BaseCamera::GetInserseProjMatrix() const
 	}
 
 	return pData->m_InverseProjMatrix;
+}
+
+void BaseCamera::SetUnjitteredProjMatrix(double _jitterX, double _jitterY)
+{
+	m_JitterX = (float)_jitterX;
+	m_JitterY = (float)_jitterY;
+}
+
+Matrix4 BaseCamera::GetUnjitteredInverseProjMatrix() const
+{
+	if (m_ProjDirty)
+	{
+		UpdateProjMatrix();
+	}
+	UpdateUnjitteredProjMatrix();
+	return pData->m_UnjitteredInverseProjMatrix;
+	
+}
+
+Matrix4 BaseCamera::GetUnjitteredProjMatrix() const
+{
+	if (m_ProjDirty)
+	{
+		UpdateProjMatrix();
+	}
+	UpdateUnjitteredProjMatrix();
+	return pData->m_UnjitteredProjMatrix;
 }
 
 void BaseCamera::SetFov(float _fovY)
@@ -223,10 +252,31 @@ void BaseCamera::UpdateProjMatrix() const
 	//pData->m_ProjMatrix = Matrix4(r1, r2, r3, r4);
 	m_ProjDirty = false;
 	m_InverseProjDirty = true;
+	m_UnjitterProjDirty = true;
+	m_UnjitterInverseProjDirty = true;
 }
 
 void BaseCamera::UpdateInverseProjMatrix() const
 {
 	pData->m_InverseProjMatrix = Transform::InverseMatrix(nullptr, pData->m_ProjMatrix);
 	m_InverseProjDirty = false;
+}
+
+void BaseCamera::UpdateUnjitteredProjMatrix() const
+{
+	if (m_ProjDirty)
+	{
+		UpdateProjMatrix();
+	}
+	DirectX::XMMATRIX  temp = pData->m_ProjMatrix;
+
+	//m_Jitter[0] = (float)_jitterX;
+	//m_Jitter[1] = (float)_jitterY;
+	//
+	//temp.r[2].m128_f32[0] += (float)_jitterX;
+	//temp.r[2].m128_f32[1] += (float)_jitterY;
+
+	pData->m_UnjitteredProjMatrix = temp;
+
+	m_UnjitterProjDirty = false;
 }

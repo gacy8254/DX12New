@@ -57,9 +57,10 @@ float4 main(PixelShaderInput IN) : SV_Target
     
     float3 color = (float3) (albedo.rgb);
     float shadow = 1;
+    float3 directColor;
 #if ENABLE_LIGHTING
     //计算直接光照
-    float3 directColor = DoLighting(normal.xyz, WorldPos, toCamera, albedo.rgb, roughness, metallic);
+    directColor = DoLighting(normal.xyz, WorldPos, toCamera, albedo.rgb, roughness, metallic);
     
     //计算简介光照
     float3 ambientDiffuse;

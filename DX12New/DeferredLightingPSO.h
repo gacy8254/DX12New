@@ -56,6 +56,8 @@ public:
 	DeferredLightingPSO(std::shared_ptr<Device> _device, bool _enableLighting);
 	virtual ~DeferredLightingPSO();
 
+	void SetCameraPos(Vector4 _pos) { m_CameraPos = _pos; }
+
 	const std::vector<PointLight>& GetPointLights() const { return m_PointLights; }
 	void SetPointLights(const std::vector<PointLight>& _pointLights)
 	{
@@ -94,6 +96,8 @@ private:
 	std::vector<DirectionalLight> m_DirectionalLights;
 
 	std::vector<std::shared_ptr<Texture>> m_Textures;
+
+	Vector4 m_CameraPos;
 
 	bool m_EnableLights;
 };

@@ -5,7 +5,8 @@ BasePSO::BasePSO(std::shared_ptr<Device> _device)
 	m_DirtyFlags(DF_All),
 	m_pPreviousCommandList(nullptr)
 {
-	m_pAlignedMVP = (MVP*)_aligned_malloc(sizeof(MVP), 16);
+	m_pAlignedObjectCB = std::make_shared<ObjectCB>();
+	m_pAlignedMainPassCB = std::make_shared<MainPass>();
 
 //创建默认的空白SRV
 D3D12_SHADER_RESOURCE_VIEW_DESC defaultSRV;
@@ -22,7 +23,8 @@ m_DefaultSRV = m_Device->CreateShaderResourceView(nullptr, &defaultSRV);
 
 BasePSO::~BasePSO()
 {
-	_aligned_free(m_pAlignedMVP);
+	//_aligned_free(m_pAlignedObjectCB);
+	//_aligned_free(m_pAlignedMainPassCB);
 }
 
 std::array<CD3DX12_STATIC_SAMPLER_DESC, 6> BasePSO::GetStaticSamplers()

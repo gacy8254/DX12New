@@ -91,6 +91,16 @@ Matrix4 Transform::MatrixRotationX(float _angle)
 	return Matrix4(XMMatrixRotationX(_angle));
 }
 
+Matrix4 Transform::MatrixRotationY(float _angle)
+{
+	return Matrix4(XMMatrixRotationY(_angle));
+}
+
+Matrix4 Transform::MatrixRotationZ(float _angle)
+{
+	return Matrix4(XMMatrixRotationZ(_angle));
+}
+
 Vector4 Transform::Vector3TransformNormal(Vector4 _v, Matrix4 _mat)
 {
 	return Vector4(XMVector3TransformNormal(_v, _mat));

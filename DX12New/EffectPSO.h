@@ -21,7 +21,8 @@ public:
 	enum RootParameters
 	{
 		// Vertex shader parameter
-		MatricesCB,  // ConstantBuffer<Matrices> MatCB : register(b0);
+		ObjectCB,  // cbuffer ObjectCB : register(b0);
+		MainPassCB,  // cbuffer MainPassCB : register(b1);
 
 		// Pixel shader parameters
 		MaterialCB,         // ConstantBuffer<Material> MaterialCB : register( b0, space1 );
@@ -58,27 +59,6 @@ public:
 		m_Material = _material; 
 		m_DirtyFlags |= DF_Material;
 	}
-
-	void XM_CALLCONV SetWorldMatrix(Matrix4 worldMatrix) 
-	{ 
-		m_pAlignedMVP->World = worldMatrix; 
-		m_DirtyFlags |= DF_Matrices; 
-	}
-	Matrix4 GetWorldMatrix() const { return m_pAlignedMVP->World; }
-
-	void XM_CALLCONV SetViewMatrix(Matrix4 viewMatrix) 
-	{ 
-		m_pAlignedMVP->View = viewMatrix; 
-		m_DirtyFlags |= DF_Matrices; 
-	}
-	Matrix4 GetViewMatrix() const { return m_pAlignedMVP->View; }
-
-	void XM_CALLCONV SetProjectionMatrix(Matrix4 projectionMatrix) 
-	{ 
-		m_pAlignedMVP->Projection = projectionMatrix; 
-		m_DirtyFlags |= DF_Matrices; 
-	}
-	Matrix4 GetProjectionMatrix() const { return m_pAlignedMVP->Projection; }
 
 	//应用到渲染管线上
 	void Apply(CommandList& _commandList) override;

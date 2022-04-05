@@ -85,7 +85,7 @@ void FinalLDRPSO::Apply(CommandList& _commandList)
 		BindTexture(_commandList, 0, m_Texture, RootParameters::Textures);
 	}
 
-	if (m_DirtyFlags & DF_Matrices)
+	if (m_DirtyFlags & DF_ObjectCB)
 	{
 	}
 		_commandList.SetGraphics32BitConstants(RootParameters::TonemapParameters, m_TonemapParameters);

@@ -13,6 +13,7 @@ SceneNode::SceneNode(const Matrix4& _localTransform /*= Matrix4Identity()*/)
 	m_AlignedData->m_Rotation = Vector4(Tag::ZERO);
 	m_AlignedData->m_Scale = Vector4(Tag::ONE);
 	m_AlignedData->m_Translate = Vector4(Tag::ONE);
+	m_AlignedData->m_TexcoordTransform = Matrix4();
 	m_AlignedData->m_InverseTransform = Transform::InverseMatrix(nullptr, _localTransform);
 }
 
@@ -76,6 +77,12 @@ void SceneNode::SetPosition(Vector4 _pos)
 	m_DirtyData = true;
 }
 
+void SceneNode::SetPosition(float _x, float _y, float _z)
+{
+	m_AlignedData->m_Translate = Vector4(_x, _y, _z, 0);
+	m_DirtyData = true;
+}
+
 Vector4 SceneNode::GetRotation() const
 {
 	return m_AlignedData->m_Rotation;
@@ -87,6 +94,12 @@ void SceneNode::SetRotation(Vector4 _rotation)
 	m_DirtyData = true;
 }
 
+void SceneNode::SetRotation(float _x, float _y, float _z)
+{
+	m_AlignedData->m_Rotation = Vector4(_x, _y, _z, 0);
+	m_DirtyData = true;
+}
+
 Vector4 SceneNode::GetScale() const
 {
 	return m_AlignedData->m_Scale;
@@ -95,6 +108,12 @@ Vector4 SceneNode::GetScale() const
 void SceneNode::SetScale(Vector4 _scale)
 {
 	m_AlignedData->m_Scale = _scale;
+	m_DirtyData = true;
+}
+
+void SceneNode::SetScale(float _x, float _y, float _z)
+{
+	m_AlignedData->m_Scale = Vector4(_x, _y, _z, 0);
 	m_DirtyData = true;
 }
 

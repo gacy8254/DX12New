@@ -1,13 +1,6 @@
 #include "ShaderDefinition.h"
-struct Mat
-{
-    matrix ModelMat;
-    matrix ModelViewMat;
-    matrix InverseTransposeModelViewMat;
-    matrix ModelViewPorjMat;
-};
-
-ConstantBuffer<Mat> MatCB : register(b0);
+#include "ObjectCB.hlsli"
+#include "MainPassCB.hlsli"
 
 struct VertexInput
 {
@@ -27,8 +20,8 @@ struct VertexOutput
 VertexOutput main(VertexInput IN)
 {
     VertexOutput VSOUT;
-    
-    VSOUT.Position = mul(MatCB.ModelViewPorjMat, float4(IN.Position, 1.0f));
+    float4x4 mvp = mul(ObjectCB.gWorld, MainPassCB.gViewProj);
+    VSOUT.Position = mul(mvp, float4(IN.Position, 1.0f));
     VSOUT.Position.z = VSOUT.Position.w * FAR_Z_NORM;
     VSOUT.TexCoord = IN.Position;
 

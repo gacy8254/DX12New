@@ -120,9 +120,6 @@
     <ClCompile Include="Window.cpp">
       <Filter>Common\Resource</Filter>
     </ClCompile>
-    <ClCompile Include="PipelineStateStream.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Adapter.cpp">
       <Filter>Common\Resource</Filter>
     </ClCompile>
@@ -557,6 +554,12 @@
       <Filter>Common\Shaders</Filter>
     </None>
     <None Include="..\shaders\PBR_Function.hlsli">
+      <Filter>Common\Shaders</Filter>
+    </None>
+    <None Include="..\shaders\MainPassCB.hlsli">
+      <Filter>Common\Shaders</Filter>
+    </None>
+    <None Include="..\shaders\ObjectCB.hlsli">
       <Filter>Common\Shaders</Filter>
     </None>
   </ItemGroup>

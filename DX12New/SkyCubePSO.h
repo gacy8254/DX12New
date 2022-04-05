@@ -14,7 +14,8 @@ public:
 	enum RootParameters
 	{
 		// Vertex shader parameter
-		MatricesCB,  // ConstantBuffer<Matrices> MatCB : register(b0);
+		ObjectCB,  // cbuffer ObjectCB : register(b0);
+		MainPassCB,  // cbuffer MainPassCB : register(b1);
 		// Pixel shader parameters
 		Textures,  // Texture2D HDR       : register( t0 );
 		Roughness,	//cbuffer cBuffer : register(b1)
@@ -26,15 +27,6 @@ public:
 
 	const std::shared_ptr<Material>& GetMaterial() const;
 	void SetMaterial(const std::shared_ptr<Material>& _material);
-
-	void XM_CALLCONV SetWorldMatrix(Matrix4 worldMatrix);
-	Matrix4 GetWorldMatrix() const;
-
-	void XM_CALLCONV SetViewMatrix(Matrix4 viewMatrix);
-	Matrix4 GetViewMatrix() const;
-
-	void XM_CALLCONV SetProjectionMatrix(Matrix4 projectionMatrix);
-	Matrix4 GetProjectionMatrix() const;
 
 	void SetRoughness(float _roughness) 
 	{ 

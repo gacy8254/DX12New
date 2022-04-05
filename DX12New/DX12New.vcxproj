@@ -192,7 +192,6 @@
     <ClCompile Include="NormalVisualizePSO.cpp" />
     <ClCompile Include="PanoToCubemapPSO.cpp" />
     <ClCompile Include="PipelineStateObject.cpp" />
-    <ClCompile Include="PipelineStateStream.cpp" />
     <ClCompile Include="RenderTarget.cpp" />
     <ClCompile Include="Resource.cpp" />
     <ClCompile Include="ResourceStateTracker.cpp" />
@@ -459,6 +458,8 @@
     <None Include="..\shaders\Deferred_GBuffer_PS.hlsli" />
     <None Include="..\shaders\Deferred_Lighting_PS.hlsli" />
     <None Include="..\shaders\Deferred_PBRLighting_PS.hlsli" />
+    <None Include="..\shaders\MainPassCB.hlsli" />
+    <None Include="..\shaders\ObjectCB.hlsli" />
     <None Include="..\shaders\PBR_Function.hlsli" />
     <None Include="packages.config" />
   </ItemGroup>

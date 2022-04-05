@@ -85,7 +85,7 @@ float3 FresnelSchlickRoughness(float3 _halfVec, float3 _toCam, float3 _F0, float
 //正态分布函数
 float DistributionGGX(float3 _normal, float3 _halfVec, float _roughness)
 {
-    //_roughness += 0.0001f;
+    _roughness = max(0.01f, _roughness);
     float a = _roughness * _roughness;
     float a2 = a * a;
     float NdotH = max(dot(_normal, _halfVec), 0);
@@ -244,6 +244,7 @@ float DoSpotCone(float3 spotDir, float3 L, float spotAngle)
     float maxCos = (minCos + 1.0f) / 2.0f;
     float cosAngle = dot(spotDir, -L);
     return smoothstep(minCos, maxCos, cosAngle);
+    //return cosAngle;
 }
 
 float3 CookTorrance(float3 _normal, float3 _toLight, float3 _toCamera, float _roughness, float _metallic, float3 _f0, out float3 _ks)

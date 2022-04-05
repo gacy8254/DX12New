@@ -86,6 +86,7 @@ Window::~Window()
 void Window::OnUpdate(UpdateEventArgs& _e)
 {
 	m_Timer.Tick();
+	m_FrameCount++;
 
 	_e.DeltaTime = m_Timer.ElapsedSeconds();
 	_e.TotalTime = m_Timer.TotalSeconds();

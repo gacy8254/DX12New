@@ -88,9 +88,8 @@ void Lesson5::LoadContent()
 	m_GUI = m_Device->CreateGUI(m_Window->GetWindowHandle(), m_SwapChain->GetRenderTarget());
 	Application::Get().WndProcHandler += WndProcEvent::slot(&GUI::WndProcHandler, m_GUI);
 
-	//LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\MaterialMesh.FBX");
-	//LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj");
-	m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj"));
+	m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\MaterialMesh.FBX"));
+	//m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj"));
 
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
 	auto commandList = commandQueue.GetCommandList();
@@ -115,6 +114,9 @@ void Lesson5::LoadContent()
 	m_Cube = MeshHelper::CreateCube(commandList, 5000.0f, true);
 	m_Axis = commandList->LoadSceneFromFile(L"C:\\Code\\DX12New\\Assets\\Models\\axis_of_evil.nff");
 
+	m_Axis->GetRootNode()->SetScale(Vector4(0.3, 0.3, 0.3, 0));
+	m_Axis->GetRootNode()->SetPosition(Vector4(0, 0, 0, 0));
+
 	m_Cube->GetRootNode()->GetActor()->GetMaterial()->SetTexture(Material::TextureType::Diffuse, m_CubeMap);
 
 	//创建PSO
@@ -138,7 +140,6 @@ void Lesson5::LoadContent()
 	BuildLighting(4, 1, 1);
 	BuildCubemapCamera();
 	
-
 	//执行命令列表
 	auto fence = commandQueue.ExecuteCommandList(commandList);
 
@@ -258,13 +259,6 @@ void Lesson5::OnUpdate(UpdateEventArgs& e)
 	m_DeferredLightingPso->SetDirectionalLights(m_DirectionalLights);
 	m_DeferredLightingPso->SetSpotLights(m_SpotLights);
 
-	Vector4 cameraPoint = m_Camera.GetFocalPoint();
-
-	m_Axis->GetRootNode()->SetScale(Vector4(0.3, 0.3, 0.3, 0));
-	m_Axis->GetRootNode()->SetPosition(Vector4(0,0,0,0));
-	//m_Axis->GetRootNode()->SetPosition(cameraPoint);
-	//m_Axis->GetRootNode()->SetScale(Vector4(0.1, 0.1, 0.1, 0));
-
 	m_SwapChain->WaitForSwapChain();
 
 	//处理输入
@@ -331,12 +325,12 @@ void Lesson5::OnRender()
 	else
 	{
 		//创建Pass
-		SceneVisitor opaquePass(*commandList, m_Camera, *m_GBufferPso, false);
-		SceneVisitor transparentPass(*commandList, m_Camera, *m_GBufferDecalPso, true);
-		SceneVisitor unlitPass(*commandList, m_Camera, *m_UnlitPso, false);
-		SceneVisitor skyBoxPass(*commandList, m_Camera, *m_SkyBoxPso, false);
-		SceneVisitor LinePass(*commandList, m_Camera, *m_NormalVisualizePso, false);
-		SceneVisitor WireFramePass(*commandList, m_Camera, *m_WireframePSO, false);
+		SceneVisitor opaquePass(*commandList, m_Camera, *m_GBufferPso, *m_Window, false);
+		SceneVisitor transparentPass(*commandList, m_Camera, *m_GBufferDecalPso, *m_Window, true);
+		SceneVisitor unlitPass(*commandList, m_Camera, *m_UnlitPso, *m_Window, false);
+		SceneVisitor skyBoxPass(*commandList, m_Camera, *m_SkyBoxPso, *m_Window, false);
+		SceneVisitor LinePass(*commandList, m_Camera, *m_NormalVisualizePso, *m_Window, false);
+		SceneVisitor WireFramePass(*commandList, m_Camera, *m_WireframePSO, *m_Window, false);
 	
 		//设置命令列表
 		commandList->SetViewport(m_Viewport);
@@ -356,9 +350,9 @@ void Lesson5::OnRender()
 			//渲染场景(GBUFFER  PASS)
 			m_Scene->Accept(opaquePass);
 
-			m_Scene->Accept(transparentPass);
+			//m_Scene->Accept(transparentPass);
 
-			DrawSphere(opaquePass, false);
+			//DrawSphere(opaquePass, false);
 
 			//计算光照(PBR PASS)
 			commandList->ClearTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
@@ -389,9 +383,9 @@ void Lesson5::OnRender()
 			commandList->TransitionBarrier(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 			commandList->FlushResourceBarriers();
 
-			m_Axis->Accept(unlitPass);
-			DrawLightMesh(unlitPass);
-			m_Cube->Accept(skyBoxPass);
+			//m_Axis->Accept(unlitPass);
+			//DrawLightMesh(unlitPass);
+			//m_Cube->Accept(skyBoxPass);
 
 			//HDR转LDR
 			commandList->ClearTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
@@ -632,12 +626,20 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 
 	if (scene)
 	{
+		std::shared_ptr<SceneNode> node = std::move(scene->GetRootNode());
 		scene->GetRootNode()->SetPosition(Vector4(0, -10, 0, 0));
 		//scene->GetRootNode()->SetRotation(Vector4(0, -10, 0, 0));
 		scene->GetRootNode()->SetScale(Vector4(0.5, 0.5, 0.5, 0));
+		node->SetScale(0.01, 0.01, 0.01);
+		node->SetPosition(0, 0, -3);
+		node->SetRotation(90, 0, 0);
 
-		m_Scene = scene;
-		BuildScene();
+		m_Scene = std::make_shared<Scene>();
+		m_Scene->GetRootNode()->AddChild(node);
+		m_Scene->GetRootNode()->SetPosition(0,0,0);
+		m_Scene->GetRootNode()->SetRotation(0,0,0);
+		m_Scene->GetRootNode()->SetScale(1,1,1);
+		//BuildScene();
 	}
 
 	commandQueue.ExecuteCommandList(commandList);
@@ -789,10 +791,10 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 		XMStoreFloat4(&l.PositionVS, positionVS);
 
 		l.Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 0);
-		l.Instensity = 1.0f;
+		l.Instensity = 10.0f;
 		l.LinearAttenuation = 0.08f;
 		l.QuadraticAttenuation = 0.1f;
-		l.Range = 1.0f;
+		l.Range = 10.0f;
 	}
 
 	m_SpotLights.resize(numSpotLights);
@@ -805,7 +807,7 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 		l.PositionWS = { 0, 8, 0, 1};
 		l.PositionVS = l.PositionWS;
 
-		Vector4 directionWS(0.0f, -0.8f, 0, 0);
+		Vector4 directionWS(0.0f, 0.0f, 0, 0);
 		Vector4 directionVS = directionWS;
 		XMStoreFloat4(&l.DirectionWS, directionWS);
 		XMStoreFloat4(&l.DirectionVS, directionVS);
@@ -861,6 +863,7 @@ void Lesson5::DrawLightMesh(SceneVisitor& _pass)
 		// Rotate the cone so it is facing the Z axis.
 
 		m_Cone->GetRootNode()->SetPosition(lightPos);
+		
 		m_Cone->GetRootNode()->SetScale(Vector4(5, 5, 5, 0));
 		m_Cone->GetRootNode()->GetActor()->GetMaterial()->SetMaterialProperties(lightMaterial);
 		m_Cone->Accept(_pass);
@@ -1067,7 +1070,7 @@ void Lesson5::PreIrradiance(std::shared_ptr<CommandList> _commandList)
 
 		_commandList->GetGraphicsCommandList()->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
 		_commandList->ClearDepthStencilTexture(m_IrradianceRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
-		SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[i], *m_PreCalPso, false);
+		SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[i], *m_PreCalPso, *m_Window,false);
 		cube->Accept(skyBoxPass);
 	}
 
@@ -1142,7 +1145,7 @@ void Lesson5::Prefilter(std::shared_ptr<CommandList> _commandList)
 
 			_commandList->GetGraphicsCommandList()->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
 			_commandList->ClearDepthStencilTexture(m_PrefilterRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
-			SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[j], *m_PrefilterPso, false);
+			SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[j], *m_PrefilterPso, *m_Window, false);
 			cube->Accept(skyBoxPass);
 		}
 	}
@@ -1191,7 +1194,7 @@ void Lesson5::GUILayout(bool* _open)
 {
 	//std::cout << *_open << std::endl;
 	ImGui::SetNextWindowSize(ImVec2(500, 440), ImGuiCond_FirstUseEver);
-	bool b = ImGui::Begin("Example: Simple layout", _open, ImGuiWindowFlags_MenuBar);
+	bool b = ImGui::Begin("Scene", _open, ImGuiWindowFlags_MenuBar);
 	if (b)
 	{
 		if (ImGui::BeginMenuBar())
@@ -1204,94 +1207,246 @@ void Lesson5::GUILayout(bool* _open)
 			ImGui::EndMenuBar();
 		}
 
-		if (m_Scene)
-		{// Left
-			static int selectedNode = -1;
+		if (ImGui::BeginTabBar("ssssss"))
+		{
+			if (ImGui::BeginTabItem("Mesh"))
 			{
-				ImGui::BeginChild("Node", ImVec2(150, 0), true);
-				int uu = m_Scene->GetRootNode()->GetChildCount();
-				for (int i = -1; i < uu; i++)
+				if (m_Scene)
+				{// Left
+					static int selectedNode = 0;
+					{
+						ImGui::BeginChild("Node", ImVec2(100, 0), true);
+						int uu = m_Scene->GetRootNode()->GetChildCount();
+						for (int i = 0; i < uu; i++)
+						{
+							// FIXME: Good candidate to use ImGuiSelectableFlags_SelectOnNav
+							char name[128];
+							sprintf_s(name, "node %d", i);
+							//const char* name = m_Scene->GetRootNode()->GetChildNode(i)->GetName().c_str();
+							if (ImGui::Selectable(name, selectedNode == i))
+								selectedNode = i;
+						}
+						ImGui::EndChild();
+					}
+					ImGui::SameLine();
+
+					static int previousNode = -9;
+					static int selectMesh = 0;
+					{
+						ImGui::BeginChild("Mesh", ImVec2(100, 0), true);
+						for (int i = 0; i < m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActorCount(); i++)
+						{
+							// FIXME: Good candidate to use ImGuiSelectableFlags_SelectOnNav
+							char name[128];
+							sprintf_s(name, "mesh %d", i);
+							if (ImGui::Selectable(name, selectMesh == i))
+								selectMesh = i;
+
+							if (previousNode != selectedNode)
+							{
+								previousNode = selectedNode;
+								selectMesh = 0;
+							}
+						}
+
+						ImGui::EndChild();
+					}
+					ImGui::SameLine();
+					// Right
+					{
+						ImGui::BeginGroup();
+						ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
+						ImGui::Text("MyObject: %d", selectMesh);
+						ImGui::Separator();
+						if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_None))
+						{
+							if (ImGui::BeginTabItem("Material"))
+							{
+								static float color[4];
+								static float orm[4];
+								static float emissive[4];
+								BindMaterial(color, orm, emissive, m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActor(selectMesh));
+
+								ImGui::ColorEdit4("color", color);
+								ImGui::ColorEdit4("orm", orm);
+								ImGui::ColorEdit4("emissive", emissive);
+
+								m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActor(selectMesh)->GetMaterial()->SetDiffuseColor(Vector4(color));
+								m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActor(selectMesh)->GetMaterial()->SetORMColor(Vector4(orm));
+								m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActor(selectMesh)->GetMaterial()->SetEmissiveColor(Vector4(emissive));
+								ImGui::EndTabItem();
+							}
+							if (ImGui::BeginTabItem("Details"))
+							{
+								static float pos[4];
+								static float sacle[4];
+								static float rotation[4];
+								BindTransform(pos, rotation, sacle, m_Scene->GetRootNode()->GetChildNode(selectedNode));
+
+								ImGui::DragFloat3("pos", pos);
+								ImGui::DragFloat3("rotation", rotation);
+								ImGui::DragFloat3("sacle", sacle);
+
+								m_Scene->GetRootNode()->GetChildNode(selectedNode)->SetPosition(Vector4(pos));
+								m_Scene->GetRootNode()->GetChildNode(selectedNode)->SetRotation(Vector4(rotation));
+								m_Scene->GetRootNode()->GetChildNode(selectedNode)->SetScale(Vector4(sacle));
+
+								ImGui::EndTabItem();
+							}
+							ImGui::EndTabBar();
+						}
+						ImGui::EndChild();
+						ImGui::EndGroup();
+					}
+				}
+				ImGui::EndTabItem();
+			}
+
+			if (ImGui::BeginTabItem("Light"))
+			{
+				ImGui::BeginChild("Lights", ImVec2(150, 0), true); // Leave room for 1 line below us
+				static int selectedNode = -1;
+				for (int point = 0; point < m_PointLights.size(); point++)
 				{
-					// FIXME: Good candidate to use ImGuiSelectableFlags_SelectOnNav
 					char name[128];
-					sprintf_s(name, "node %d", i);
-					//const char* name = m_Scene->GetRootNode()->GetChildNode(i)->GetName().c_str();
-					if (ImGui::Selectable(name, selectedNode == i))
-						selectedNode = i;
+					sprintf_s(name, "PointLight %d", point);
+					if (ImGui::Selectable(name, selectedNode == point))
+						selectedNode = point;
+				}
+				for (int spot = 0; spot < m_SpotLights.size(); spot++)
+				{
+					char name[128];
+					sprintf_s(name, "SpotLight %d", spot);
+					if (ImGui::Selectable(name, selectedNode == spot + m_PointLights.size()))
+						selectedNode = spot + m_PointLights.size();
+				}
+				for (int dir = 0; dir < m_DirectionalLights.size(); dir++)
+				{
+					char name[128];
+					sprintf_s(name, "DirLight %d", dir);
+					if (ImGui::Selectable(name, selectedNode == dir + m_PointLights.size() + m_SpotLights.size()))
+						selectedNode = dir + m_PointLights.size() +  m_SpotLights.size();
 				}
 				ImGui::EndChild();
-			}
-			ImGui::SameLine();
 
-			static int previousNode = -9;
-			static int selectMesh = 0;
-			{
-				ImGui::BeginChild("Mesh", ImVec2(200, 0), true);
-				for (int i = 0; i < m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActorCount(); i++)
+				
+				ImGui::SameLine();
+				//ImGui::BeginGroup();
+				ImGui::BeginChild("item view", ImVec2(300, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
+				ImGui::Text("MyObject: %d", selectedNode);
+				if (selectedNode < m_PointLights.size())
 				{
-					// FIXME: Good candidate to use ImGuiSelectableFlags_SelectOnNav
-					char name[128];
-					sprintf_s(name, "mesh %d", i);
-					if (ImGui::Selectable(name, selectMesh == i))
-						selectMesh = i;
+					float color[4];
+					color[0] = m_PointLights[selectedNode].Color.x;
+					color[1] = m_PointLights[selectedNode].Color.y;
+					color[2] = m_PointLights[selectedNode].Color.z;
+					color[3] = m_PointLights[selectedNode].Color.w;
 
+					float pos[4];
+					pos[0] = m_PointLights[selectedNode].PositionWS.x;
+					pos[1] = m_PointLights[selectedNode].PositionWS.y;
+					pos[2] = m_PointLights[selectedNode].PositionWS.z;
+
+					ImGui::ColorEdit4("color", color);
+					ImGui::DragFloat4("pos", pos);
+					ImGui::DragFloat("Instensity", &m_PointLights[selectedNode].Instensity);
+					ImGui::DragFloat("Range", &m_PointLights[selectedNode].Range);
+
+					m_PointLights[selectedNode].Color = { color };
+					m_PointLights[selectedNode].PositionWS = { pos };
+					m_PointLights[selectedNode].PositionVS = m_PointLights[selectedNode].PositionWS;
+				}
+				else if (m_PointLights.size() <= selectedNode && selectedNode < m_PointLights.size() + m_SpotLights.size())
+				{
+					static int previousNode = -10;
+					static bool first = true;
 					if (previousNode != selectedNode)
 					{
 						previousNode = selectedNode;
-						selectMesh = 0;
+						first = true;
 					}
-				}
 
-				ImGui::EndChild();
-			}
-			ImGui::SameLine();
-			// Right
-			{
-				ImGui::BeginGroup();
-				ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
-				ImGui::Text("MyObject: %d", selectMesh);
-				ImGui::Separator();
-				if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_None))
+					static float color[4];
+					static float pos[4];
+					static float dir[4];
+					if (first)
+					{
+						color[0] = m_SpotLights[selectedNode - m_PointLights.size()].Color.x;
+						color[1] = m_SpotLights[selectedNode - m_PointLights.size()].Color.y;
+						color[2] = m_SpotLights[selectedNode - m_PointLights.size()].Color.z;
+						color[3] = m_SpotLights[selectedNode - m_PointLights.size()].Color.w;
+
+						pos[0] = m_SpotLights[selectedNode - m_PointLights.size()].PositionWS.x;
+						pos[1] = m_SpotLights[selectedNode - m_PointLights.size()].PositionWS.y;
+						pos[2] = m_SpotLights[selectedNode - m_PointLights.size()].PositionWS.z;
+
+						dir[0] = DirectX::XMConvertToDegrees(m_SpotLights[selectedNode - m_PointLights.size()].DirectionWS.x);
+						dir[1] = DirectX::XMConvertToDegrees(m_SpotLights[selectedNode - m_PointLights.size()].DirectionWS.y);
+						dir[2] = DirectX::XMConvertToDegrees(m_SpotLights[selectedNode - m_PointLights.size()].DirectionWS.z);
+						dir[3] = DirectX::XMConvertToDegrees(m_SpotLights[selectedNode - m_PointLights.size()].DirectionWS.w);
+						first = false;
+					}
+					
+
+					ImGui::ColorEdit4("color", color);
+					ImGui::DragFloat4("pos", pos);
+					ImGui::DragFloat4("rotation", dir);
+					ImGui::DragFloat("Instensity", &m_SpotLights[selectedNode - m_PointLights.size()].Intensity);
+					ImGui::DragFloat("Range", &m_SpotLights[selectedNode - m_PointLights.size()].Range);
+					float angle = DirectX::XMConvertToDegrees(m_SpotLights[selectedNode - m_PointLights.size()].SpotAngle);
+					ImGui::DragFloat("SpotAngle", &angle);
+
+					Vector4 ort = Vector4(dir[0], dir[1], dir[2], 0);
+					m_Cone->GetRootNode()->SetRotation(dir[0], dir[1], dir[2]);
+					Vector4 aa = Vector4(0, 1, 0, 0);
+					ort = Transform::QuaternionRotationRollPitchYaw(Transform::ConvertToRadians(ort));
+					aa.Rotation(ort);
+
+					m_SpotLights[selectedNode - m_PointLights.size()].Color = { color };
+					m_SpotLights[selectedNode - m_PointLights.size()].PositionWS = { pos };
+					m_SpotLights[selectedNode - m_PointLights.size()].PositionVS = m_SpotLights[selectedNode - m_PointLights.size()].PositionWS;
+					m_SpotLights[selectedNode - m_PointLights.size()].DirectionWS = aa.GetFloat4();
+					m_SpotLights[selectedNode - m_PointLights.size()].DirectionVS = m_SpotLights[selectedNode - m_PointLights.size()].DirectionWS;
+					m_SpotLights[selectedNode - m_PointLights.size()].SpotAngle = DirectX::XMConvertToRadians(angle);
+				}
+				else
 				{
-					if (ImGui::BeginTabItem("Material"))
-					{
-						static float color[4];
-						static float orm[4];
-						static float emissive[4];
-						BindMaterial(color, orm, emissive, m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActor(selectMesh));
+					float color[4];
+					color[0] = m_DirectionalLights[0].Color.x;
+					color[1] = m_DirectionalLights[0].Color.y;
+					color[2] = m_DirectionalLights[0].Color.z;
+					color[3] = m_DirectionalLights[0].Color.w;
 
-						ImGui::ColorEdit4("color", color);
-						ImGui::ColorEdit4("orm", orm);
-						ImGui::ColorEdit4("emissive", emissive);
+					//std::cout << m_DirectionalLights[0].DirectionWS.x << std::endl;
+					//float dir[4];
+					//dir[0] = DirectX::XMConvertToDegrees(m_DirectionalLights[0].DirectionWS.x);
+					//dir[1] = DirectX::XMConvertToDegrees(m_DirectionalLights[0].DirectionWS.y);
+					//dir[2] = DirectX::XMConvertToDegrees(m_DirectionalLights[0].DirectionWS.z);
+					//dir[3] = DirectX::XMConvertToDegrees(m_DirectionalLights[0].DirectionWS.w);
 
-						 m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActor(selectMesh)->GetMaterial()->SetDiffuseColor(Vector4(color));
-						 m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActor(selectMesh)->GetMaterial()->SetORMColor(Vector4(orm));
-						 m_Scene->GetRootNode()->GetChildNode(selectedNode)->GetActor(selectMesh)->GetMaterial()->SetEmissiveColor(Vector4(emissive));
-						ImGui::EndTabItem();
-					}
-					if (ImGui::BeginTabItem("Details"))
-					{
-						static float pos[4];
-						static float sacle[4];
-						static float rotation[4];
-						BindTransform(pos, rotation, sacle,  m_Scene->GetRootNode()->GetChildNode(selectedNode));
+					ImGui::ColorEdit4("color", color);
+					//ImGui::DragFloat4("rotation", dir);
+					ImGui::DragFloat("Instensity", &m_DirectionalLights[0].Intensity);
 
-						ImGui::DragFloat3("pos", pos);
-						ImGui::DragFloat3("rotation", rotation);
-						ImGui::DragFloat3("sacle", sacle);
+					//Vector4 ort = Vector4(dir[0], dir[1], dir[2], 0);
+					//Vector4 aa = Vector4(0, 1, 0, 0);
+					//ort = Transform::QuaternionRotationRollPitchYaw(Transform::ConvertToRadians(ort));
+					//aa.Rotation(ort);
 
-						 m_Scene->GetRootNode()->GetChildNode(selectedNode)->SetPosition(Vector4(pos));
-						 m_Scene->GetRootNode()->GetChildNode(selectedNode)->SetRotation(Vector4(rotation));
-						 m_Scene->GetRootNode()->GetChildNode(selectedNode)->SetScale(Vector4(sacle));
-
-						ImGui::EndTabItem();
-					}
-					ImGui::EndTabBar();
+					m_DirectionalLights[0].Color = { color };
+					//m_DirectionalLights[0].DirectionWS = aa.GetFloat4();
+					//m_DirectionalLights[0].DirectionVS = m_DirectionalLights[0].DirectionWS;
 				}
+
 				ImGui::EndChild();
-				ImGui::EndGroup();
+				ImGui::EndTabItem();
 			}
+			
+
+			ImGui::EndTabBar();
 		}
+
+		
 	}
 	ImGui::End();
 }

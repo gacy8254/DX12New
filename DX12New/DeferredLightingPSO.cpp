@@ -85,18 +85,10 @@ DeferredLightingPSO::~DeferredLightingPSO()
 
 void DeferredLightingPSO::Apply(CommandList& _commandList)
 {
-	//static bool isFirst = true;
-	//if (m_pPreviousCommandList != &_commandList)
-	//{
-	//	_commandList.SetPipelineState(m_PSO);
-	//	_commandList.SetGraphicsRootSignature(m_RootSignature);
-	//	isFirst = false;
-	//	m_pPreviousCommandList = &_commandList;
-	//}
 	_commandList.SetPipelineState(m_PSO);
 	_commandList.SetGraphicsRootSignature(m_RootSignature);
 
-	_commandList.SetGraphics32BitConstants(RootParameters::CameraPosCB, m_pAlignedMVP->CamPos.GetFloat4());
+	_commandList.SetGraphics32BitConstants(RootParameters::CameraPosCB, m_CameraPos.GetFloat4());
 	//依次判断需要更新的属性,并绑定到渲染管线上
 	if (m_DirtyFlags & DF_Material)
 	{

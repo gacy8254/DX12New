@@ -8,6 +8,34 @@
 #include "ShaderDefinition.h"
 #include <array>
 
+struct ObjectCB
+{
+	Matrix4 World;
+	Matrix4 InverseTransposeWorld;
+	Matrix4 TexcoordTransform;
+};
+
+struct MainPass
+{
+	Matrix4 View;
+	Matrix4 InverseView;
+	Matrix4 Proj;
+	Matrix4 InverseProj;
+	Matrix4 UnjitteredProj;
+	Matrix4 UnjitteredInverseProj;
+	Matrix4 InverseViewProj;
+	Matrix4 ViewProj;
+	Vector4 CameraPos;
+	float JitterX;
+	float JitterY;
+	float TotalTime;
+	float DeltaTime;
+	float NearZ;
+	float FarZ;
+	UINT FrameCount;
+	float Pad;
+};
+
 class BasePSO
 {
 public:
@@ -19,6 +47,8 @@ public:
 		Matrix4 ModelViewProjectionMatrix;
 	};
 
+
+
 	BasePSO(std::shared_ptr<Device> _device);
 	virtual ~BasePSO();
 
@@ -29,33 +59,17 @@ public:
 		m_DirtyFlags |= DF_Material;
 	}
 
-	void XM_CALLCONV SetWorldMatrix(Matrix4 worldMatrix)
-	{
-		m_pAlignedMVP->World = worldMatrix;
-		m_DirtyFlags |= DF_Matrices;
+	void SetObjectCB(std::shared_ptr<ObjectCB> _value)
+	{ 
+		m_pAlignedObjectCB = _value; 
+		m_DirtyFlags |= DF_ObjectCB;
 	}
-	Matrix4 GetWorldMatrix() const { return m_pAlignedMVP->World; }
 
-	void XM_CALLCONV SetViewMatrix(Matrix4 viewMatrix)
-	{
-		m_pAlignedMVP->View = viewMatrix;
-		m_DirtyFlags |= DF_Matrices;
+	void SetMainPassCB(std::shared_ptr<MainPass> _value)
+	{ 
+		m_pAlignedMainPassCB = _value;
+		m_DirtyFlags |= DF_MainPassCB;
 	}
-	Matrix4 GetViewMatrix() const { return m_pAlignedMVP->View; }
-
-	void XM_CALLCONV SetProjectionMatrix(Matrix4 projectionMatrix)
-	{
-		m_pAlignedMVP->Projection = projectionMatrix;
-		m_DirtyFlags |= DF_Matrices;
-	}
-	Matrix4 GetProjectionMatrix() const { return m_pAlignedMVP->Projection; }
-
-	void XM_CALLCONV SetCameraPos(Vector4 _pos)
-	{
-		m_pAlignedMVP->CamPos = _pos;
-		m_DirtyFlags |= DF_Matrices;
-	}
-	Vector4 GetCameraPos() const { return m_pAlignedMVP->CamPos; }
 
 	//应用到渲染管线上
 	virtual void Apply(CommandList& _commandList) = 0;
@@ -70,16 +84,9 @@ protected:
 		DF_SpotLights = (1 << 1),
 		DF_DirectionalLights = (1 << 2),
 		DF_Material = (1 << 3),
-		DF_Matrices = (1 << 4),
-		DF_All = DF_PointLights | DF_SpotLights | DF_DirectionalLights | DF_Material | DF_Matrices
-	};
-
-	struct alignas(16) MVP
-	{
-		Matrix4 World;
-		Matrix4 View;
-		Matrix4 Projection;
-		Vector4 CamPos;
+		DF_ObjectCB = (1 << 4),
+		DF_MainPassCB = (1 << 5),
+		DF_All = DF_PointLights | DF_SpotLights | DF_DirectionalLights | DF_Material | DF_ObjectCB | DF_MainPassCB
 	};
 
 	void BindTexture(CommandList& _commandList, uint32_t _offset, const std::shared_ptr<Texture>& _texture, UINT _slot);
@@ -93,7 +100,8 @@ protected:
 	//默认的空白SRV用于占位贴图槽
 	std::shared_ptr<ShaderResourceView> m_DefaultSRV;
 
-	MVP* m_pAlignedMVP;
+	std::shared_ptr<ObjectCB> m_pAlignedObjectCB;
+	std::shared_ptr<MainPass> m_pAlignedMainPassCB;
 
 	CommandList* m_pPreviousCommandList;
 

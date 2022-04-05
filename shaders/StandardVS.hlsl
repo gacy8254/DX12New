@@ -1,13 +1,5 @@
-
-struct Mat
-{
-    matrix ModelMat;
-    matrix ModelViewMat;
-    matrix InverseTransposeModelMat;
-    matrix ModelViewPorjMat;
-};
-
-ConstantBuffer<Mat> MatCB : register(b0);
+#include "ObjectCB.hlsli"
+#include "MainPassCB.hlsli"
 
 struct VertexInput
 {
@@ -32,12 +24,13 @@ VertexOutput main(VertexInput IN)
 {
     VertexOutput VSOUT;
 
-    VSOUT.Position = mul(MatCB.ModelViewPorjMat, float4(IN.Position, 1.0f));
-    VSOUT.PositionWS = mul(MatCB.ModelMat, float4(IN.Position, 1.0f));
-    VSOUT.NormalWS = mul((float3x3) MatCB.InverseTransposeModelMat, IN.Normal);
+    matrix mvp = mul(ObjectCB.gWorld, MainPassCB.gViewProj);
+    VSOUT.Position = mul(mvp, float4(IN.Position, 1.0f));
+    VSOUT.PositionWS = mul(ObjectCB.gWorld, float4(IN.Position, 1.0f));
+    VSOUT.NormalWS = mul((float3x3) ObjectCB.gInverseTransposeWorld, IN.Normal);
     VSOUT.TexCoord = IN.TexCoord.xy;
-    VSOUT.TangentWS = mul((float3x3) MatCB.InverseTransposeModelMat, IN.Tangent);
-    VSOUT.BitangentWS = mul((float3x3) MatCB.InverseTransposeModelMat, IN.Bitangent);
+    VSOUT.TangentWS = mul((float3x3) ObjectCB.gInverseTransposeWorld, IN.Tangent);
+    VSOUT.BitangentWS = mul((float3x3) ObjectCB.gInverseTransposeWorld, IN.Bitangent);
 
     return VSOUT;
 }

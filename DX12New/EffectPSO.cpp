@@ -44,7 +44,8 @@ EffectPSO::EffectPSO(std::shared_ptr<Device> _device, bool _enableLighting, bool
 	CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 8, 3);
 
 	CD3DX12_ROOT_PARAMETER1 rootParameter[RootParameters::NumRootParameters];
-	rootParameter[RootParameters::MatricesCB].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+	rootParameter[RootParameters::ObjectCB].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+	rootParameter[RootParameters::MainPassCB].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
 	rootParameter[RootParameters::MaterialCB].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	CD3DX12_STATIC_SAMPLER_DESC anisotropicSampler(0, D3D12_FILTER_ANISOTROPIC);
@@ -114,15 +115,14 @@ void EffectPSO::Apply(CommandList& _commandList)
 	_commandList.SetGraphicsRootSignature(m_RootSignature);
 
 	//依次判断需要更新的属性,并绑定到渲染管线上
-	if (m_DirtyFlags & DF_Matrices)
+	if (m_DirtyFlags & DF_ObjectCB)
 	{
-		Matrices m;
-		m.ModelMatrix = m_pAlignedMVP->World;
-		m.ModelViewMatrix = m_pAlignedMVP->World * m_pAlignedMVP->View;
-		m.ModelViewProjectionMatrix = m.ModelViewMatrix * m_pAlignedMVP->Projection;
-		m.InverseTransposeModelMatrix = Transform::MatrixTranspose(Transform::InverseMatrix(nullptr, m.ModelMatrix));
+		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::ObjectCB, m_pAlignedObjectCB);
+	}
 
-		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MatricesCB, m);
+	if (m_DirtyFlags & DF_MainPassCB)
+	{
+		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MainPassCB, m_pAlignedMainPassCB);
 	}
 
 	if (m_DirtyFlags & DF_Material)

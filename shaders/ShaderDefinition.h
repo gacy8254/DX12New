@@ -17,6 +17,7 @@
 #define Z_UPPER_BOUND_NORM 1.0f
 #define Z_LOWER_BOUND_NORM 0.0f
 
+//使用reverseZ
 #if USE_REVERSE_Z
 
 #define FAR_Z Z_LOWER_BOUND
@@ -33,4 +34,36 @@
 
 #endif
 
-#define UNREAL_LIGHT_ATTENUATION 0
+//使用虚幻的衰减公式
+#define UNREAL_LIGHT_ATTENUATION 1
+
+//使用TAA
+#define USE_TAA 1
+
+#define TAA_SAMPLE_COUNT 8
+
+//// 8x TAA
+//static const double Halton_2[8] =
+//{
+//	0.0,
+//	-1.0 / 2.0,
+//	1.0 / 2.0,
+//	-3.0 / 4.0,
+//	1.0 / 4.0,
+//	-1.0 / 4.0,
+//	3.0 / 4.0,
+//	-7.0 / 8.0
+//};
+//
+//// 8x TAA
+//static const double Halton_3[8] =
+//{
+//	-1.0 / 3.0,
+//	1.0 / 3.0,
+//	-7.0 / 9.0,
+//	-1.0 / 9.0,
+//	5.0 / 9.0,
+//	-5.0 / 9.0,
+//	1.0 / 9.0,
+//	7.0 / 9.0
+//};

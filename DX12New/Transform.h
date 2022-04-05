@@ -55,6 +55,8 @@ namespace Transform
 
 	//旋转矩阵X轴
 	Matrix4 MatrixRotationX(float _angle);
+	Matrix4 MatrixRotationY(float _angle);
+	Matrix4 MatrixRotationZ(float _angle);
 
 	//使用矩阵进行旋转缩放变化,忽略矩阵的位移部分
 	Vector4 Vector3TransformNormal(Vector4 _v, Matrix4 _mat);

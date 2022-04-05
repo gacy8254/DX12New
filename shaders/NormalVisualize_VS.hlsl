@@ -1,13 +1,5 @@
-
-struct Mat
-{
-    matrix ModelMat;
-    matrix ModelViewMat;
-    matrix InverseTransposeModelViewMat;
-    matrix ModelViewPorjMat;
-};
-
-ConstantBuffer<Mat> MatCB : register(b0);
+#include "ObjectCB.hlsli"
+#include "MainPassCB.hlsli"
 
 struct VertexInput
 {
@@ -32,8 +24,9 @@ VertexOutput main(VertexInput IN)
 
     VSOUT.PositionVS = float4(IN.Position, 1.0f);
     VSOUT.NormalVS = IN.Normal;
-    VSOUT.ModelMat = MatCB.ModelMat;
-    VSOUT.ModelViewPorjMat = MatCB.ModelViewPorjMat;
+    VSOUT.ModelMat = ObjectCB.gWorld;
+    matrix mvp = mul(ObjectCB.gWorld, MainPassCB.gViewProj);
+    VSOUT.ModelViewPorjMat = mvp;
 
     return VSOUT;
 }
