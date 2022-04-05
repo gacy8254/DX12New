@@ -59,16 +59,18 @@ void SceneVisitor::Visit(Scene& scene)
 	m_MainPassCB->TotalTime					= m_Window.GetTotalTime();
 	m_MainPassCB->NearZ						= m_Camera.GetNearZ();
 	m_MainPassCB->FarZ						= m_Camera.GetFarZ();
+	m_MainPassCB->Proj						= m_Camera.GetProjMatrix();
+	m_MainPassCB->View						= m_Camera.GetViewMatrix();
 	m_MainPassCB->FrameCount				= m_Window.GetFrameCount();
-	m_MainPassCB->InverseProj				= m_Camera.GetUnjitteredInverseProjMatrix();
+	m_MainPassCB->InverseProj				= m_Camera.GetInserseProjMatrix();
 	m_MainPassCB->InverseView				= m_Camera.GetInserseViewMatrix();
 	m_MainPassCB->JitterX					= m_Camera.GetJitterX();
 	m_MainPassCB->JitterY					= m_Camera.GetJitterY();
-	m_MainPassCB->Proj						= m_Camera.GetUnjitteredProjMatrix();
-	m_MainPassCB->UnjitteredInverseProj		= m_Camera.GetInserseProjMatrix();
-	m_MainPassCB->UnjitteredProj			= m_Camera.GetProjMatrix();
-	m_MainPassCB->View						= m_Camera.GetViewMatrix();
-	m_MainPassCB->ViewProj					= m_Camera.GetInserseViewMatrix() * m_Camera.GetUnjitteredProjMatrix();
+	m_MainPassCB->UnjitteredProj			= m_Camera.GetUnjitteredProjMatrix();
+	m_MainPassCB->UnjitteredInverseProj		= m_Camera.GetUnjitteredInverseProjMatrix();
+	
+	
+	m_MainPassCB->ViewProj					= m_Camera.GetInserseViewMatrix() * m_Camera.GetProjMatrix();
 	m_MainPassCB->InverseViewProj			= Transform::InverseMatrix(nullptr, m_MainPassCB->ViewProj);
 
 	m_LightingPSO.SetMainPassCB(m_MainPassCB);

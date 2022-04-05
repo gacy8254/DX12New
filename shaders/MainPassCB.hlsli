@@ -11,7 +11,8 @@ struct MainPass
     matrix gInverseViewProj;
     matrix gViewProj;
     float4 gCameraPos;
-    float2 gJitter;
+    float gJitterX;
+    float gJitterY;
     float gTotalTime;
     float gDeltaTime;
     float gNearZ;

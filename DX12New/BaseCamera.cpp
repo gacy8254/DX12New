@@ -101,8 +101,8 @@ Matrix4 BaseCamera::GetUnjitteredInverseProjMatrix() const
 		UpdateProjMatrix();
 	}
 	UpdateUnjitteredProjMatrix();
+	pData->m_UnjitteredInverseProjMatrix = Transform::InverseMatrix(nullptr, pData->m_UnjitteredProjMatrix);
 	return pData->m_UnjitteredInverseProjMatrix;
-	
 }
 
 Matrix4 BaseCamera::GetUnjitteredProjMatrix() const

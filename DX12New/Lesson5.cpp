@@ -276,7 +276,7 @@ void Lesson5::OnResize(ResizeEventArgs& e)
 	m_Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(m_Width), static_cast<float>(m_Height));
 
 	float aspect = m_Width / (float)m_Height;
-	m_Camera.SetProjection(45.0f, aspect, 0.1f, 10000.0f);
+	m_Camera.SetProjection(45.0f, aspect, 0.1f, 1000.0f);
 
 	m_HDRRenderTarget.Resize(m_Width, m_Height);
 	m_GBufferRenderTarget.Resize(m_Width, m_Height);
