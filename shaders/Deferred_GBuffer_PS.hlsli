@@ -1,10 +1,14 @@
 struct PixelShaderInput
 {
-    float4 PositionWS : POSITION;
-    float3 NormalWS : NORMAL;
-    float3 TangentWS : TANGENT;
-    float3 BitangentWS : BITANGENT;
-    float2 TexCoord : TEXCOORD;
+    float4 Position             : SV_Position; //剪裁空间坐标
+    float4 PositionWS           : POSITION; //世界空间坐标
+    float4 CurrentPosition      : POSITION1; //当前的剪裁空间坐标,使用未抖动的矩阵
+    float4 PreviousPosition     : POSITION2; //上一帧的剪裁空间坐标
+    float3 NormalWS             : NORMAL; //世界空间法线
+    float3 TangentWS            : TANGENT; //切线
+    float3 BitangentWS          : BITANGENT; //副切线
+    float2 TexCoord             : TEXCOORD; //UV
+    
 };
 
 struct Material
@@ -45,20 +49,19 @@ struct PixelOut
     float4 ORM           : SV_TARGET2;
     float4 Emissive      : SV_TARGET3;
     float4 WorldPos      : SV_TARGET4;
+    float2 Velocity      : SV_TARGET5;
     //float4 Albedo : SV_TARGET0;
 };
 
 ConstantBuffer<Material> MaterialCB : register(b0, space1);
 
 // Textures
-Texture2D AOTexture : register(t0);
+Texture2D ORMTexture : register(t0);
 Texture2D EmissiveTexture : register(t1);
 Texture2D DiffuseTexture : register(t2);
-Texture2D MetalticTexture : register(t3);
-Texture2D RoughnessTexture : register(t4);
-Texture2D NormalTexture : register(t5);
-Texture2D BumpTexture : register(t6);
-Texture2D OpacityTexture : register(t7);
+Texture2D NormalTexture : register(t3);
+Texture2D BumpTexture : register(t4);
+Texture2D OpacityTexture : register(t5);
 
 SamplerState TextureSampler : register(s0);
 
@@ -158,11 +161,15 @@ PixelOut main(PixelShaderInput IN)
 
     if (material.HasAOTexture)
     {
-        AO = AOTexture.Sample(TextureSampler, uv).r;
+        AO = ORMTexture.Sample(TextureSampler, uv).r;
+        roughness = ORMTexture.Sample(TextureSampler, uv).g;
+        metaltic = ORMTexture.Sample(TextureSampler, uv).b;
     }
     else
     {
         AO = material.Specular.r;
+        roughness = material.Specular.g;
+        metaltic = material.Specular.b;
     }
     
     if (material.HasEmissiveTexture)
@@ -184,25 +191,26 @@ PixelOut main(PixelShaderInput IN)
     {
         diffuse = material.Diffuse;
     }
-    if (material.HasRoughnessTexture)
-    {
+    
+    //if (material.HasRoughnessTexture)
+    //{
         
-       roughness = RoughnessTexture.Sample(TextureSampler, uv).r;
-    }
-    else
-    {
-        roughness = material.Specular.g;
-    }
-    if(material.HasMetalticTexture)
-    {
+    //    roughness = ORMTexture.Sample(TextureSampler, uv).g;
+    //}
+    //else
+    //{
+    //    roughness = material.Specular.g;
+    //}
+    //if(material.HasMetalticTexture)
+    //{
         
-       metaltic = MetalticTexture.Sample(TextureSampler, uv).r;
-    }
-    else
-    {
+    //    metaltic = ORMTexture.Sample(TextureSampler, uv).b;
+    //}
+    //else
+    //{
        
-       metaltic = material.Specular.b;
-    }
+    //   metaltic = material.Specular.b;
+    //}
     
     float3 N;
     // Normal mapping
@@ -235,6 +243,17 @@ PixelOut main(PixelShaderInput IN)
         N = normalize(IN.NormalWS);
     }
     
+    
+    //速度
+    float4 previousPos = IN.PreviousPosition;
+    previousPos = previousPos / previousPos.w;
+    previousPos.xy = previousPos.xy / float2(2.0f, -2.0f) + float2(0.5f, 0.5f);// 翻转Y轴,因为世界坐标和贴图坐标有不同的Y轴
+    
+    float4 currentPos = IN.CurrentPosition;
+    currentPos = currentPos / currentPos.w;
+    currentPos.xy = currentPos.xy / float2(2.0f, -2.0f) + float2(0.5f, 0.5f);
+    
+    Out.Velocity = float2(currentPos.x - previousPos.x, currentPos.y - previousPos.y);
     Out.Albedo = diffuse;
     Out.Albedo.a = alpha;
     Out.Normal.rgb = N;

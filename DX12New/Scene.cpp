@@ -230,7 +230,7 @@ void Scene::ImportMaterial(CommandList& _commandList, const aiMaterial& _materia
 	{
 		fs::path texturePath(aiTexturePath.C_Str());
 		auto texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, false);
-		pMaterial->SetTexture(Material::TextureType::AO, texture);
+		pMaterial->SetTexture(Material::TextureType::ORM, texture);
 	}
 
 	if (_material.GetTextureCount(aiTextureType_EMISSIVE) > 0 &&
@@ -252,25 +252,25 @@ void Scene::ImportMaterial(CommandList& _commandList, const aiMaterial& _materia
 		pMaterial->SetTexture(Material::TextureType::Diffuse, texture);
 	}
 
-	// Load specular texture.
-	if (_material.GetTextureCount(aiTextureType_SPECULAR) > 0 &&
-		_material.GetTexture(aiTextureType_SPECULAR, 0, &aiTexturePath, nullptr, nullptr, &blendFactor,
-			&aiBlendOperation) == aiReturn_SUCCESS)
-	{
-		fs::path texturePath(aiTexturePath.C_Str());
-		auto     texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, false);
-		pMaterial->SetTexture(Material::TextureType::Metaltic, texture);
-	}
+	//// Load specular texture.
+	//if (_material.GetTextureCount(aiTextureType_SPECULAR) > 0 &&
+	//	_material.GetTexture(aiTextureType_SPECULAR, 0, &aiTexturePath, nullptr, nullptr, &blendFactor,
+	//		&aiBlendOperation) == aiReturn_SUCCESS)
+	//{
+	//	fs::path texturePath(aiTexturePath.C_Str());
+	//	auto     texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, false);
+	//	pMaterial->SetTexture(Material::TextureType::Metaltic, texture);
+	//}
 
-	// Load specular power texture.
-	if (_material.GetTextureCount(aiTextureType_SHININESS) > 0 &&
-		_material.GetTexture(aiTextureType_SHININESS, 0, &aiTexturePath, nullptr, nullptr, &blendFactor,
-			&aiBlendOperation) == aiReturn_SUCCESS)
-	{
-		fs::path texturePath(aiTexturePath.C_Str());
-		auto     texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, false);
-		pMaterial->SetTexture(Material::TextureType::Roughness, texture);
-	}
+	//// Load specular power texture.
+	//if (_material.GetTextureCount(aiTextureType_SHININESS) > 0 &&
+	//	_material.GetTexture(aiTextureType_SHININESS, 0, &aiTexturePath, nullptr, nullptr, &blendFactor,
+	//		&aiBlendOperation) == aiReturn_SUCCESS)
+	//{
+	//	fs::path texturePath(aiTexturePath.C_Str());
+	//	auto     texture = _commandList.LoadTextureFromFile(_parentPath / texturePath, false);
+	//	pMaterial->SetTexture(Material::TextureType::Roughness, texture);
+	//}
 
 	if (_material.GetTextureCount(aiTextureType_OPACITY) > 0 &&
 		_material.GetTexture(aiTextureType_OPACITY, 0, &aiTexturePath, nullptr, nullptr, &blendFactor,

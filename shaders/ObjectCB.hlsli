@@ -10,6 +10,7 @@
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
+    float4x4 gPreviousWorld;
     float4x4 gInverseTransposeWorld;
     float4x4 gTexcoordTransform;
 }

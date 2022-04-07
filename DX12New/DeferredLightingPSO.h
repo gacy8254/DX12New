@@ -35,8 +35,8 @@ public:
 				   // Texture2D EmissiveText,		register (t6)
 				   // Texture2D WorldPosText,		register (t7)
 				   // Texture2D IrradianceText,		register (t8)
-				   // Texture2D 
-				   // Texture2D 
+				   // Texture2D PrefilterText	register (t9)
+				   // Texture2D IntegrateBRDFText,		register (t10)
 				   NumRootParameters
 	};
 

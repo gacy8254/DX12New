@@ -35,7 +35,7 @@ DeferredGBufferPSO::DeferredGBufferPSO(std::shared_ptr<Device> _device, bool _en
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-	CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 8, 0);
+	CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 6, 0);
 
 	CD3DX12_ROOT_PARAMETER1 rootParameter[RootParameters::NumRootParameters];
 	rootParameter[RootParameters::ObjectCB].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
@@ -72,12 +72,13 @@ DeferredGBufferPSO::DeferredGBufferPSO(std::shared_ptr<Device> _device, bool _en
 	DXGI_SAMPLE_DESC sampleDesc = m_Device->GetMultisampleQualityLevels(backBufferFormat);
 
 	D3D12_RT_FORMAT_ARRAY rtvFormats = {};
-	rtvFormats.NumRenderTargets = 5;
+	rtvFormats.NumRenderTargets = 6;
 	rtvFormats.RTFormats[0] = backBufferFormat;
 	rtvFormats.RTFormats[1] = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	rtvFormats.RTFormats[2] = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	rtvFormats.RTFormats[3] = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	rtvFormats.RTFormats[4] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	rtvFormats.RTFormats[5] = DXGI_FORMAT_R16G16_FLOAT;
 
 	CD3DX12_RASTERIZER_DESC rasterizerState(D3D12_DEFAULT);
 	if (m_EnableDecal) {
@@ -148,14 +149,12 @@ void DeferredGBufferPSO::Apply(CommandList& _commandList)
 			_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MaterialCB, materialProps);
 			//std::cout << m_Material->IsDirty() << std::endl;
 			//ÉèÖÃÌùÍ¼
-			BindTexture(_commandList, 0, m_Material->GetTexture(Material::TextureType::AO), RootParameters::Textures);
+			BindTexture(_commandList, 0, m_Material->GetTexture(Material::TextureType::ORM), RootParameters::Textures);
 			BindTexture(_commandList, 1, m_Material->GetTexture(Material::TextureType::Emissive), RootParameters::Textures);
 			BindTexture(_commandList, 2, m_Material->GetTexture(Material::TextureType::Diffuse), RootParameters::Textures);
-			BindTexture(_commandList, 3, m_Material->GetTexture(Material::TextureType::Metaltic), RootParameters::Textures);
-			BindTexture(_commandList, 4, m_Material->GetTexture(Material::TextureType::Roughness), RootParameters::Textures);
-			BindTexture(_commandList, 5, m_Material->GetTexture(Material::TextureType::Normal), RootParameters::Textures);
-			BindTexture(_commandList, 6, m_Material->GetTexture(Material::TextureType::Bump), RootParameters::Textures);
-			BindTexture(_commandList, 7, m_Material->GetTexture(Material::TextureType::Opacity), RootParameters::Textures);
+			BindTexture(_commandList, 3, m_Material->GetTexture(Material::TextureType::Normal), RootParameters::Textures);
+			BindTexture(_commandList, 4, m_Material->GetTexture(Material::TextureType::Bump), RootParameters::Textures);
+			BindTexture(_commandList, 5, m_Material->GetTexture(Material::TextureType::Opacity), RootParameters::Textures);
 
 			m_Material->SetDirty(false);
 		}

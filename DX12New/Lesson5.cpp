@@ -87,7 +87,9 @@ void Lesson5::LoadContent()
 	m_GUI = m_Device->CreateGUI(m_Window->GetWindowHandle(), m_SwapChain->GetRenderTarget());
 	Application::Get().WndProcHandler += WndProcEvent::slot(&GUI::WndProcHandler, m_GUI);
 
-	m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\MaterialMesh.FBX"));
+	//LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\Three.FBX");
+	m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\Three.FBX"));
+	//m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\MaterialMesh.FBX"));
 	//m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj"));
 
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
@@ -146,6 +148,9 @@ void Lesson5::LoadContent()
 
 	CreateGBufferRT();
 
+	auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32_FLOAT, m_Width, m_Height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_NONE);
+	m_DepthTexture = m_Device->CreateTexture(depthDesc);
+
 	//创建渲染目标
 	// HDR
 	// Create a color buffer with sRGB for gamma correction.
@@ -169,12 +174,11 @@ void Lesson5::LoadContent()
 
 		colorTexture = m_Device->CreateTexture(colorDesc, false, &colorClearValue);
 
-		colorTexture->SetName(L"Color Render Target");
+		colorTexture->SetName(L"HDR Color Render Target");
 
 		m_HDRRenderTarget.AttachTexture(AttachmentPoint::Color0, colorTexture);
 
-		auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, m_Width, m_Height, 1, 1, 1,
-			0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+		auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, m_Width, m_Height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 		D3D12_CLEAR_VALUE depthClearValue;
 		depthClearValue.Format = depthDesc.Format;
 #if USE_REVERSE_Z
@@ -184,7 +188,7 @@ void Lesson5::LoadContent()
 #endif
 
 		auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
-		depthTexture->SetName(L"Depth Render Target");
+		depthTexture->SetName(L"HDR Depth Render Target");
 
 		m_HDRRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
 	}
@@ -226,7 +230,7 @@ void Lesson5::LoadContent()
 #endif
 
 		auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
-		depthTexture->SetName(L"Depth Render Target");
+		depthTexture->SetName(L"LDR Depth Render Target");
 
 		m_LDRRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
 	}
@@ -254,6 +258,14 @@ void Lesson5::OnUpdate(UpdateEventArgs& e)
 		frameCount = 0;
 		totalTime = 0.0;
 	}
+	if (m_Scene)
+	{
+		float x = std::sin(e.TotalTime * 2) * 10.0f;
+		Vector4 pos = m_Scene->GetRootNode()->GetChildNode(0)->GetPosition();
+		pos.SetX(x);
+		//m_Scene->GetRootNode()->GetChildNode(0)->SetPosition(pos);
+	}
+
 
 	//更新灯光数据
 	m_DeferredLightingPso->SetPointLights(m_PointLights);
@@ -284,6 +296,16 @@ void Lesson5::OnResize(ResizeEventArgs& e)
 
 	//LDR渲染目标
 	m_LDRRenderTarget.Resize(m_Width, m_Height);
+
+	m_TAARenderTarget.Resize(m_Width, m_Height);
+	if (m_HistoryTexture)
+	{
+		m_HistoryTexture->Resize(m_Width, m_Height);
+	}
+	if (m_DepthTexture)
+	{
+		m_DepthTexture->Resize(m_Width, m_Height);
+	}
 
 	//预计算立方体贴图卷积的RT
 	RenderTarget m_IrradianceRenderTarget;
@@ -326,12 +348,12 @@ void Lesson5::OnRender()
 	else
 	{
 		//创建Pass
-		SceneVisitor opaquePass(*commandList, m_Camera, *m_GBufferPso, *m_Window, false);
-		SceneVisitor transparentPass(*commandList, m_Camera, *m_GBufferDecalPso, *m_Window, true);
-		SceneVisitor unlitPass(*commandList, m_Camera, *m_UnlitPso, *m_Window, false);
-		SceneVisitor skyBoxPass(*commandList, m_Camera, *m_SkyBoxPso, *m_Window, false);
-		SceneVisitor LinePass(*commandList, m_Camera, *m_NormalVisualizePso, *m_Window, false);
-		SceneVisitor WireFramePass(*commandList, m_Camera, *m_WireframePSO, *m_Window, false);
+		SceneVisitor opaquePass(*commandList, m_Camera, *m_GBufferPso, *m_Window, m_LDRRenderTarget, false);
+		SceneVisitor transparentPass(*commandList, m_Camera, *m_GBufferDecalPso, *m_Window, m_LDRRenderTarget, true);
+		SceneVisitor unlitPass(*commandList, m_Camera, *m_UnlitPso, *m_Window, m_LDRRenderTarget, false);
+		SceneVisitor skyBoxPass(*commandList, m_Camera, *m_SkyBoxPso, *m_Window, m_LDRRenderTarget, false);
+		SceneVisitor LinePass(*commandList, m_Camera, *m_NormalVisualizePso, *m_Window, m_LDRRenderTarget, false);
+		SceneVisitor WireFramePass(*commandList, m_Camera, *m_WireframePSO, *m_Window, m_LDRRenderTarget, false);
 	
 		//设置命令列表
 		commandList->SetViewport(m_Viewport);
@@ -339,25 +361,47 @@ void Lesson5::OnRender()
 
 		if (!m_IsWireFrameMode)
 		{
+			FLOAT clearColor1[] = { 0.0f, 0.0f, 0.9f, 1.0f };
 			//清空缓冲区
 			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color0), clearColor);
 			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color1), clearColor);
 			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color2), clearColor);
 			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color3), clearColor);
 			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color4), clearColor);
+			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color5), clearColor1);
 			commandList->ClearDepthStencilTexture(rendertarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 			commandList->SetRenderTarget(rendertarget);
 			
-			//抖动
-			UINT subsampleIndex = m_Window->GetFrameCount() % TAA_SAMPLE_COUNT;
-			double jitterX = Halton_2[subsampleIndex] / (double)m_Width * (double)TAA_JITTER_DISTANCE;
-			double jitterY = Halton_3[subsampleIndex] / (double)m_Height * (double)TAA_JITTER_DISTANCE;
-			m_Camera.SetJitter(jitterX, jitterY);
-
+			if (m_TAA)
+			{
+				//抖动
+				UINT subsampleIndex = m_Window->GetFrameCount() % TAA_SAMPLE_COUNT;
+				double jitterX = Halton_2[subsampleIndex] / (double)m_Width * (double)TAA_JITTER_DISTANCE;
+				double jitterY = Halton_3[subsampleIndex] / (double)m_Height * (double)TAA_JITTER_DISTANCE;
+				m_Camera.SetJitter(jitterX, jitterY);
+			}
+			else
+			{
+				m_Camera.SetJitter(0, 0);
+			}
+		
+			double timeStart = m_Window->GetTotalTime();
 			//渲染场景(GBUFFER  PASS)
 			m_Scene->Accept(opaquePass);
-
+			for (int i = 0; i < 1111; i++)
+			{
+				for (int j = 0; j < 1111; ++j)
+				{
+					for (int k = 0; k < 1111; ++k)
+					{
+						int p = i + j + k;
+					}
+				}
+			}
 			m_Scene->Accept(transparentPass);
+			double currentTime = m_Window->GetTotalTime();
+			GbufferPassTime = currentTime - timeStart;
+			timeStart = currentTime;
 
 			//计算光照(PBR PASS)
 			commandList->ClearTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
@@ -381,6 +425,9 @@ void Lesson5::OnRender()
 			m_DeferredLightingPso->SetTexture(gBufferTexture);
 			m_DeferredLightingPso->Apply(*commandList);
 			commandList->Draw(4);
+			currentTime = m_Window->GetTotalTime();
+			PBRPassTime = currentTime - timeStart;
+			timeStart = currentTime;
 
 			//将深度图拷贝到HDR渲染目标,渲染辅助附体
 			commandList->CopyResource(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), m_GBufferRenderTarget.GetTexture(AttachmentPoint::DepthStencil));
@@ -388,20 +435,47 @@ void Lesson5::OnRender()
 			commandList->TransitionBarrier(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 			commandList->FlushResourceBarriers();
 
-			m_Axis->Accept(unlitPass);
-			DrawLightMesh(unlitPass);
+			//辅助物体以及天空盒 绘制
+			//m_Axis->Accept(unlitPass);
+			//DrawLightMesh(unlitPass);
 			m_Cube->Accept(skyBoxPass);
+			currentTime = m_Window->GetTotalTime();
+			SkyboxPassTime = currentTime - timeStart;
+			timeStart = currentTime;
 
-			//TAA PASS
-			TAA(commandList);
+			if (m_TAA)
+			{
+				commandList->CopyResource(m_DepthTexture, m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil));
+				TAA(commandList);
+				m_LDRPSO->SetTexture(m_TAARenderTarget.GetTexture(AttachmentPoint::Color0));
+				currentTime = m_Window->GetTotalTime();
+				TAAPassTime = currentTime - timeStart;
+				timeStart = currentTime;
+			}
+			else
+			{
+				m_LDRPSO->SetTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0));
+				//m_LDRPSO->SetTexture(m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color5));
+			}
+
+//#if USE_TAA
+//			//TAA PASS
+//			TAA(commandList);
+//			m_LDRPSO->SetTexture(m_TAARenderTarget.GetTexture(AttachmentPoint::Color0));
+//#else
+//			m_LDRPSO->SetTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0));
+//#endif
 
 			//HDR转LDR
 			commandList->ClearTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
 			commandList->ClearDepthStencilTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 			commandList->SetRenderTarget(m_LDRRenderTarget);
-			m_LDRPSO->SetTexture(m_TAARenderTarget.GetTexture(AttachmentPoint::Color0));
+			
 			m_LDRPSO->Apply(*commandList);
 			commandList->Draw(4);
+			currentTime = m_Window->GetTotalTime();
+			SDRPassTime = currentTime - timeStart;
+			timeStart = currentTime;
 
 			const auto& rt = m_SwapChain->GetRenderTarget().GetTexture(AttachmentPoint::Color0);
 			commandList->CopyResource(rt, m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0));
@@ -412,7 +486,7 @@ void Lesson5::OnRender()
 			commandList->ClearDepthStencilTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 			commandList->SetRenderTarget(m_LDRRenderTarget);
 			m_Scene->Accept(WireFramePass);
-			m_Axis->Accept(WireFramePass);
+			//m_Axis->Accept(WireFramePass);
 			DrawLightMesh(WireFramePass);
 			m_Cube->Accept(WireFramePass);
 
@@ -551,6 +625,7 @@ void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const Rende
 			ImGui::MenuItem("show_demo", nullptr, &show_demo_window);
 			ImGui::MenuItem("Detail", nullptr, &showDetail);
 			ImGui::MenuItem("Tree", nullptr, &showTree);
+			ImGui::MenuItem("Profile", nullptr, &m_ShowTimeWindow);
 
 			ImGui::EndMenu();
 		}
@@ -564,6 +639,8 @@ void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const Rende
 			}
 
 			if (ImGui::MenuItem("WireFrameMode", "", &m_IsWireFrameMode)) {}
+
+			if (ImGui::MenuItem("TAA", "", &m_TAA)) {}
 
 			bool fullscreen = m_Window->IsFullScreen();
 			if (ImGui::MenuItem("Full screen", "Alt+Enter", &fullscreen))
@@ -608,6 +685,53 @@ void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const Rende
 	if (showTree)
 	{
 		GUITree(&showTree);
+	}
+
+	if (m_ShowTimeWindow)
+	{
+		if (ImGui::Begin("Profile"))
+		{
+			char buffer[256];
+			{
+				sprintf_s(buffer, _countof(buffer), "GBuffer Pass: %.2f (%.2f ms)  ", GbufferPassTime, 1.0 / GbufferPassTime * 1000.0);
+				//auto fpsTextSize = ImGui::CalcTextSize(buffer);
+				//ImGui::SameLine(ImGui::GetWindowWidth() - fpsTextSize.x);
+				ImGui::Text(buffer);
+			}
+
+			char buffer1[256];
+			{
+				sprintf_s(buffer1, _countof(buffer1), "PBR Pass: %.2f (%.2f ms)  ", PBRPassTime, 1.0 / PBRPassTime * 1000.0);
+				//auto fpsTextSize = ImGui::CalcTextSize(buffer1);
+				//ImGui::SameLine(ImGui::GetWindowWidth() - fpsTextSize.x);
+				ImGui::Text(buffer1);
+			}
+
+			char buffer2[256];
+			{
+				sprintf_s(buffer2, _countof(buffer2), "Sky Pass: %.2f (%.2f ms)  ", SkyboxPassTime, 1.0 / SkyboxPassTime * 1000.0);
+				//auto fpsTextSize = ImGui::CalcTextSize(buffer2);
+				//ImGui::SameLine(ImGui::GetWindowWidth() - fpsTextSize.x);
+				ImGui::Text(buffer2);
+			}
+
+			char buffer3[256];
+			{
+				sprintf_s(buffer3, _countof(buffer3), "TAA Pass: %.2f (%.2f ms)  ", TAAPassTime, 1.0 / TAAPassTime * 1000.0);
+				//auto fpsTextSize = ImGui::CalcTextSize(buffer3);
+				//ImGui::SameLine(ImGui::GetWindowWidth() - fpsTextSize.x);
+				ImGui::Text(buffer3);
+			}
+
+			char buffer4[256];
+			{
+				sprintf_s(buffer4, _countof(buffer4), "SDR Pass: %.2f (%.2f ms)  ", SDRPassTime, 1.0 / SDRPassTime * 1000.0);
+				//auto fpsTextSize = ImGui::CalcTextSize(buffer4);
+				//ImGui::SameLine(ImGui::GetWindowWidth() - fpsTextSize.x);
+				ImGui::Text(buffer4);
+			}
+		}
+		ImGui::End();
 	}
 
 	// Rendering
@@ -661,8 +785,10 @@ void Lesson5::TAA(std::shared_ptr<CommandList> _commandList)
 	taaTexture.resize(TAAPSO::NumTextures);
 	taaTexture[TAAPSO::InputTexture] = m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0);
 	taaTexture[TAAPSO::HistoryTexture] = m_HistoryTexture;
+	taaTexture[TAAPSO::VelocityTexture] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color5);
+	taaTexture[TAAPSO::DepthTexture] = m_DepthTexture;
 	m_TAAPSO->SetTexture(taaTexture);
-	SceneVisitor taaPass(*_commandList, m_Camera, *m_TAAPSO, *m_Window, false);
+	SceneVisitor taaPass(*_commandList, m_Camera, *m_TAAPSO, *m_Window, m_LDRRenderTarget, false);
 	m_Screen->Accept(taaPass);
 
 	_commandList->CopyResource(m_HistoryTexture, m_TAARenderTarget.GetTexture(AttachmentPoint::Color0));
@@ -690,7 +816,7 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 		scene->GetRootNode()->SetScale(Vector4(0.5, 0.5, 0.5, 0));
 		node->SetScale(0.01, 0.01, 0.01);
 		node->SetPosition(0, 0, -3);
-		node->SetRotation(90, 0, 0);
+		node->SetRotation(0, 0, 0);
 
 		m_Scene = std::make_shared<Scene>();
 		m_Scene->GetRootNode()->AddChild(node);
@@ -943,6 +1069,13 @@ void Lesson5::CreateGBufferRT()
 	colorClearValue2.Color[2] = 0.9f;
 	colorClearValue2.Color[3] = 1.0f;
 
+	//速度图的格式
+	D3D12_CLEAR_VALUE colorClearValue3;
+	colorClearValue3.Format = DXGI_FORMAT_R16G16_FLOAT;
+	colorClearValue3.Color[0] = 0.4f;
+	colorClearValue3.Color[1] = 0.6f;
+
+
 	auto desc2 = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
 		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 	desc2.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
@@ -951,7 +1084,11 @@ void Lesson5::CreateGBufferRT()
 		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 	desc3.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
-	for (int i = 0; i < 5; i++)
+	auto desc4 = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
+		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	desc4.Format = DXGI_FORMAT_R16G16_FLOAT;
+
+	for (int i = 0; i < 6; i++)
 	{
 		std::shared_ptr<Texture> colorTexture;
 		if (i == 0)
@@ -961,6 +1098,10 @@ void Lesson5::CreateGBufferRT()
 		else if (i == 4 || i == 1)
 		{
 			colorTexture = m_Device->CreateTexture(desc3, false, &colorClearValue2);
+		}
+		else if (i == 5)
+		{
+			colorTexture = m_Device->CreateTexture(desc4, false, &colorClearValue3);
 		}
 		else
 		{
@@ -982,7 +1123,7 @@ void Lesson5::CreateGBufferRT()
 #endif
 
 	auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
-	depthTexture->SetName(L"Depth Render Target");
+	depthTexture->SetName(L"GBUFFER Depth Render Target");
 
 	m_GBufferRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
 }
@@ -1069,7 +1210,7 @@ void Lesson5::PreIrradiance(std::shared_ptr<CommandList> _commandList)
 
 	//深度图
 	auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
-	depthTexture->SetName(L"Depth Render Target");
+	depthTexture->SetName(L"Irradiance Depth Render Target");
 	m_IrradianceRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
 
 	FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
@@ -1090,7 +1231,7 @@ void Lesson5::PreIrradiance(std::shared_ptr<CommandList> _commandList)
 
 		_commandList->GetGraphicsCommandList()->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
 		_commandList->ClearDepthStencilTexture(m_IrradianceRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
-		SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[i], *m_PreCalPso, *m_Window,false);
+		SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[i], *m_PreCalPso, *m_Window, m_LDRRenderTarget, false);
 		cube->Accept(skyBoxPass);
 	}
 
@@ -1139,7 +1280,7 @@ void Lesson5::Prefilter(std::shared_ptr<CommandList> _commandList)
 
 	//深度图
 	auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
-	depthTexture->SetName(L"Depth Render Target");
+	depthTexture->SetName(L"Prefilter Depth Render Target");
 	m_PrefilterRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
 
 	FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
@@ -1165,7 +1306,7 @@ void Lesson5::Prefilter(std::shared_ptr<CommandList> _commandList)
 
 			_commandList->GetGraphicsCommandList()->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
 			_commandList->ClearDepthStencilTexture(m_PrefilterRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
-			SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[j], *m_PrefilterPso, *m_Window, false);
+			SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[j], *m_PrefilterPso, *m_Window, m_LDRRenderTarget, false);
 			cube->Accept(skyBoxPass);
 		}
 	}

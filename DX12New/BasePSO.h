@@ -11,6 +11,7 @@
 struct ObjectCB
 {
 	Matrix4 World;
+	Matrix4 PreviousWorld;
 	Matrix4 InverseTransposeWorld;
 	Matrix4 TexcoordTransform;
 };
@@ -26,10 +27,15 @@ struct MainPass
 	Matrix4 InverseViewProj;
 	Matrix4 ViewProj;
 	Matrix4 UnjitteredViewProj;
-	Matrix4 ViewProjTex;;
+	Matrix4 ViewProjTex;
+	Matrix4 PreviousViewProj;
 	Vector4 CameraPos;
 	float JitterX;
 	float JitterY;
+	float RTSizeX;
+	float RTSizeY;
+	float InverseRTSizeX;
+	float InverseRTSizeY;
 	float TotalTime;
 	float DeltaTime;
 	float NearZ;

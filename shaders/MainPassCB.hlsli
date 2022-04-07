@@ -32,10 +32,13 @@ cbuffer cbPass : register(b1)
     float4x4 gUnjitteredInverseProj;
     float4x4 gInverseViewProj;
     float4x4 gViewProj;
-    float4x4 UnjitteredViewProj;
+    float4x4 gUnjitteredViewProj;
     float4x4 gViewProjTex;
+    float4x4 gPreviousViewProj;
     float4 gCameraPos;
     float2 gJitter;
+    float2 gRTSize;
+    float2 gInverseRTSize;
     float gTotalTime;
     float gDeltaTime;
     float gNearZ;

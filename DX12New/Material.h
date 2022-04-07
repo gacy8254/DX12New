@@ -29,7 +29,7 @@ struct alignas(16) MaterialProperties
 		, SpecularPower(specularPower)
 		, IndexOfRefraction(indexOfRefraction)
 		, BumpIntensity(bumpIntensity)
-		, HasAOTexture(false)
+		, HasORMTexture(false)
 		, HasEmissiveTexture(false)
 		, HasDiffuseTexture(false)
 		, HasMetalticTexture(false)
@@ -55,7 +55,7 @@ struct alignas(16) MaterialProperties
 	float BumpIntensity;                 // When using bump textures (height maps) we need
 										 // to scale the height values so the normals are visible.
 	//------------------------------------ ( 16 bytes )
-	uint32_t HasAOTexture;
+	uint32_t HasORMTexture;
 	uint32_t HasEmissiveTexture;
 	uint32_t HasDiffuseTexture;
 	uint32_t HasMetalticTexture;
@@ -73,11 +73,9 @@ class Material
 public:
 	enum class TextureType
 	{
-		AO,
+		ORM,
 		Emissive,
 		Diffuse,
-		Metaltic,
-		Roughness,
 		Normal,
 		Bump,
 		Opacity,

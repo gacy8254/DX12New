@@ -18,14 +18,12 @@ public:
 
 		// Pixel shader parameters
 		MaterialCB,         // ConstantBuffer<Material> MaterialCB : register( b0, space1 );
-		Textures,  // Texture2D AmbientTexture       : register( t0 );
-				   // Texture2D EmissiveTexture : register( t1 );
-				   // Texture2D DiffuseTexture : register( t2 );
-				   // Texture2D SpecularTexture : register( t3 );
-				   // Texture2D SpecularPowerTexture : register( t4 );
-				   // Texture2D NormalTexture : register( t5 );
-				   // Texture2D BumpTexture : register( t6 );
-				   // Texture2D OpacityTexture : register( t7 );
+		Textures,		// Texture2D ORMTexture : register(t0);
+						//Texture2D EmissiveTexture : register(t1);
+						//Texture2D DiffuseTexture : register(t2);
+						//Texture2D NormalTexture : register(t3);
+						//Texture2D BumpTexture : register(t4);
+						//Texture2D OpacityTexture : register(t5);
 		NumRootParameters
 	};
 

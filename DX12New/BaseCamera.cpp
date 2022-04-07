@@ -211,6 +211,7 @@ void XM_CALLCONV BaseCamera::MoveFocalPoint(Vector4 _focalPoint, Space _space /*
 
 void BaseCamera::UpdateViewMatrix() const
 {
+	pData->m_PreviousViewMatrix = pData->m_ViewMatrix;
 	Matrix4 rotationMatrix = Transform::MatrixTranspose(Transform::MatrixRotationQuaternion(pData->m_Rotation));
 	Matrix4 translateMatrix = Transform::MatrixTranslateFromVector(-(pData->m_Translation));
 	Matrix4 focalMatrix = Transform::MatrixTranslateFromVector(-(pData->m_FocalPoint));
@@ -253,6 +254,7 @@ void BaseCamera::UpdateInverseProjMatrix() const
 
 void BaseCamera::UpdateUnjitteredProjMatrix() const
 {
+	pData->m_PreviousUnjitteredProjMatrix = pData->m_UnjitteredProjMatrix;
 	float fov = DirectX::XMConvertToRadians(m_Fov);
 	pData->m_UnjitteredProjMatrix = Transform::MatrixPerspectiveForLH(fov, m_Aspect, m_ZNear, m_ZFar);
 

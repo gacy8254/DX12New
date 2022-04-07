@@ -237,6 +237,9 @@
     <ClCompile Include="TAAPSO.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="DepthPSO.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
@@ -479,6 +482,9 @@
     <ClInclude Include="TAAPSO.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="DepthPSO.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\shaders\HDR_PS.hlsl">
@@ -544,10 +550,16 @@
     <FxCompile Include="NormalVisualize_PS.hlsl">
       <Filter>Common\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="..\shaders\TAA_PS.hlsl">
+    <FxCompile Include="..\shaders\TAA_PS_G.hlsl">
       <Filter>Common\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\ScreenPlane_VS.hlsl">
+      <Filter>Common\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\DEPTH_PS.hlsl">
+      <Filter>Common\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\TAA_PS.hlsl">
       <Filter>Common\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

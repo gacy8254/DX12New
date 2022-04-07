@@ -6,17 +6,19 @@
 #include "Actor.h"
 #include "SceneNode.h"
 #include "Window.h"
+#include "RenderTarget.h"
 
 #include <DirectXMath.h>
 
 using namespace DirectX;
 
-SceneVisitor::SceneVisitor(CommandList& _commandList, const BaseCamera& _camera, BasePSO& _pso, Window& _window, bool _transparent)
+SceneVisitor::SceneVisitor(CommandList& _commandList, const BaseCamera& _camera, BasePSO& _pso, Window& _window, RenderTarget& _rt, bool _transparent)
 	:m_CommandList(_commandList),
 	m_Camera(_camera),
 	m_LightingPSO(_pso),
 	m_Transparent(_transparent),
-	m_Window(_window)
+	m_Window(_window),
+	m_RenderTarget(_rt)
 {
 	m_ObjectCB = std::make_shared<ObjectCB>();
 	m_MainPassCB = std::make_shared<MainPass>();
@@ -54,14 +56,16 @@ void SceneVisitor::Visit(Actor& _actor)
 void SceneVisitor::Visit(SceneNode& sceneNode)
 {
 	//ÉèÖÃÊÀ½ç¾ØÕó
-	m_ObjectCB->World = sceneNode.GetWorldTransform();
-	m_ObjectCB->InverseTransposeWorld = Transform::MatrixTranspose(Transform::InverseMatrix(nullptr, sceneNode.GetWorldTransform()));
-	m_ObjectCB->TexcoordTransform = sceneNode.GetTexcoordTransform();
+	m_ObjectCB->PreviousWorld					= sceneNode.GetPreviousWorldMatrix();
+	m_ObjectCB->World							= sceneNode.GetWorldTransform();
+	m_ObjectCB->InverseTransposeWorld			= Transform::MatrixTranspose(Transform::InverseMatrix(nullptr, sceneNode.GetWorldTransform()));
+	m_ObjectCB->TexcoordTransform				= sceneNode.GetTexcoordTransform();
 	m_LightingPSO.SetObjectCB(m_ObjectCB);
 }
 
 void SceneVisitor::Visit(Scene& scene)
 {
+	m_MainPassCB->PreviousViewProj			= m_Camera.GetPreviousViewProjMatrix();
 	m_MainPassCB->CameraPos					= m_Camera.GetTranslation();
 	m_MainPassCB->DeltaTime					= m_Window.GetDeltaTime();
 	m_MainPassCB->TotalTime					= m_Window.GetTotalTime();
@@ -74,6 +78,10 @@ void SceneVisitor::Visit(Scene& scene)
 	m_MainPassCB->InverseView				= m_Camera.GetInserseViewMatrix();
 	m_MainPassCB->JitterX					= m_Camera.GetJitterX();
 	m_MainPassCB->JitterY					= m_Camera.GetJitterY();
+	m_MainPassCB->RTSizeX					= m_RenderTarget.GetWidth();
+	m_MainPassCB->RTSizeY					= m_RenderTarget.GetHeight();
+	m_MainPassCB->InverseRTSizeX			= 1.0f / (float)m_RenderTarget.GetWidth();
+	m_MainPassCB->InverseRTSizeY			= 1.0f / (float)m_RenderTarget.GetHeight();
 	m_MainPassCB->UnjitteredProj			= m_Camera.GetUnjitteredProjMatrix();
 	m_MainPassCB->UnjitteredInverseProj		= m_Camera.GetUnjitteredInverseProjMatrix();
 	m_MainPassCB->ViewProj					= m_Camera.GetViewMatrix() * m_Camera.GetProjMatrix();

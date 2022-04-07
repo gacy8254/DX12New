@@ -1,11 +1,14 @@
 // clang-format off
 struct PixelShaderInput
 {
-    float4 PositionVS : POSITION;
-    float3 NormalVS : NORMAL;
-    float3 TangentVS : TANGENT;
-    float3 BitangentVS : BITANGENT;
-    float2 TexCoord : TEXCOORD;
+    float4 Position : SV_Position; //剪裁空间坐标
+    float4 PositionWS : POSITION; //世界空间坐标
+    float4 CurrentPosition : POSITION1; //当前的剪裁空间坐标,使用未抖动的矩阵
+    float4 PreviousPosition : POSITION2; //上一帧的剪裁空间坐标
+    float3 NormalWS : NORMAL; //世界空间法线
+    float3 TangentWS : TANGENT; //切线
+    float3 BitangentWS : BITANGENT; //副切线
+    float2 TexCoord : TEXCOORD; //UV
 };
 
 struct Material

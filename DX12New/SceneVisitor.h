@@ -5,12 +5,13 @@
 class BaseCamera;
 class CommandList;
 class Window;
+class RenderTarget;
 
 class SceneVisitor :
     public Visitor
 {
 public:
-    SceneVisitor(CommandList& _commandList, const BaseCamera& _camera, BasePSO& _pso, Window& _window, bool _transparent);
+    SceneVisitor(CommandList& _commandList, const BaseCamera& _camera, BasePSO& _pso, Window& _window, RenderTarget& _rt, bool _transparent);
     virtual ~SceneVisitor();
     virtual void Visit(Actor& _actor) override;
     virtual void Visit(SceneNode& sceneNode) override;
@@ -21,6 +22,7 @@ private:
     const BaseCamera& m_Camera;
     BasePSO& m_LightingPSO;
     Window& m_Window;
+    RenderTarget& m_RenderTarget;
     bool m_Transparent;
 
 	std::shared_ptr<ObjectCB> m_ObjectCB;

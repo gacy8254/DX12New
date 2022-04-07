@@ -14,6 +14,8 @@ public:
 		MainPassCB, //cbuffer cbPass : register	(b1)
 		Textures,  // Texture2D InputTexture,			register (t0)
 				   // Texture2D historyTexture,			register (t1)
+				   // Texture2D VelocityTexture,		register (t2)
+				   // Texture2D DepthTexture,			register (t3)
 
 				   NumRootParameters
 	};
@@ -22,6 +24,8 @@ public:
 	{
 		InputTexture,
 		HistoryTexture,
+		VelocityTexture,
+		DepthTexture,
 		NumTextures
 	};
 

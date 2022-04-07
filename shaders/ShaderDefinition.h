@@ -38,7 +38,7 @@
 #define UNREAL_LIGHT_ATTENUATION 1
 
 // π”√TAA
-#define USE_TAA 1
+#define USE_TAA 0
 
 #define TAA_SAMPLE_COUNT 8
 #define TAA_JITTER_DISTANCE 1.0;

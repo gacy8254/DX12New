@@ -54,6 +54,7 @@ Matrix4 SceneNode::GetInverseLocalTransform() const
 
 Matrix4 SceneNode::GetWorldTransform() const
 {
+	
 	if (m_DirtyData)
 	{
 		UpdateLocalTransform();
@@ -302,6 +303,8 @@ void SceneNode::UpdateLocalTransform() const
 {
 	if (m_DirtyData)
 	{
+		m_AlignedData->m_PreviousLocalTransform = m_AlignedData->m_LocalTransform;
+
 		Matrix4 translate = Transform::MatrixTranslateFromVector(m_AlignedData->m_Translate);
 		Vector4 quaternion = Transform::QuaternionRotationRollPitchYaw(Transform::ConvertToRadians(m_AlignedData->m_Rotation));
 		Matrix4 rotation = Transform::MatrixRotationQuaternion(quaternion);

@@ -37,6 +37,8 @@ public:
 	//获取世界变换
 	Matrix4 GetWorldTransform() const;
 
+	Matrix4 GetPreviousWorldMatrix() const { return m_AlignedData->m_PreviousLocalTransform; }
+
 	//获取世界变换的逆
 	Matrix4 GetInverseWorldTransform() const;
 
@@ -101,6 +103,7 @@ private:
 	struct alignas(16) AlignedData
 	{
 		Matrix4 m_LocalTransform;
+		Matrix4 m_PreviousLocalTransform;
 		Matrix4 m_InverseTransform;
 		Matrix4 m_TexcoordTransform;
 		Vector4 m_Translate;

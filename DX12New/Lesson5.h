@@ -137,7 +137,7 @@ private:
     std::unique_ptr<WireframePSO> m_WireframePSO;
     std::unique_ptr<TAAPSO> m_TAAPSO;
     std::shared_ptr<Texture> m_HistoryTexture;
-
+    std::shared_ptr<Texture> m_DepthTexture;
 
     //设备
     std::shared_ptr<Device> m_Device;
@@ -156,6 +156,9 @@ private:
 
     //HDR渲染目标
     RenderTarget m_HDRRenderTarget;
+
+    //盛杜图
+    RenderTarget m_DepthRenderTarget;
 
     //TAA渲染目标,0是当前帧,1是历史帧
     RenderTarget m_TAARenderTarget;
@@ -195,10 +198,12 @@ private:
 	bool              m_ShowFileOpenDialog;
 	bool              m_CancelLoading;
 	bool              m_ShowControls;
+    bool              m_TAA = true;
 	std::atomic_bool  m_IsLoading;
 	std::future<bool> m_LoadingTask;
 	float             m_LoadingProgress;
 	std::string       m_LoadingText;
+    bool              m_ShowTimeWindow;
 
 	float m_FPS;
 
@@ -228,5 +233,16 @@ private:
 		1.0 / 9.0,
 		7.0 / 9.0
 	};
+
+
+
+    double GbufferPassTime;
+    double PBRPassTime;
+    double SkyboxPassTime;
+    double TAAPassTime;
+    double SDRPassTime;
+    //double GbufferPassTime;
+    //double GbufferPassTime;
+    //double GbufferPassTime;
 };
 

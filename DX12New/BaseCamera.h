@@ -31,6 +31,11 @@ public:
 	Matrix4 GetUnjitteredInverseProjMatrix() const;
 	Matrix4 GetUnjitteredProjMatrix() const;
 
+	Matrix4 GetPreviousViewProjMatrix() const
+	{
+		return pData->m_PreviousViewMatrix * pData->m_PreviousUnjitteredProjMatrix;
+	}
+
 	void SetFov(float _fovY);
 
 	float GetFov();
@@ -79,6 +84,7 @@ protected:
 		Matrix4 m_ViewMatrix, m_InverseViewMatrix;
 		Matrix4 m_ProjMatrix, m_InverseProjMatrix;
 		Matrix4 m_UnjitteredProjMatrix, m_UnjitteredInverseProjMatrix;
+		Matrix4 m_PreviousViewMatrix, m_PreviousUnjitteredProjMatrix;
 	};
 	AlignedData* pData;
 

@@ -102,7 +102,6 @@ void DeferredLightingPSO::Apply(CommandList& _commandList)
 		BindTexture(_commandList, 5, m_Textures[IrradianceText], RootParameters::Textures);
 		BindTexture(_commandList, 6, m_Textures[PrefilterText], RootParameters::Textures);
 		BindTexture(_commandList, 7, m_Textures[IntegrateBRDFText], RootParameters::Textures);
-
 	}
 
 	if (m_DirtyFlags & DF_PointLights)

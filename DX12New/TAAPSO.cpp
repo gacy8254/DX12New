@@ -22,16 +22,26 @@ TAAPSO::TAAPSO(std::shared_ptr<Device> _device)
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-	CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0);
+	CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0);
 
 	CD3DX12_ROOT_PARAMETER1 rootParameter[RootParameters::NumRootParameters];
 	rootParameter[RootParameters::MainPassCB].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
 	rootParameter[RootParameters::Textures].InitAsDescriptorTable(1, &descriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-	auto samplers = GetStaticSamplers();
+	CD3DX12_STATIC_SAMPLER_DESC StaticSamplers[2];
+	StaticSamplers[0].Init(0, D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+	);
+	StaticSamplers[1].Init(1, D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR,
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+		0.f, 16u, D3D12_COMPARISON_FUNC_LESS_EQUAL);
 
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rsDesc;
-	rsDesc.Init_1_1(RootParameters::NumRootParameters, rootParameter, samplers.size(), samplers.data(), rootSignatureFlags);
+	rsDesc.Init_1_1(RootParameters::NumRootParameters, rootParameter, 2, StaticSamplers, rootSignatureFlags);
 
 	m_RootSignature = m_Device->CreateRootSignature(rsDesc.Desc_1_1);
 
@@ -89,6 +99,8 @@ void TAAPSO::Apply(CommandList& _commandList)
 		//设置贴图
 		BindTexture(_commandList, 0, m_Textures[TAATexture::InputTexture], RootParameters::Textures);
 		BindTexture(_commandList, 1, m_Textures[TAATexture::HistoryTexture], RootParameters::Textures);
+		BindTexture(_commandList, 2, m_Textures[TAATexture::VelocityTexture], RootParameters::Textures);
+		BindTexture(_commandList, 3, m_Textures[TAATexture::DepthTexture], RootParameters::Textures);
 	}
 
 	//清空标志
