@@ -23,6 +23,7 @@
 #include "IntegrateBRDFPSO.h"
 #include "WireframePSO.h"
 #include "TAAPSO.h"
+#include "ClusterDreferredPSO.h"
 #include "GUI.h"
 
 #include <d3d12.h>
@@ -75,7 +76,7 @@ protected:
 private:
     void TAA(std::shared_ptr<CommandList> _commandList);
 
-
+    void ClusterLight(std::shared_ptr<CommandList> _commandList);
     //º”‘ÿ≥°æ∞
     bool LoadScene(const std::wstring& sceneFile);
 
@@ -111,6 +112,8 @@ private:
 
     void BindMaterial(float* _color, float* _orm, float* _emissive, std::shared_ptr<Actor> _mesh);
 
+    std::shared_ptr<MainPass> mainPassCB;
+
     //Ã˘Õº
     std::shared_ptr<Texture> m_CubeMap;
     std::shared_ptr<Texture> m_CubeMap1;
@@ -133,6 +136,9 @@ private:
     std::unique_ptr<FinalLDRPSO> m_LDRPSO;
 
     std::unique_ptr<IntegrateBRDFPSO> m_IntegrateBRDFPSO;
+
+    std::unique_ptr<ClusterDreferredPSO> m_ClusterDreferredPSO;
+
 
     std::unique_ptr<WireframePSO> m_WireframePSO;
     std::unique_ptr<TAAPSO> m_TAAPSO;

@@ -23,14 +23,18 @@ DeferredLightingPSO::DeferredLightingPSO(std::shared_ptr<Device> _device, bool _
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-	CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 8, 3);
+	CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 9, 4);
+	CD3DX12_DESCRIPTOR_RANGE1 descriptorRange1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3);
 
 	CD3DX12_ROOT_PARAMETER1 rootParameter[RootParameters::NumRootParameters];
 	rootParameter[RootParameters::LightPropertiesCB].InitAsConstants(sizeof(LightProperties) / 4, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParameter[RootParameters::CameraPosCB].InitAsConstants(sizeof(Vector4) / 4, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParameter[RootParameters::MainPassCB].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
+	rootParameter[RootParameters::CameraPosCB].InitAsConstants(sizeof(Vector4) / 4, 2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::PointLights].InitAsShaderResourceView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::SpotLights].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::DirectionalLights].InitAsShaderResourceView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	//rootParameter[RootParameters::LightsList].InitAsShaderResourceView(3, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParameter[RootParameters::LightsList].InitAsDescriptorTable(1, &descriptorRange1, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::Textures].InitAsDescriptorTable(1, &descriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto samplers = GetStaticSamplers();
@@ -63,8 +67,6 @@ DeferredLightingPSO::DeferredLightingPSO(std::shared_ptr<Device> _device, bool _
 
 	rasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	
-
-
 	//设置PSO属性
 	pipelineStateStream.pRootSignature = m_RootSignature->GetRootSignature().Get();
 	pipelineStateStream.VS = CD3DX12_SHADER_BYTECODE(vertexShaderBlob.Get());
@@ -89,7 +91,14 @@ void DeferredLightingPSO::Apply(CommandList& _commandList)
 	_commandList.SetGraphicsRootSignature(m_RootSignature);
 
 	_commandList.SetGraphics32BitConstants(RootParameters::CameraPosCB, m_CameraPos.GetFloat4());
+	_commandList.SetShaderResourceView(RootParameters::LightsList, 0, m_LightList);
+
 	//依次判断需要更新的属性,并绑定到渲染管线上
+	if (m_DirtyFlags & DF_MainPassCB)
+	{
+		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MainPassCB, *m_pAlignedMainPassCB);
+	}
+
 	if (m_DirtyFlags & DF_Material)
 	{
 
@@ -102,6 +111,7 @@ void DeferredLightingPSO::Apply(CommandList& _commandList)
 		BindTexture(_commandList, 5, m_Textures[IrradianceText], RootParameters::Textures);
 		BindTexture(_commandList, 6, m_Textures[PrefilterText], RootParameters::Textures);
 		BindTexture(_commandList, 7, m_Textures[IntegrateBRDFText], RootParameters::Textures);
+		BindTexture(_commandList, 8, m_Textures[DepthText], RootParameters::Textures);
 	}
 
 	if (m_DirtyFlags & DF_PointLights)

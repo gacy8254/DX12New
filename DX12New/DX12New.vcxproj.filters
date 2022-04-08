@@ -240,6 +240,9 @@
     <ClCompile Include="DepthPSO.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="ClusterDreferredPSO.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
@@ -485,6 +488,9 @@
     <ClInclude Include="DepthPSO.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ClusterDreferredPSO.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\shaders\HDR_PS.hlsl">
@@ -562,6 +568,9 @@
     <FxCompile Include="..\shaders\TAA_PS.hlsl">
       <Filter>Common\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="..\shaders\ClusterDrferred_CS.hlsl">
+      <Filter>Common\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -584,6 +593,9 @@
       <Filter>Common\Shaders</Filter>
     </None>
     <None Include="..\shaders\ObjectCB.hlsli">
+      <Filter>Common\Shaders</Filter>
+    </None>
+    <None Include="..\shaders\Lighting.hlsli">
       <Filter>Common\Shaders</Filter>
     </None>
   </ItemGroup>

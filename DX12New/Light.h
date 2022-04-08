@@ -114,3 +114,10 @@ struct DirectionalLight
     //----------------------------------- (16 byte boundary)
     // Total:                              16 * 4 = 64 bytes
 };
+
+struct LightProperties
+{
+	uint32_t NumPointLights;
+	uint32_t NumSpotLights;
+	uint32_t NumDirectionalLights;
+};

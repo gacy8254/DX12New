@@ -44,7 +44,5 @@ cbuffer cbPass : register(b1)
     float gNearZ;
     float gFarZ;
     uint gFrameCount;
-    float gPad;
-   
-    
+    float gPad;  
 }

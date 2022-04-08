@@ -17,6 +17,7 @@ public:
 
 	//获取资源
 	Microsoft::WRL::ComPtr<ID3D12Resource> GetResource() const { return m_Resource; }
+	void SetResource(Microsoft::WRL::ComPtr<ID3D12Resource>, D3D12_RESOURCE_STATES _state);
 
 	//获取资源描述
 	D3D12_RESOURCE_DESC GetResourceDesc() const {

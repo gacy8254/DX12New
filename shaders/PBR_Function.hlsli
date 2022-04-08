@@ -1,70 +1,4 @@
-#include "ShaderDefinition.h"
-
-//#if ENABLE_LIGHTING
-struct PointLight
-{
-    float4 PositionWS; // Light position in world space.
-    //----------------------------------- (16 byte boundary)
-    float4 PositionVS; // Light position in view space.
-    //----------------------------------- (16 byte boundary)
-    float4 Color;
-    //----------------------------------- (16 byte boundary)
-    float range;
-    float Intensity;
-    float LinearAttenuation;
-    float QuadraticAttenuation;
-    //----------------------------------- (16 byte boundary)
-    // Total:                              16 * 4 = 64 bytes
-};
-
-struct SpotLight
-{
-    float4 PositionWS; // Light position in world space.
-    //----------------------------------- (16 byte boundary)
-    float4 PositionVS; // Light position in view space.
-    //----------------------------------- (16 byte boundary)
-    float4 DirectionWS; // Light direction in world space.
-    //----------------------------------- (16 byte boundary)
-    float4 DirectionVS; // Light direction in view space.
-    //----------------------------------- (16 byte boundary)
-    float4 Color;
-    //----------------------------------- (16 byte boundary)
-    float range;
-    float SpotAngle;
-    float Intensity;
-    float LinearAttenuation;
-    //----------------------------------- (16 byte boundary)
-    // Total:                              16 * 6 = 96 bytes
-};
-
-struct DirectionalLight
-{
-    float4 DirectionWS; // Light direction in world space.
-    //----------------------------------- (16 byte boundary)
-    float4 DirectionVS; // Light direction in view space.
-    //----------------------------------- (16 byte boundary)
-    float4 Color;
-    //----------------------------------- (16 byte boundary)
-    float Intensity;
-    float3 Padding;
-    //----------------------------------- (16 byte boundary)
-    // Total:                              16 * 4 = 64 bytes
-};
-
-struct LightProperties
-{
-    uint NumPointLights;
-    uint NumSpotLights;
-    uint NumDirectionalLights;
-};
-
-ConstantBuffer<LightProperties> LightPropertiesCB : register(b0);
-
-StructuredBuffer<PointLight> PointLights : register(t0);
-StructuredBuffer<SpotLight> SpotLights : register(t1);
-StructuredBuffer<DirectionalLight> DirectionalLights : register(t2);
-
-//#endif // ENABLE_LIGHTING
+#include "Lighting.hlsli"
 
 //菲涅尔方程
 //返回物体表面光线被反射的百分比
@@ -335,41 +269,6 @@ float3 DoDirectionalLight(DirectionalLight light, float3 _normal, float3 _worldP
     result = DirectPBR(instensity, light.Color.rgb, toLight, _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, _f0);
 
     return result;
-}
-
-//计算所有灯光的直接光照
-float3 DoLighting(float3 _normal, float3 _worldPos, float3 _toCamera, float3 _albedo, float _roughness, float _metallic, float _shadowAmount = 1.0f)
-{
-    float3 totalResult = (float3) 0.0f;
-    int i = 0;
-    
-    float3 F0 = float3(0.04, 0.04, 0.04);
-    F0 = lerp(F0, _albedo.rgb, _metallic);
-    
-    for (i = 0; i < LightPropertiesCB.NumPointLights; ++i)
-    {
-        float3 result = DoPointLight(PointLights[i], _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, F0);
-
-        totalResult += result;
-    }
-
-    // Iterate spot lights.
-    for (i = 0; i < LightPropertiesCB.NumSpotLights; ++i)
-    {
-        float3 result = DoSpotLight(SpotLights[i], _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, F0);
-
-        totalResult += result;
-    }
-
-    // Iterate directinal lights
-    for (i = 0; i < LightPropertiesCB.NumDirectionalLights; ++i)
-    {
-        float3 result = DoDirectionalLight(DirectionalLights[i], _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, F0);
-
-        totalResult += result;
-    }
-    
-    return totalResult;
 }
 
 //计算环境光照

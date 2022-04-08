@@ -27,7 +27,7 @@ using namespace DirectX;
 class MakeUploadBuffer : public UploadBuffer
 {
 public:
-	MakeUploadBuffer(Device& device, size_t pageSize = _2MB)
+	MakeUploadBuffer(Device& device, size_t pageSize = _4MB)
 		: UploadBuffer(device, pageSize)
 	{}
 
@@ -688,6 +688,21 @@ void CommandList::SetGraphicsDynamicConstantBuffer(uint32_t _rootParameterIndex,
 	m_CommandList->SetGraphicsRootConstantBufferView(_rootParameterIndex, heapAllocation.GPU);
 }
 
+void CommandList::SetComputerDynamicConstantBuffer(uint32_t _rootParameterIndex, size_t _sizeInBytes, const void* _bufferData)
+{
+	//常量缓存必须256位对齐
+	//使用UploadBuffer类分配内存
+	//用于更新经常更改的常量缓冲区
+	//Allocate方法返回一个ALLOCATION结构体,仅包括指向上传堆中内存的CPU和GPU指针
+	auto heapAllocation = m_UploadBuffer->Allocate(_sizeInBytes, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+
+	//拷贝内存
+	memcpy(heapAllocation.CPU, _bufferData, _sizeInBytes);
+
+	//设置CBV
+	m_CommandList->SetComputeRootConstantBufferView(_rootParameterIndex, heapAllocation.GPU);
+}
+
 void CommandList::SetGraphics32BitConstants(uint32_t _rootParameterIndex, size_t _numContants, const void* _bufferData)
 {
 	m_CommandList->SetGraphicsRoot32BitConstants(_rootParameterIndex, _numContants, _bufferData, 0);
@@ -781,6 +796,18 @@ void CommandList::SetGraphicsDynamicStructuredBuffer(uint32_t _slot, size_t _num
 	memcpy(heapAllocation.CPU, _bufferData, bufferSize);
 
 	m_CommandList->SetGraphicsRootShaderResourceView(_slot, heapAllocation.GPU);
+}
+
+void CommandList::SetComputerDynamicStructuredBuffer(uint32_t _slot, size_t _numElements, size_t _elementSize, const void* _bufferData)
+{
+	size_t bufferSize = _numElements * _elementSize;
+
+	//分配内存
+	auto heapAllocation = m_UploadBuffer->Allocate(bufferSize, _elementSize);
+	//拷贝
+	memcpy(heapAllocation.CPU, _bufferData, bufferSize);
+
+	m_CommandList->SetComputeRootShaderResourceView(_slot, heapAllocation.GPU);
 }
 
 void CommandList::SetViewport(const D3D12_VIEWPORT& _viewport)

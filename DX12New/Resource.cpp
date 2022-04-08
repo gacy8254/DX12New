@@ -36,6 +36,14 @@ Resource::Resource(Device& _device, Microsoft::WRL::ComPtr<ID3D12Resource> _reso
 	CheckFeatureSupport();
 }
 
+void Resource::SetResource(Microsoft::WRL::ComPtr<ID3D12Resource> _resource, D3D12_RESOURCE_STATES _state)
+{
+	m_Resource = _resource;
+	ResourceStateTracker::AddGlobalResourceState(m_Resource.Get(), _state);
+
+	CheckFeatureSupport();
+}
+
 void Resource::SetName(const std::wstring& _name)
 {
 	m_Name = _name;

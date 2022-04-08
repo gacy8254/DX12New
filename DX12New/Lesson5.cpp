@@ -139,8 +139,12 @@ void Lesson5::LoadContent()
 	m_WireframePSO = std::make_unique<WireframePSO>(m_Device);
 	m_TAAPSO = std::make_unique<TAAPSO>(m_Device);
 
+	UINT64 elementNum = (UINT64)(ceilf((float)m_Width / (float)CLUSTER_SIZE_X) * ceilf((float)m_Height / (float)CLUSTER_SIZE_Y) * CLUSTER_NUM_Z + 0.01);
+	uint32_t elementSize = sizeof(LightList);
+	m_ClusterDreferredPSO = std::make_unique<ClusterDreferredPSO>(m_Device, elementNum, elementSize);
+
 	//构建灯光
-	BuildLighting(4, 1, 1);
+	BuildLighting(4, 0, 0);
 	BuildCubemapCamera();
 	
 	//执行命令列表
@@ -237,6 +241,8 @@ void Lesson5::LoadContent()
 
 	// Make sure the copy command queue is finished before leaving this function.
 	commandQueue.WaitForFenceValue(fence);
+
+	mainPassCB = std::make_shared<MainPass>();
 }
 
 void Lesson5::UnLoadContent()
@@ -271,6 +277,10 @@ void Lesson5::OnUpdate(UpdateEventArgs& e)
 	m_DeferredLightingPso->SetPointLights(m_PointLights);
 	m_DeferredLightingPso->SetDirectionalLights(m_DirectionalLights);
 	m_DeferredLightingPso->SetSpotLights(m_SpotLights);
+	
+	m_ClusterDreferredPSO->SetPointLights(m_PointLights);
+	//m_ClusterDreferredPSO->SetDirectionalLights(m_DirectionalLights);
+	m_ClusterDreferredPSO->SetSpotLights(m_SpotLights);
 
 	m_SwapChain->WaitForSwapChain();
 
@@ -385,28 +395,17 @@ void Lesson5::OnRender()
 				m_Camera.SetJitter(0, 0);
 			}
 		
-			double timeStart = m_Window->GetTotalTime();
 			//渲染场景(GBUFFER  PASS)
 			m_Scene->Accept(opaquePass);
-			for (int i = 0; i < 1111; i++)
-			{
-				for (int j = 0; j < 1111; ++j)
-				{
-					for (int k = 0; k < 1111; ++k)
-					{
-						int p = i + j + k;
-					}
-				}
-			}
 			m_Scene->Accept(transparentPass);
-			double currentTime = m_Window->GetTotalTime();
-			GbufferPassTime = currentTime - timeStart;
-			timeStart = currentTime;
 
+			commandList->CopyResource(m_DepthTexture, rendertarget.GetTexture(AttachmentPoint::DepthStencil));
 			//计算光照(PBR PASS)
 			commandList->ClearTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0), clearColor);
 			commandList->ClearDepthStencilTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 			commandList->SetRenderTarget(m_HDRRenderTarget);
+
+			ClusterLight(commandList);
 
 			//获取GBuffer贴图
 			std::vector<std::shared_ptr<Texture>> gBufferTexture;
@@ -419,15 +418,44 @@ void Lesson5::OnRender()
 			gBufferTexture[DeferredLightingPSO::IrradianceText] = m_IrradianceRenderTarget.GetTexture(AttachmentPoint::Color0);
 			gBufferTexture[DeferredLightingPSO::PrefilterText] = m_PrefilterRenderTarget.GetTexture(AttachmentPoint::Color0);
 			gBufferTexture[DeferredLightingPSO::IntegrateBRDFText] = m_IntegrateBRDFRenderTarget.GetTexture(AttachmentPoint::Color0);
+			gBufferTexture[DeferredLightingPSO::DepthText] = m_DepthTexture;
+
+			mainPassCB->PreviousViewProj = m_Camera.GetPreviousViewProjMatrix();
+			mainPassCB->CameraPos = m_Camera.GetTranslation();
+			mainPassCB->DeltaTime = m_Window->GetDeltaTime();
+			mainPassCB->TotalTime = m_Window->GetTotalTime();
+			mainPassCB->NearZ = m_Camera.GetNearZ();
+			mainPassCB->FarZ = m_Camera.GetFarZ();
+			mainPassCB->Proj = m_Camera.GetProjMatrix();
+			mainPassCB->View = m_Camera.GetViewMatrix();
+			mainPassCB->FrameCount = m_Window->GetFrameCount();
+			mainPassCB->InverseProj = m_Camera.GetInserseProjMatrix();
+			mainPassCB->InverseView = m_Camera.GetInserseViewMatrix();
+			mainPassCB->JitterX = m_Camera.GetJitterX();
+			mainPassCB->JitterY = m_Camera.GetJitterY();
+			mainPassCB->RTSizeX = m_Width;
+			mainPassCB->RTSizeY = m_Height;
+			mainPassCB->InverseRTSizeX = 1.0f / m_Width;
+			mainPassCB->InverseRTSizeY = 1.0f / m_Height;
+			mainPassCB->UnjitteredProj = m_Camera.GetUnjitteredProjMatrix();
+			mainPassCB->UnjitteredInverseProj = m_Camera.GetUnjitteredInverseProjMatrix();
+			mainPassCB->ViewProj = m_Camera.GetViewMatrix() * m_Camera.GetProjMatrix();
+			mainPassCB->InverseViewProj = Transform::InverseMatrix(nullptr, mainPassCB->ViewProj);
+			mainPassCB->UnjitteredViewProj = m_Camera.GetViewMatrix() * m_Camera.GetUnjitteredProjMatrix();
+			XMMATRIX T(
+				0.5f, 0.0f, 0.0f, 0.0f,
+				0.0f, -0.5f, 0.0f, 0.0f,
+				0.0f, 0.0f, 1.0f, 0.0f,
+				0.5f, 0.5f, 0.0f, 1.0f
+			);
+			mainPassCB->ViewProjTex = mainPassCB->ViewProj * T;
 
 			//设置PBR光照计算需要的数据
 			m_DeferredLightingPso->SetCameraPos(m_Camera.GetFocalPoint());
 			m_DeferredLightingPso->SetTexture(gBufferTexture);
+			m_DeferredLightingPso->SetMainPassCB(mainPassCB);
 			m_DeferredLightingPso->Apply(*commandList);
 			commandList->Draw(4);
-			currentTime = m_Window->GetTotalTime();
-			PBRPassTime = currentTime - timeStart;
-			timeStart = currentTime;
 
 			//将深度图拷贝到HDR渲染目标,渲染辅助附体
 			commandList->CopyResource(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), m_GBufferRenderTarget.GetTexture(AttachmentPoint::DepthStencil));
@@ -437,20 +465,14 @@ void Lesson5::OnRender()
 
 			//辅助物体以及天空盒 绘制
 			//m_Axis->Accept(unlitPass);
-			//DrawLightMesh(unlitPass);
+			DrawLightMesh(unlitPass);
 			m_Cube->Accept(skyBoxPass);
-			currentTime = m_Window->GetTotalTime();
-			SkyboxPassTime = currentTime - timeStart;
-			timeStart = currentTime;
 
 			if (m_TAA)
 			{
 				commandList->CopyResource(m_DepthTexture, m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil));
 				TAA(commandList);
 				m_LDRPSO->SetTexture(m_TAARenderTarget.GetTexture(AttachmentPoint::Color0));
-				currentTime = m_Window->GetTotalTime();
-				TAAPassTime = currentTime - timeStart;
-				timeStart = currentTime;
 			}
 			else
 			{
@@ -473,9 +495,6 @@ void Lesson5::OnRender()
 			
 			m_LDRPSO->Apply(*commandList);
 			commandList->Draw(4);
-			currentTime = m_Window->GetTotalTime();
-			SDRPassTime = currentTime - timeStart;
-			timeStart = currentTime;
 
 			const auto& rt = m_SwapChain->GetRenderTarget().GetTexture(AttachmentPoint::Color0);
 			commandList->CopyResource(rt, m_LDRRenderTarget.GetTexture(AttachmentPoint::Color0));
@@ -794,6 +813,38 @@ void Lesson5::TAA(std::shared_ptr<CommandList> _commandList)
 	_commandList->CopyResource(m_HistoryTexture, m_TAARenderTarget.GetTexture(AttachmentPoint::Color0));
 }
 
+void Lesson5::ClusterLight(std::shared_ptr<CommandList> _commandList)
+{
+
+
+	m_ClusterDreferredPSO->SetMainPassCB(mainPassCB);
+	m_ClusterDreferredPSO->Apply(*_commandList);
+
+	UINT numGroupsX = (UINT)ceilf((float)m_Width / CLUSTER_SIZE_X);
+	UINT numGroupsY = (UINT)ceilf((float)m_Height / CLUSTER_SIZE_Y);
+	UINT numGroupsZ = 1;
+	_commandList->Dispatch(numGroupsX, numGroupsY, numGroupsZ);
+
+	UINT64 elementNum = (UINT64)(ceilf((float)m_Width / (float)CLUSTER_SIZE_X) * ceilf((float)m_Height / (float)CLUSTER_SIZE_Y) * CLUSTER_NUM_Z + 0.01);
+	uint32_t elementSize = sizeof(LightList);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+	srvDesc.Buffer.NumElements = elementNum;
+	srvDesc.Buffer.StructureByteStride = elementSize;
+
+	auto resource = m_ClusterDreferredPSO->GetUAV()->GetResource();
+	std::shared_ptr<ShaderResourceView> srv = m_Device->CreateShaderResourceView(resource, &srvDesc);
+	//m_ClusterDreferredPSO->GetUAV()->GetResource()->GetResource()->
+
+
+	m_DeferredLightingPso->SetLightList(srv, elementNum, elementSize);
+}
+
 bool Lesson5::LoadScene(const std::wstring& sceneFile)
 {
 	//用于表示std:：bind的占位符参数
@@ -939,12 +990,27 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 	float directionalLightOffset = numDirectionalLights > 0 ? 2.0f * XM_PI / numDirectionalLights : 0;
 
 	// Setup the lights.
-	m_PointLights.resize(numPointLights);
+	m_PointLights.resize(numPointLights * numPointLights);
 	for (int i = 0; i < numPointLights; ++i)
 	{
-		PointLight& l = m_PointLights[i];
+		for (int j = 0; j < numPointLights; ++j)
+		{
+			PointLight& l = m_PointLights[i * numPointLights + j];
 
-		if (i == 2)
+			l.PositionWS = { i * 3.0f, j * 3.0f, 0, 1.0f };
+			XMVECTOR positionWS = XMLoadFloat4(&l.PositionWS);
+			XMVECTOR positionVS = positionWS;
+			XMStoreFloat4(&l.PositionVS, positionVS);
+
+			l.Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 0);
+			l.Instensity = 10.0f;
+			l.LinearAttenuation = 0.08f;
+			l.QuadraticAttenuation = 0.1f;
+			l.Range = 5.0f;
+		}
+
+
+		/*if (i == 2)
 		{
 			l.PositionWS = { -8 , -8, -5, 1.0f };
 		}
@@ -959,18 +1025,10 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 		else
 		{
 			l.PositionWS = { 8 , -8, -5, 1.0f };
-		}
+		}*/
 		
 
-		XMVECTOR positionWS = XMLoadFloat4(&l.PositionWS);
-		XMVECTOR positionVS = positionWS;
-		XMStoreFloat4(&l.PositionVS, positionVS);
-
-		l.Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 0);
-		l.Instensity = 10.0f;
-		l.LinearAttenuation = 0.08f;
-		l.QuadraticAttenuation = 0.1f;
-		l.Range = 10.0f;
+	
 	}
 
 	m_SpotLights.resize(numSpotLights);

@@ -155,6 +155,13 @@ public:
 		SetGraphicsDynamicConstantBuffer(_rootParameterIndex, sizeof(T), &_bufferData);
 	}
 
+	void SetComputerDynamicConstantBuffer(uint32_t _rootParameterIndex, size_t _sizeInBytes, const void* _bufferData);
+	template<typename T>
+	void SetComputerDynamicConstantBuffer(uint32_t _rootParameterIndex, const T& _bufferData)
+	{
+		SetComputerDynamicConstantBuffer(_rootParameterIndex, sizeof(T), &_bufferData);
+	}
+
 	//设置一个32位常量到渲染管线
 	void SetGraphics32BitConstants(uint32_t _rootParameterIndex, size_t _numContants, const void* _bufferData);
 	template<typename T>
@@ -203,6 +210,14 @@ public:
 	void SetGraphicsDynamicStructuredBuffer(uint32_t _slot, const std::vector<T>& _bufferData)
 	{
 		SetGraphicsDynamicStructuredBuffer(_slot, _bufferData.size(), sizeof(T), _bufferData.data());
+	}
+
+	//设置动态结构化缓冲(计算着色器)
+	void SetComputerDynamicStructuredBuffer(uint32_t _slot, size_t _numElements, size_t _elementSize, const void* _bufferData);
+	template<typename T>
+	void SetComputerDynamicStructuredBuffer(uint32_t _slot, const std::vector<T>& _bufferData)
+	{
+		SetComputerDynamicStructuredBuffer(_slot, _bufferData.size(), sizeof(T), _bufferData.data());
 	}
 
 	//设置视口

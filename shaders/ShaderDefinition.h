@@ -43,3 +43,35 @@
 #define TAA_SAMPLE_COUNT 8
 #define TAA_JITTER_DISTANCE 1.0;
 
+//----------------------------------------------------------------------------------------------------------
+// Light
+//----------------------------------------------------------------------------------------------------------
+
+#define MAX_GRID_POINT_LIGHT_NUM 80
+#define MAX_GRID_SPOTLIGHT_NUM 20
+
+//----------------------------------------------------------------------------------------------------------
+// TBDR
+//----------------------------------------------------------------------------------------------------------
+
+#define TILE_SIZE_X 16
+#define TILE_SIZE_Y 16
+
+#define TILE_THREAD_NUM_X 8
+#define TILE_THREAD_NUM_Y 8
+
+#define COMPUTE_SHADER_TILE_GROUP_SIZE (TILE_THREAD_NUM_X * TILE_THREAD_NUM_Y)
+
+//----------------------------------------------------------------------------------------------------------
+// CBDR
+//----------------------------------------------------------------------------------------------------------
+
+#define CLUSTER_SIZE_X 64
+#define CLUSTER_SIZE_Y 64
+#define CLUSTER_NUM_Z 16
+
+#define CLUSTER_THREAD_NUM_X 8
+#define CLUSTER_THREAD_NUM_Y 8
+
+#define COMPUTE_SHADER_CLUSTER_GROUP_SIZE (CLUSTER_THREAD_NUM_X * CLUSTER_THREAD_NUM_Y)
+

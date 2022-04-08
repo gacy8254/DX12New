@@ -20,7 +20,7 @@ public:
 	};
 
 	//参数pageSize是用于分配给内存页的大小
-	explicit UploadBuffer(Device& _device, size_t pageSize = _2MB);
+	explicit UploadBuffer(Device& _device, size_t pageSize = _8MB);
 
 	virtual ~UploadBuffer();
 

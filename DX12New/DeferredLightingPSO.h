@@ -9,34 +9,41 @@
 
 #include <memory>
 #include <vector>
+#include "ShaderResourceView.h"
+
+struct LightList
+{
+	unsigned int PointLightIndices[MAX_GRID_POINT_LIGHT_NUM];
+	unsigned int NumPointLights;
+	unsigned int SpotLightIndices[MAX_GRID_SPOTLIGHT_NUM];
+	unsigned int NumSpotlights;
+};
 
 class DeferredLightingPSO : public BasePSO
 {
 public:
-	struct LightProperties
-	{
-		uint32_t NumPointLights;
-		uint32_t NumSpotLights;
-		uint32_t NumDirectionalLights;
-	};
+
 
 	enum RootParameters
 	{
-		LightPropertiesCB,  // ConstantBuffer<LightProperties> LightPropertiesCB : register( b0 );
-		CameraPosCB,  // ConstantBuffer<float4> CameraPos : register( b1 );
+		LightPropertiesCB,		// ConstantBuffer<LightProperties> LightPropertiesCB : register( b0 );
+		MainPassCB,				// ConstantBuffer<LightProperties> LightPropertiesCB : register( b0 );
+		CameraPosCB,			// ConstantBuffer<float4> CameraPos : register( b2 );
 
-		PointLights,        // StructuredBuffer<PointLight> PointLights : register( t0 );
-		SpotLights,         // StructuredBuffer<SpotLight> SpotLights : register( t1 );
-		DirectionalLights,  // StructuredBuffer<DirectionalLight> DirectionalLights : register( t2 )
+		PointLights,			// StructuredBuffer<PointLight> PointLights : register( t0 );
+		SpotLights,				// StructuredBuffer<SpotLight> SpotLights : register( t1 );
+		DirectionalLights,		// StructuredBuffer<DirectionalLight> DirectionalLights : register( t2 )
+		LightsList,				// StructuredBuffer<LightList> LightsList : register(t3);
 
-		Textures,  // Texture2D AlbedoText,			register (t3)
-				   // Texture2D NormalText,			register (t4)
-				   // Texture2D ORMText,			register (t5)
-				   // Texture2D EmissiveText,		register (t6)
-				   // Texture2D WorldPosText,		register (t7)
-				   // Texture2D IrradianceText,		register (t8)
-				   // Texture2D PrefilterText	register (t9)
-				   // Texture2D IntegrateBRDFText,		register (t10)
+		Textures,				// Texture2D AlbedoText,			register (t4)
+								// Texture2D NormalText,			register (t5)
+								// Texture2D ORMText,			register (t6)
+								// Texture2D EmissiveText,		register (t7)
+								// Texture2D WorldPosText,		register (t8)
+								// Texture2D IrradianceText,		register (t9)
+								// Texture2D PrefilterText		register (t10)
+								// Texture2D IntegrateBRDFText,	register (t11)
+								// Texture2D DepthText,			register (t12)
 				   NumRootParameters
 	};
 
@@ -50,6 +57,7 @@ public:
 		IrradianceText,
 		PrefilterText,
 		IntegrateBRDFText,
+		DepthText,
 		NumTextures
 	};
 
@@ -79,6 +87,13 @@ public:
 		m_DirtyFlags |= DF_DirectionalLights;
 	}
 
+	void SetLightList(std::shared_ptr<ShaderResourceView> _lightList, UINT _num, UINT _size) 
+	{ 
+		m_LightList = _lightList; 
+		m_ElementNum = _num;
+		m_ElementSize = _size;
+	}
+
 	//const std::shared_ptr<Material>& GetMaterial() const { return m_Material; }
 	void SetTexture(std::vector<std::shared_ptr<Texture>>& _textures)
 	{
@@ -96,6 +111,10 @@ private:
 	std::vector<DirectionalLight> m_DirectionalLights;
 
 	std::vector<std::shared_ptr<Texture>> m_Textures;
+
+	std::shared_ptr<ShaderResourceView> m_LightList;
+	UINT m_ElementNum;
+	UINT m_ElementSize;
 
 	Vector4 m_CameraPos;
 

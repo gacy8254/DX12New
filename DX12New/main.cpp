@@ -38,7 +38,7 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 
 	Application::Create(hInstance);
 	{
-		std::unique_ptr<Lesson5> demo = std::make_unique<Lesson5>(L"Learning DX12", 1280, 720);
+		std::unique_ptr<Lesson5> demo = std::make_unique<Lesson5>(L"Learning DX12", 1601, 900);
 		retCode = demo->Run();
 	}
 	Application::Destroy();

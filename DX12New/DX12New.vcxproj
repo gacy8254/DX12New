@@ -165,6 +165,7 @@
     <ClCompile Include="Buffer.cpp" />
     <ClCompile Include="ByteAddressBuffer.cpp" />
     <ClCompile Include="CameraController.cpp" />
+    <ClCompile Include="ClusterDreferredPSO.cpp" />
     <ClCompile Include="CommandList.cpp" />
     <ClCompile Include="CommandQueue.cpp" />
     <ClCompile Include="ConstantBuffer.cpp" />
@@ -237,6 +238,7 @@
     <ClInclude Include="Buffer.h" />
     <ClInclude Include="ByteAddressBuffer.h" />
     <ClInclude Include="CameraController.h" />
+    <ClInclude Include="ClusterDreferredPSO.h" />
     <ClInclude Include="CommandList.h" />
     <ClInclude Include="CommandQueue.h" />
     <ClInclude Include="ConstantBuffer.h" />
@@ -303,6 +305,16 @@
     <ClInclude Include="WireframePSO.h" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="..\shaders\ClusterDrferred_CS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+    </FxCompile>
     <FxCompile Include="..\shaders\Decal.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
@@ -492,6 +504,7 @@
     <None Include="..\shaders\Deferred_GBuffer_PS.hlsli" />
     <None Include="..\shaders\Deferred_Lighting_PS.hlsli" />
     <None Include="..\shaders\Deferred_PBRLighting_PS.hlsli" />
+    <None Include="..\shaders\Lighting.hlsli" />
     <None Include="..\shaders\MainPassCB.hlsli" />
     <None Include="..\shaders\ObjectCB.hlsli" />
     <None Include="..\shaders\PBR_Function.hlsli" />
