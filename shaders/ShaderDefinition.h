@@ -68,7 +68,7 @@
 
 #define CLUSTER_SIZE_X 64
 #define CLUSTER_SIZE_Y 64
-#define CLUSTER_NUM_Z 16
+#define CLUSTER_NUM_Z 64
 
 #define CLUSTER_THREAD_NUM_X 8
 #define CLUSTER_THREAD_NUM_Y 8

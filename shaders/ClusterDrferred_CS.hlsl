@@ -10,13 +10,20 @@ static const float DepthSlicing_16[17] =
 	5000.0f, 50000.0f
 };
 
+static const float DepthSlicing_64[65] =
+{
+    1, 2, 3, 5, 8, 12, 17, 23, 30, 38, 47, 57, 68 ,70, 83, 97,
+    117, 147, 187, 237, 297, 367, 447, 537, 637, 747, 867, 997, 1137, 1287, 1447, 1617, 
+    1778, 1965, 2152, 2367, 2604, 2864, 3151, 3466, 3812, 4194, 4613, 5074, 5582, 6140, 6754, 7430,
+    8544, 9826, 11300, 12995, 14944, 17186, 19764, 22728, 26138, 30058, 34567, 39752, 45715, 46715, 47715, 48715, 
+    50000.0f
+};
+
 #include "ShaderDefinition.h"
 #include "Lighting.hlsli"
 #include "MainPassCB.hlsli"
 
 RWStructuredBuffer<LightList> gLightList : register(u0);
-
-//Texture2D gDepthBuffer				: register(t0);
 
 [numthreads(CLUSTER_THREAD_NUM_X, CLUSTER_THREAD_NUM_Y, 1)]
 void main(
@@ -70,8 +77,8 @@ void main(
     {
         bool inFrustum = true;
 
-        float4 lightPositionView = mul(gView, float4(PointLights[lightIndex].PositionWS.xyz, 1.0f));
-       // float4 lightPositionView = mul(float4(PointLights[lightIndex].PositionWS.xyz, 1.0f), gView);
+       // float4 lightPositionView = mul(gView, float4(PointLights[lightIndex].PositionWS.xyz, 1.0f));
+        float4 lightPositionView = float4(PointLights[lightIndex].PositionVS.xyz, 1.0f);
 
 		[unroll]
         for (uint i = 0; i < 4; ++i)
@@ -89,8 +96,8 @@ void main(
                 inFrustum = true;
 
 				// Near/far
-                frustumPlanes[4] = float4(0.0f, 0.0f, 1.0f, -DepthSlicing_16[clusterZ]);
-                frustumPlanes[5] = float4(0.0f, 0.0f, -1.0f, DepthSlicing_16[clusterZ + 1]);
+                frustumPlanes[4] = float4(0.0f, 0.0f, 1.0f, -DepthSlicing_64[clusterZ]);
+                frustumPlanes[5] = float4(0.0f, 0.0f, -1.0f, DepthSlicing_64[clusterZ + 1]);
 
 				[unroll]
                 for (uint i = 4; i < 6; ++i)
@@ -116,8 +123,6 @@ void main(
 
     }
 }
-
-
 #endif
 
 

@@ -10,6 +10,10 @@
 #include "ShaderDefinition.h"
 using namespace DirectX;
 
+const int numPoint = 10;
+const int numSpot = 0;
+const int numDirect = 1;
+
 Matrix4 XM_CALLCONV LookAtMatrix(Vector4 _position, Vector4 _direction, Vector4  _up)
 {
 	assert(!Transform::Vector3Equal(_direction, Vector4(XMVectorZero())));
@@ -88,9 +92,9 @@ void Lesson5::LoadContent()
 	Application::Get().WndProcHandler += WndProcEvent::slot(&GUI::WndProcHandler, m_GUI);
 
 	//LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\Three.FBX");
-	m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\Three.FBX"));
+	//m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\Three.FBX"));
 	//m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\MaterialMesh.FBX"));
-	//m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj"));
+	m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj"));
 
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
 	auto commandList = commandQueue.GetCommandList();
@@ -144,7 +148,7 @@ void Lesson5::LoadContent()
 	m_ClusterDreferredPSO = std::make_unique<ClusterDreferredPSO>(m_Device, elementNum, elementSize);
 
 	//构建灯光
-	BuildLighting(4, 0, 0);
+	BuildLighting(numPoint, numSpot, numDirect);
 	BuildCubemapCamera();
 	
 	//执行命令列表
@@ -299,7 +303,7 @@ void Lesson5::OnResize(ResizeEventArgs& e)
 	m_Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(m_Width), static_cast<float>(m_Height));
 
 	float aspect = m_Width / (float)m_Height;
-	m_Camera.SetProjection(45.0f, aspect, 0.1f, 10000.0f);
+	m_Camera.SetProjection(45.0f, aspect, 1.0f, 50000.0f);
 
 	m_HDRRenderTarget.Resize(m_Width, m_Height);
 	m_GBufferRenderTarget.Resize(m_Width, m_Height);
@@ -421,7 +425,7 @@ void Lesson5::OnRender()
 			gBufferTexture[DeferredLightingPSO::DepthText] = m_DepthTexture;
 
 			mainPassCB->PreviousViewProj = m_Camera.GetPreviousViewProjMatrix();
-			mainPassCB->CameraPos = m_Camera.GetTranslation();
+			mainPassCB->CameraPos = m_Camera.GetFocalPoint();
 			mainPassCB->DeltaTime = m_Window->GetDeltaTime();
 			mainPassCB->TotalTime = m_Window->GetTotalTime();
 			mainPassCB->NearZ = m_Camera.GetNearZ();
@@ -465,7 +469,7 @@ void Lesson5::OnRender()
 
 			//辅助物体以及天空盒 绘制
 			//m_Axis->Accept(unlitPass);
-			DrawLightMesh(unlitPass);
+			//DrawLightMesh(unlitPass);
 			m_Cube->Accept(skyBoxPass);
 
 			if (m_TAA)
@@ -865,8 +869,8 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 		scene->GetRootNode()->SetPosition(Vector4(0, -10, 0, 0));
 		//scene->GetRootNode()->SetRotation(Vector4(0, -10, 0, 0));
 		scene->GetRootNode()->SetScale(Vector4(0.5, 0.5, 0.5, 0));
-		node->SetScale(0.01, 0.01, 0.01);
-		node->SetPosition(0, 0, -3);
+		node->SetScale(0.1, 0.1, 0.1);
+		node->SetPosition(0, 0, -7);
 		node->SetRotation(0, 0, 0);
 
 		m_Scene = std::make_shared<Scene>();
@@ -996,17 +1000,21 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 		for (int j = 0; j < numPointLights; ++j)
 		{
 			PointLight& l = m_PointLights[i * numPointLights + j];
+			Vector4 pos = Vector4(i * 3.0f, 0, j * 3.0f, 1.0f);
+			Matrix4 view = m_Camera.GetViewMatrix();
 
-			l.PositionWS = { i * 3.0f, j * 3.0f, 0, 1.0f };
+			Vector4 PositionVS = Vector4(DirectX::XMVector3TransformCoord(pos, view));
+
+			l.PositionWS = { i * 3.0f, 0, j * 3.0f, 1.0f };
 			XMVECTOR positionWS = XMLoadFloat4(&l.PositionWS);
-			XMVECTOR positionVS = positionWS;
+			XMVECTOR positionVS = PositionVS;
 			XMStoreFloat4(&l.PositionVS, positionVS);
 
 			l.Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 0);
-			l.Instensity = 10.0f;
+			l.Instensity = 1.0f;
 			l.LinearAttenuation = 0.08f;
 			l.QuadraticAttenuation = 0.1f;
-			l.Range = 5.0f;
+			l.Range = 10.0f;
 		}
 
 
@@ -1078,7 +1086,7 @@ void Lesson5::DrawLightMesh(SceneVisitor& _pass)
 		auto lightPos = Vector4(l.PositionWS);
 
 		m_Sphere->GetRootNode()->SetPosition(lightPos);
-		m_Sphere->GetRootNode()->SetScale(Vector4(0.5, 0.5, 0.5, 0));
+		m_Sphere->GetRootNode()->SetScale(Vector4(0.2, 0.2, 0.2, 0));
 		m_Sphere->GetRootNode()->GetActor()->GetMaterial()->SetMaterialProperties(lightMaterial);
 		m_Sphere->Accept(_pass);
 	}
@@ -1411,7 +1419,7 @@ void Lesson5::IntegrateBRDF(std::shared_ptr<CommandList> _commandList)
 
 void Lesson5::GUILayout(bool* _open)
 {
-	//std::cout << *_open << std::endl;
+
 	ImGui::SetNextWindowSize(ImVec2(500, 440), ImGuiCond_FirstUseEver);
 	bool b = ImGui::Begin("Scene", _open, ImGuiWindowFlags_MenuBar);
 	if (b)
@@ -1660,12 +1668,9 @@ void Lesson5::GUILayout(bool* _open)
 				ImGui::EndChild();
 				ImGui::EndTabItem();
 			}
-			
 
 			ImGui::EndTabBar();
 		}
-
-		
 	}
 	ImGui::End();
 }
@@ -1777,17 +1782,17 @@ void Lesson5::GUITree(bool* _open)
 
 void Lesson5::BuildScene()
 {
-	for (int x = -5; x < 6; x+=2)
+	for (int x = 0; x < 11; x+=2)
 	{
-		for (int y = -5; y < 6; y+=2)
+		for (int y = 0; y < 11; y+=2)
 		{
 			std::shared_ptr<SceneNode> node = std::make_shared<SceneNode>();
 			std::shared_ptr<Actor> actor = std::make_shared<Actor>();
 			auto mesh = m_Sphere->GetRootNode()->GetActor(0)->GetMesh();
 			actor->SetMesh(mesh);
 
-			float roughness = Clamp(((x + 5.0f) / 10.0f), 0.0f, 0.99f);
-			float metallic = Clamp(((y + 5.0f) / 10.0f), 0.0f, 0.99f);
+			float roughness = Clamp(((x ) / 10.0f), 0.1f, 0.99f);
+			float metallic = Clamp(((y) / 10.0f), 0.1f, 0.99f);
 			MaterialProperties material = m_Sphere->GetRootNode()->GetActor()->GetMaterial()->GetMaterialProperties();
 			material.ORM = Vector4(1, roughness, metallic, 1.0f).GetFloat4();
 			material.Diffuse = Vector4(1.0, 0, 0, 0).GetFloat4();
@@ -1795,7 +1800,7 @@ void Lesson5::BuildScene()
 
 			node->AddActor(actor);
 			node->SetScale(Vector4(0.6, 0.6, 0.6, 0));
-			node->SetPosition(Vector4(x * 1.3, y * 1.3, 0, 0));
+			node->SetPosition(Vector4(x * 3 + 1.5, 0, y * 3 + 1.5, 0));
 
 			m_Scene->GetRootNode()->AddChild(node);
 		}

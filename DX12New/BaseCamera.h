@@ -90,8 +90,8 @@ protected:
 
 	float m_Fov = 45.0f;
 	float m_Aspect = 1.0f;
-	float m_ZNear = 0.1f;
-	float m_ZFar = 1000.0f;
+	float m_ZNear = 1.0f;
+	float m_ZFar = 50000.0f;
 
 	float m_JitterX;
 	float m_JitterY;

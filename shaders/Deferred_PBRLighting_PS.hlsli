@@ -3,7 +3,7 @@
 
 #define USE_CBDR 1
 
-#define DEBUG 1
+#define DEBUG 0
 
 //深度分片划分
 static const float DepthSlicing_16[17] =
@@ -12,6 +12,15 @@ static const float DepthSlicing_16[17] =
 	96.9f, 143.7f, 213.2f, 316.2f, 469.1f,
 	695.9f, 1032.4f, 1531.5f, 2272.0f, 3370.5f,
 	5000.0f, 50000.0f
+};
+
+static const float DepthSlicing_64[65] =
+{
+    1, 2, 3, 5, 8, 12, 17, 23, 30, 38, 47, 57, 68, 70, 83, 97,
+    117, 147, 187, 237, 297, 367, 447, 537, 637, 747, 867, 997, 1137, 1287, 1447, 1617,
+    1778, 1965, 2152, 2367, 2604, 2864, 3151, 3466, 3812, 4194, 4613, 5074, 5582, 6140, 6754, 7430,
+    8544, 9826, 11300, 12995, 14944, 17186, 19764, 22728, 26138, 30058, 34567, 39752, 45715, 46715, 47715, 48715,
+    50000.0f
 };
 
 struct PixelShaderInput
@@ -65,7 +74,7 @@ float3 DoLighting(float2 _uv, float3 _normal, float3 _worldPos, float3 _toCamera
     //深度
     float depthBuffer = DepthText.Sample(SamAnisotropicWarp, _uv).r;
     float depth = ViewDepth(depthBuffer);
-    depth = depthBuffer;
+    //depth = depthBuffer;
     float linearDepth = (depth - NEAR_Z) / (FAR_Z - NEAR_Z);
     
     if (linearDepth <= 0.0f)
@@ -76,9 +85,10 @@ float3 DoLighting(float2 _uv, float3 _normal, float3 _worldPos, float3 _toCamera
     uint gridID = 0;
 #if USE_CBDR
     //计算像素所在分簇的Z轴是第几个
-    uint clusterZ = 0;
-    for (clusterZ = 0; ((depth > DepthSlicing_16[clusterZ + 1]) && (clusterZ < CLUSTER_NUM_Z - 1)); clusterZ++)
+    uint clusterZ = 1;
+    for (clusterZ = 0; ((depth > DepthSlicing_64[clusterZ + 1]) && (clusterZ < CLUSTER_NUM_Z - 1)); clusterZ++)
     {
+        ;
     }
     
     uint offsetX = floor(_uv.x * gRTSize.x / CLUSTER_SIZE_X);
@@ -148,12 +158,13 @@ float3 DoLighting(float2 _uv, float3 _normal, float3 _worldPos, float3 _toCamera
 #endif  
    //
 #if DEBUG
-    float lightNum = float(numPointLight + 0) / 1.0f;
+    float lightNum = float(numPointLight + 0) / 200.0f;
 	{
 
         float4 color = float4(lightNum, lightNum, lightNum, 1.0f);
         return color;
     }
+ //   return totalResult;
 #else
     return totalResult;
 #endif

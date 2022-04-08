@@ -66,7 +66,7 @@ void SceneVisitor::Visit(SceneNode& sceneNode)
 void SceneVisitor::Visit(Scene& scene)
 {
 	m_MainPassCB->PreviousViewProj			= m_Camera.GetPreviousViewProjMatrix();
-	m_MainPassCB->CameraPos					= m_Camera.GetTranslation();
+	m_MainPassCB->CameraPos					= m_Camera.GetFocalPoint();
 	m_MainPassCB->DeltaTime					= m_Window.GetDeltaTime();
 	m_MainPassCB->TotalTime					= m_Window.GetTotalTime();
 	m_MainPassCB->NearZ						= m_Camera.GetNearZ();
