@@ -12,8 +12,8 @@ struct VertexInput
 
 struct VertexOutput
 {
-    float4 Position             : SV_Position; //剪裁空间坐标
-    float4 PositionWS           : POSITION;    //世界空间坐标
+    float4 Position             : SV_Position;  //剪裁空间坐标
+    float4 PositionWS           : POSITION;     //世界空间坐标
     float4 CurrentPosition      : POSITION1;    //当前的剪裁空间坐标,使用未抖动的矩阵
     float4 PreviousPosition     : POSITION2;    //上一帧的剪裁空间坐标
     float3 NormalWS             : NORMAL;       //世界空间法线

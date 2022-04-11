@@ -94,7 +94,8 @@ protected:
 		DF_Material = (1 << 3),
 		DF_ObjectCB = (1 << 4),
 		DF_MainPassCB = (1 << 5),
-		DF_All = DF_PointLights | DF_SpotLights | DF_DirectionalLights | DF_Material | DF_ObjectCB | DF_MainPassCB
+		DF_ShadowMap = (1 << 6),
+		DF_All = DF_PointLights | DF_SpotLights | DF_DirectionalLights | DF_Material | DF_ObjectCB | DF_MainPassCB | DF_ShadowMap
 	};
 
 	void BindTexture(CommandList& _commandList, uint32_t _offset, const std::shared_ptr<Texture>& _texture, UINT _slot);

@@ -35,16 +35,17 @@ public:
 		DirectionalLights,		// StructuredBuffer<DirectionalLight> DirectionalLights : register( t2 )
 		LightsList,				// StructuredBuffer<LightList> LightsList : register(t3);
 
-		Textures,				// Texture2D AlbedoText,			register (t4)
-								// Texture2D NormalText,			register (t5)
-								// Texture2D ORMText,			register (t6)
-								// Texture2D EmissiveText,		register (t7)
-								// Texture2D WorldPosText,		register (t8)
-								// Texture2D IrradianceText,		register (t9)
-								// Texture2D PrefilterText		register (t10)
-								// Texture2D IntegrateBRDFText,	register (t11)
-								// Texture2D DepthText,			register (t12)
-				   NumRootParameters
+		Textures,				// Texture2D AlbedoText,							register (t4)
+								// Texture2D NormalText,							register (t5)
+								// Texture2D ORMText,								register (t6)
+								// Texture2D EmissiveText,							register (t7)
+								// Texture2D WorldPosText,							register (t8)
+								// Texture2D IrradianceText,						register (t9)
+								// Texture2D PrefilterText							register (t10)
+								// Texture2D IntegrateBRDFText,						register (t11)
+								// Texture2D DepthText,								register (t12)
+		ShadowMaps,				// TextureCube<float4> ShadowMapText[10],			register (t13)
+		NumRootParameters
 	};
 
 	enum GBufferTexture
@@ -101,6 +102,12 @@ public:
 		m_DirtyFlags |= DF_Material;
 	}
 
+	void SetShadowMap(std::vector<std::shared_ptr<Texture>>& _textures)
+	{
+		m_ShadowMap = _textures;
+		m_DirtyFlags |= DF_ShadowMap;
+	}
+
 	//应用到渲染管线上
 	void Apply(CommandList& _commandList) override;
 
@@ -111,6 +118,7 @@ private:
 	std::vector<DirectionalLight> m_DirectionalLights;
 
 	std::vector<std::shared_ptr<Texture>> m_Textures;
+	std::vector<std::shared_ptr<Texture>> m_ShadowMap;
 
 	std::shared_ptr<ShaderResourceView> m_LightList;
 	UINT m_ElementNum;

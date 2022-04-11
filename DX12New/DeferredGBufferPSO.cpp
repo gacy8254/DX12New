@@ -74,10 +74,10 @@ DeferredGBufferPSO::DeferredGBufferPSO(std::shared_ptr<Device> _device, bool _en
 	D3D12_RT_FORMAT_ARRAY rtvFormats = {};
 	rtvFormats.NumRenderTargets = 6;
 	rtvFormats.RTFormats[0] = backBufferFormat;
-	rtvFormats.RTFormats[1] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	rtvFormats.RTFormats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	rtvFormats.RTFormats[2] = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	rtvFormats.RTFormats[3] = DXGI_FORMAT_R16G16B16A16_FLOAT;
-	rtvFormats.RTFormats[4] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	rtvFormats.RTFormats[4] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	rtvFormats.RTFormats[5] = DXGI_FORMAT_R16G16_FLOAT;
 
 	CD3DX12_RASTERIZER_DESC rasterizerState(D3D12_DEFAULT);

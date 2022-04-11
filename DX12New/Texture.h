@@ -22,6 +22,8 @@ public:
      */
     virtual void CreateViews();
 
+    void CreateShaderResourceView();
+
     /**
      * Get the RTV for the texture.
      */
@@ -30,7 +32,7 @@ public:
     /**
      * Get the DSV for the texture.
      */
-    virtual D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const;
+    virtual D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView(UINT _index = 0) const;
 
     D3D12_CPU_DESCRIPTOR_HANDLE GetUnorderedAccessView(uint32_t _mip) const;
 

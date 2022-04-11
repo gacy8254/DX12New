@@ -151,10 +151,38 @@ void Texture::CreateViews()
 		//创建DSV
 		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0 && CheckDSVSupport())
 		{
-			m_DepthStencilView = m_Device.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-			device->CreateDepthStencilView(m_Resource.Get(), nullptr, m_DepthStencilView.GetDescriptorHandle());
+
+
+			if (!m_IsCubeMap)
+			{
+				m_DepthStencilView = m_Device.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+				device->CreateDepthStencilView(m_Resource.Get(), nullptr, m_DepthStencilView.GetDescriptorHandle());
+			}
+			else
+			{
+				//如果是纹理数组(例如CUBEMAP)
+				//分别为数组的每一张纹理创建RTV
+				m_DepthStencilView = m_Device.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, m_Resource->GetDesc().DepthOrArraySize * m_Resource->GetDesc().MipLevels);
+				for (int i = 0; i < m_Resource->GetDesc().DepthOrArraySize; i++)
+				{
+					for (int mipSlice = 0; mipSlice < m_Resource->GetDesc().MipLevels; ++mipSlice)
+					{
+						//创建单独纹理的RTV描述
+						D3D12_DEPTH_STENCIL_VIEW_DESC rtvDesc;
+						rtvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
+						rtvDesc.Texture2DArray.MipSlice = mipSlice;
+						rtvDesc.Format = m_Resource->GetDesc().Format;
+						rtvDesc.Texture2DArray.FirstArraySlice = i;
+						rtvDesc.Texture2DArray.ArraySize = 1;
+						rtvDesc.Flags = D3D12_DSV_FLAG_NONE;
+						auto desc = m_Resource->GetDesc();
+						device->CreateDepthStencilView(m_Resource.Get(), &rtvDesc, m_DepthStencilView.GetDescriptorHandle(i * m_Resource->GetDesc().MipLevels + mipSlice));
+					}
+				}
+			}
 		}
 		//创建SRV
+			//创建SRV
 		if ((desc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) == 0 && CheckSRVSupport())
 		{
 			if (!m_IsCubeMap)
@@ -179,8 +207,8 @@ void Texture::CreateViews()
 				device->CreateShaderResourceView(m_Resource.Get(), &cubeMapSRVDesc, m_ShaderResourceView.GetDescriptorHandle());
 
 			}
-			
 		}
+
 		//创建UAV
 		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0 && CheckUAVSupport() && desc.DepthOrArraySize == 1)
 		{
@@ -193,6 +221,38 @@ void Texture::CreateViews()
 			
 		}
 	}
+}
+
+void Texture::CreateShaderResourceView()
+{
+	auto device = m_Device.GetD3D12Device();
+
+	CD3DX12_RESOURCE_DESC desc(m_Resource->GetDesc());
+	//创建SRV
+
+	if (!m_IsCubeMap)
+	{
+		m_ShaderResourceView = m_Device.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		device->CreateShaderResourceView(m_Resource.Get(), nullptr, m_ShaderResourceView.GetDescriptorHandle());
+	}
+	else
+	{
+		auto cubemapDesc = m_Resource->GetDesc();
+		cubemapDesc.Width = cubemapDesc.Height = 1024;
+		cubemapDesc.DepthOrArraySize = 6;
+		cubemapDesc.MipLevels = 0;
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC cubeMapSRVDesc = {};
+		cubeMapSRVDesc.Format = DXGI_FORMAT_R32_FLOAT;
+		cubeMapSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		cubeMapSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+		cubeMapSRVDesc.TextureCube.MipLevels = (UINT)-1;  // Use all mips.
+
+		m_ShaderResourceView = m_Device.AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		device->CreateShaderResourceView(m_Resource.Get(), &cubeMapSRVDesc, m_ShaderResourceView.GetDescriptorHandle());
+
+	}
+
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetShaderResourceView() const
@@ -210,9 +270,9 @@ D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetRenderTargetView(UINT _index) const
 	return m_RenderTargetView.GetDescriptorHandle(_index);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetDepthStencilView() const
+D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetDepthStencilView(UINT _index) const
 {
-	return m_DepthStencilView.GetDescriptorHandle();
+	return m_DepthStencilView.GetDescriptorHandle(_index);
 }
 
 bool Texture::HasAlpha() const

@@ -66,8 +66,8 @@
 // CBDR
 //----------------------------------------------------------------------------------------------------------
 
-#define CLUSTER_SIZE_X 64
-#define CLUSTER_SIZE_Y 64
+#define CLUSTER_SIZE_X 128	
+#define CLUSTER_SIZE_Y 128
 #define CLUSTER_NUM_Z 64
 
 #define CLUSTER_THREAD_NUM_X 8

@@ -39,6 +39,8 @@ public:
 	//应用到渲染管线上
 	void Apply(CommandList& _commandList) override;
 
+	void Resize(UINT _elementNum, UINT _elementSize);
+
 private:
 	std::vector<PointLight> m_PointLights;
 	std::vector<SpotLight> m_SpotLights;

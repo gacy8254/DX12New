@@ -282,7 +282,6 @@ std::shared_ptr<Texture> CommandList::LoadTextureFromFile(const std::wstring& _f
 		}
 
 		Microsoft::WRL::ComPtr<ID3D12Resource> textureResource;
-
 		//创建资源
 		auto p = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 		ThrowIfFailed(device->CreateCommittedResource(
@@ -1399,3 +1398,5 @@ void CommandList::BindDescriptorHeaps()
 std::map<std::wstring, ID3D12Resource*> CommandList::ms_TextureCache;
 
 std::mutex CommandList::ms_TextureCacheMutex;
+
+

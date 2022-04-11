@@ -58,6 +58,12 @@
       <FullPath>C:\Code\DX12New\x64\Debug\SDR_VS.cso</FullPath>
     </ContentFile>
     <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\ShadowMap_Decal_PS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\Code\DX12New\x64\Debug\ShadowMap_PS.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
       <FullPath>C:\Code\DX12New\x64\Debug\SkyBox_VS.cso</FullPath>
     </ContentFile>
     <ContentFile>

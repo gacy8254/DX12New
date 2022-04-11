@@ -24,6 +24,7 @@
 #include "WireframePSO.h"
 #include "TAAPSO.h"
 #include "ClusterDreferredPSO.h"
+#include "ShadowMapPSO.h"
 #include "GUI.h"
 
 #include <d3d12.h>
@@ -77,6 +78,9 @@ private:
     void TAA(std::shared_ptr<CommandList> _commandList);
 
     void ClusterLight(std::shared_ptr<CommandList> _commandList);
+
+    void ShadowMap(std::shared_ptr<CommandList> _commandList);
+
     //加载场景
     bool LoadScene(const std::wstring& sceneFile);
 
@@ -93,7 +97,7 @@ private:
     void CreateGBufferRT();
 
     //准备渲染立方体贴图所需的相机
-    void BuildCubemapCamera();
+    void BuildCubemapCamera(float _x = 0.0f, float _y = 0.0f, float _z = 0.0f);
 
     //预计算立方体贴图卷积
     void PreIrradiance(std::shared_ptr<CommandList> _commandList);
@@ -119,6 +123,11 @@ private:
     std::shared_ptr<Texture> m_CubeMap1;
     std::shared_ptr<Texture> m_PrefilterCubeMap;
 
+    std::vector<std::shared_ptr<RenderTarget>> m_ShadowMapRenderTarget;
+    std::vector<std::shared_ptr<Texture>> m_ShadowMapTexture;
+
+
+
     //PSO
     std::unique_ptr<EffectPSO> m_UnlitPso;
 
@@ -138,6 +147,8 @@ private:
     std::unique_ptr<IntegrateBRDFPSO> m_IntegrateBRDFPSO;
 
     std::unique_ptr<ClusterDreferredPSO> m_ClusterDreferredPSO;
+
+    std::unique_ptr<ShadowMapPSO> m_ShadowMapPSO;
 
 
     std::unique_ptr<WireframePSO> m_WireframePSO;

@@ -16,7 +16,7 @@
 
 #define USE_CLOSEST_VELOCITY
 
-#define TEST 0
+#define TEST 1
 
 #define CLIP_TO_CENTER
 
@@ -411,6 +411,7 @@ PixelOutput main(VertexToPixel pIn)// : SV_TARGET
 	float3 color = (Filtered * weightCurr + prevColor * weightPrev) * RcpWeight;
 #else
     float3 color = (currColor * weightCurr + prevColor * weightPrev) * RcpWeight;
+   // float3 color = (currColor * weightCurr + prevColor * weightPrev) * RcpWeight;
 #endif
 
 #ifdef USE_YCOCG
@@ -424,11 +425,11 @@ PixelOutput main(VertexToPixel pIn)// : SV_TARGET
     output.color = float4(color, 1.0f);
     output.history = float4(color, 1.0f);
 
-#if TEST
+#if 0
 
 	float dep = gDepthBuffer.Sample(basicSampler, pIn.uv).r;
 	//test = (test * gNearZ) / (gFarZ - test * (gFarZ - gNearZ));
-	float3 test = float3(dep, dep, dep);
+    float3 test = float3(RcpWeight, RcpWeight, RcpWeight);
 	output.color = float4(test, 1.0f);
 
 #endif

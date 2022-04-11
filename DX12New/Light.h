@@ -35,15 +35,15 @@
 struct PointLight
 {
     PointLight()
-        : PositionWS(0.0f, 0.0f, 0.0f, 1.0f)
+        :PositionWS(0.0f, 0.0f, 0.0f, 1.0f)
         , PositionVS(0.0f, 0.0f, 0.0f, 1.0f)
         , Color(1.0f, 1.0f, 1.0f, 1.0f)
         , Range(0.01f)
         , Instensity(1.0f)
-        , LinearAttenuation(0.0f)
-        , QuadraticAttenuation(0.0f)
+        , ShadowMapIndex(0)
+        , HasShadowMap(false)
     {}
-
+   
     DirectX::XMFLOAT4 PositionWS;  // Light position in world space.
     //----------------------------------- (16 byte boundary)
     DirectX::XMFLOAT4 PositionVS;  // Light position in view space.
@@ -52,8 +52,8 @@ struct PointLight
     //----------------------------------- (16 byte boundary)
     float Range;
     float Instensity;
-    float LinearAttenuation;
-    float QuadraticAttenuation;
+    unsigned int ShadowMapIndex;
+    bool HasShadowMap;
     //----------------------------------- (16 byte boundary)
     // Total:                              16 * 4 = 64 bytes
 };

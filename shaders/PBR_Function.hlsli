@@ -26,7 +26,7 @@ float DistributionGGX(float3 _normal, float3 _halfVec, float _roughness)
     float NdotH2 = NdotH * NdotH;
     
     float nom = a2;
-    float denom = (NdotH2 * (a2 - 1.0f) + 1.0f);
+    float denom = (NdotH2 * (a2 - 1.0f) + 1.0f) + 0.0000001f;
     denom = PI * denom * denom;
     
     return nom / denom;

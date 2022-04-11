@@ -91,3 +91,24 @@ void ClusterDreferredPSO::Apply(CommandList& _commandList)
 	//Çå¿Õ±êÖ¾
 	m_DirtyFlags = DF_None;
 }
+
+void ClusterDreferredPSO::Resize(UINT _elementNum, UINT _elementSize)
+{
+	auto resource = m_UAV->GetResource();
+
+	if (resource)
+	{
+		resource->GetResource().Reset();
+	}
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
+	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	uavDesc.Buffer.FirstElement = 0;
+	uavDesc.Buffer.CounterOffsetInBytes = 0;
+	uavDesc.Buffer.NumElements = _elementNum;
+	uavDesc.Buffer.StructureByteStride = _elementSize;
+	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
+	m_UAV = m_Device->CreateUnorderedAccessView(nullptr, nullptr, &uavDesc);
+}

@@ -10,27 +10,9 @@
 #include "ShaderDefinition.h"
 using namespace DirectX;
 
-const int numPoint = 10;
+const int numPoint = 1;
 const int numSpot = 0;
 const int numDirect = 1;
-
-Matrix4 XM_CALLCONV LookAtMatrix(Vector4 _position, Vector4 _direction, Vector4  _up)
-{
-	assert(!Transform::Vector3Equal(_direction, Vector4(XMVectorZero())));
-	assert(!Transform::Vector3IsInfinite(_direction));
-	assert(!Transform::Vector3Equal(_up, Vector4(XMVectorZero())));
-	assert(!Transform::Vector3IsInfinite(_up));
-
-	Vector4 R2 = Transform::Vector3Normalize(_direction);
-	Vector4 R0 = Transform::Vector3Cross(_up, R2);
-	R0 = Transform::Vector3Normalize(R0);
-
-	Vector4 R1 = Transform::Vector3Cross(R2, R0);
-
-	Matrix4 M(R0, R1, R2, _position);
-
-	return M;
-}
 
 Lesson5::Lesson5(const std::wstring& _name, int _width, int _height, bool _vSync /*= false*/)
 	:m_ScissorRect{0, 0, LONG_MAX, LONG_MAX},
@@ -139,6 +121,8 @@ void Lesson5::LoadContent()
 	m_PrefilterPso = std::make_unique<SkyCubePSO>(m_Device, false, true);
 
 	m_LDRPSO = std::make_unique<FinalLDRPSO>(m_Device);
+
+	m_ShadowMapPSO = std::make_unique<ShadowMapPSO>(m_Device);
 
 	m_WireframePSO = std::make_unique<WireframePSO>(m_Device);
 	m_TAAPSO = std::make_unique<TAAPSO>(m_Device);
@@ -320,6 +304,9 @@ void Lesson5::OnResize(ResizeEventArgs& e)
 	{
 		m_DepthTexture->Resize(m_Width, m_Height);
 	}
+	UINT64 elementNum = (UINT64)(ceilf((float)m_Width / (float)CLUSTER_SIZE_X) * ceilf((float)m_Height / (float)CLUSTER_SIZE_Y) * CLUSTER_NUM_Z + 0.01);
+	uint32_t elementSize = sizeof(LightList);
+	m_ClusterDreferredPSO->Resize(elementNum, elementSize);
 
 	//预计算立方体贴图卷积的RT
 	RenderTarget m_IrradianceRenderTarget;
@@ -348,6 +335,7 @@ void Lesson5::OnRender()
 		PreIrradiance(commandList);
 		Prefilter(commandList);
 		IntegrateBRDF(commandList);
+		m_ShadowMapTexture.resize(10);
 		isfirst = false;
 	}
 
@@ -368,24 +356,9 @@ void Lesson5::OnRender()
 		SceneVisitor skyBoxPass(*commandList, m_Camera, *m_SkyBoxPso, *m_Window, m_LDRRenderTarget, false);
 		SceneVisitor LinePass(*commandList, m_Camera, *m_NormalVisualizePso, *m_Window, m_LDRRenderTarget, false);
 		SceneVisitor WireFramePass(*commandList, m_Camera, *m_WireframePSO, *m_Window, m_LDRRenderTarget, false);
-	
-		//设置命令列表
-		commandList->SetViewport(m_Viewport);
-		commandList->SetScissorRect(m_ScissorRect);
 
 		if (!m_IsWireFrameMode)
 		{
-			FLOAT clearColor1[] = { 0.0f, 0.0f, 0.9f, 1.0f };
-			//清空缓冲区
-			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color0), clearColor);
-			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color1), clearColor);
-			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color2), clearColor);
-			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color3), clearColor);
-			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color4), clearColor);
-			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color5), clearColor1);
-			commandList->ClearDepthStencilTexture(rendertarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
-			commandList->SetRenderTarget(rendertarget);
-			
 			if (m_TAA)
 			{
 				//抖动
@@ -398,7 +371,25 @@ void Lesson5::OnRender()
 			{
 				m_Camera.SetJitter(0, 0);
 			}
-		
+
+			//shadowMap Pass
+			ShadowMap(commandList);
+
+			//设置命令列表
+			commandList->SetViewport(m_Viewport);
+			commandList->SetScissorRect(m_ScissorRect);
+
+			FLOAT clearColor1[] = { 0.0f, 0.0f, 0.9f, 1.0f };
+			//清空缓冲区
+			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color0), clearColor);
+			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color1), clearColor);
+			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color2), clearColor);
+			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color3), clearColor);
+			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color4), clearColor);
+			commandList->ClearTexture(rendertarget.GetTexture(AttachmentPoint::Color5), clearColor1);
+			commandList->ClearDepthStencilTexture(rendertarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
+			commandList->SetRenderTarget(rendertarget);
+
 			//渲染场景(GBUFFER  PASS)
 			m_Scene->Accept(opaquePass);
 			m_Scene->Accept(transparentPass);
@@ -409,6 +400,7 @@ void Lesson5::OnRender()
 			commandList->ClearDepthStencilTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 			commandList->SetRenderTarget(m_HDRRenderTarget);
 
+			//分簇计算
 			ClusterLight(commandList);
 
 			//获取GBuffer贴图
@@ -424,6 +416,24 @@ void Lesson5::OnRender()
 			gBufferTexture[DeferredLightingPSO::IntegrateBRDFText] = m_IntegrateBRDFRenderTarget.GetTexture(AttachmentPoint::Color0);
 			gBufferTexture[DeferredLightingPSO::DepthText] = m_DepthTexture;
 
+
+			
+			commandList->TransitionBarrier(m_ShadowMapRenderTarget[0]->GetTexture(AttachmentPoint::Color0), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			//commandList->FlushResourceBarriers();
+			for (int i = 0; i < 10; i++)
+			{
+
+				if (i < 1)
+				{
+					m_ShadowMapTexture[i] = m_ShadowMapRenderTarget[0]->GetTexture(AttachmentPoint::Color0);
+				}
+				else
+				{
+					
+					m_ShadowMapTexture[i] = m_ShadowMapRenderTarget[0]->GetTexture(AttachmentPoint::Color0);
+				}
+			}
+			//m_Camera.SetRotation(Vector4(1,0,0,0));
 			mainPassCB->PreviousViewProj = m_Camera.GetPreviousViewProjMatrix();
 			mainPassCB->CameraPos = m_Camera.GetFocalPoint();
 			mainPassCB->DeltaTime = m_Window->GetDeltaTime();
@@ -457,6 +467,7 @@ void Lesson5::OnRender()
 			//设置PBR光照计算需要的数据
 			m_DeferredLightingPso->SetCameraPos(m_Camera.GetFocalPoint());
 			m_DeferredLightingPso->SetTexture(gBufferTexture);
+			m_DeferredLightingPso->SetShadowMap(m_ShadowMapTexture);
 			m_DeferredLightingPso->SetMainPassCB(mainPassCB);
 			m_DeferredLightingPso->Apply(*commandList);
 			commandList->Draw(4);
@@ -468,8 +479,9 @@ void Lesson5::OnRender()
 			commandList->FlushResourceBarriers();
 
 			//辅助物体以及天空盒 绘制
+			m_Axis->GetRootNode()->SetScale(0.1, 0.1, 0.1);
 			//m_Axis->Accept(unlitPass);
-			//DrawLightMesh(unlitPass);
+			DrawLightMesh(unlitPass);
 			m_Cube->Accept(skyBoxPass);
 
 			if (m_TAA)
@@ -509,7 +521,7 @@ void Lesson5::OnRender()
 			commandList->ClearDepthStencilTexture(m_LDRRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 			commandList->SetRenderTarget(m_LDRRenderTarget);
 			m_Scene->Accept(WireFramePass);
-			//m_Axis->Accept(WireFramePass);
+			m_Axis->Accept(WireFramePass);
 			DrawLightMesh(WireFramePass);
 			m_Cube->Accept(WireFramePass);
 
@@ -819,8 +831,6 @@ void Lesson5::TAA(std::shared_ptr<CommandList> _commandList)
 
 void Lesson5::ClusterLight(std::shared_ptr<CommandList> _commandList)
 {
-
-
 	m_ClusterDreferredPSO->SetMainPassCB(mainPassCB);
 	m_ClusterDreferredPSO->Apply(*_commandList);
 
@@ -843,10 +853,95 @@ void Lesson5::ClusterLight(std::shared_ptr<CommandList> _commandList)
 
 	auto resource = m_ClusterDreferredPSO->GetUAV()->GetResource();
 	std::shared_ptr<ShaderResourceView> srv = m_Device->CreateShaderResourceView(resource, &srvDesc);
-	//m_ClusterDreferredPSO->GetUAV()->GetResource()->GetResource()->
-
 
 	m_DeferredLightingPso->SetLightList(srv, elementNum, elementSize);
+}
+
+void Lesson5::ShadowMap(std::shared_ptr<CommandList> _commandList)
+{
+	int i = 0;
+	m_ShadowMapRenderTarget.resize(m_PointLights.size());
+	for (const auto& l : m_PointLights)
+	{
+		BuildCubemapCamera(l.PositionWS.x, l.PositionWS.y, l.PositionWS.z);
+		//Vector4 pos = Vector4(l.PositionWS.x, l.PositionWS.y, l.PositionWS.z, 1.0f);
+		//m_ShadowMapPSO->SetLightPos(pos);
+		
+			//创建渲染目标
+		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16_FLOAT;
+
+		//RT资源描述
+		auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, 1024, 1024, 6, 1, 1,
+			0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+		D3D12_CLEAR_VALUE colorClearValue;
+		colorClearValue.Format = colorDesc.Format;
+		colorClearValue.Color[0] = 0.4f;
+		colorClearValue.Color[1] = 0.6f;
+		colorClearValue.Color[2] = 0.9f;
+		colorClearValue.Color[3] = 1.0f;
+		
+		//创建渲染目标
+		DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
+
+		//DS资源描述
+		auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, 1024, 1024, 6, 1, 1,
+			0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+		D3D12_CLEAR_VALUE depthClearValue;
+		depthClearValue.Format = depthDesc.Format;
+#if USE_REVERSE_Z
+		float DepthClearValue = 0.0f;
+		depthClearValue.DepthStencil = { 0.0f, 0 };
+#else
+		float DepthClearValue = 1.0f;
+		depthClearValue.DepthStencil = { 1.0f, 0 };
+#endif
+
+		//深度图
+		if (!m_ShadowMapRenderTarget[i].get())
+		{
+			auto depthTexture = m_Device->CreateTexture(depthDesc, true, &depthClearValue);
+			depthTexture->SetName(L"ShadowMap Depth Render Target");
+			m_ShadowMapRenderTarget[i] = std::make_shared<RenderTarget>();
+			m_ShadowMapRenderTarget[i]->AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
+
+			//RT
+			std::shared_ptr<Texture> colorTexture;
+			colorTexture = m_Device->CreateTexture(colorDesc, true, &colorClearValue);
+			colorTexture->SetName(L"ShadowMap Color Render Target");
+			m_ShadowMapRenderTarget[i]->AttachTexture(AttachmentPoint::Color0, colorTexture);
+		}
+		FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
+		//设置渲染用的视口
+		_commandList->SetScissorRect(m_ShadowMapRenderTarget[i]->GetScissorRect());
+		_commandList->SetViewport(m_ShadowMapRenderTarget[i]->GetViewport());
+
+		_commandList->TransitionBarrier(m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::Color0), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		_commandList->TransitionBarrier(m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		for (int j = 0; j < 6; j++)
+		{
+			//设置渲染目标
+			auto dsv = m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::DepthStencil)->GetDepthStencilView(j);
+			auto rtv = m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::Color0)->GetRenderTargetView(j);
+
+			_commandList->GetGraphicsCommandList()->OMSetRenderTargets(1, &rtv, true, &dsv);
+
+			_commandList->GetGraphicsCommandList()->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
+
+#if USE_REVERSE_Z
+			_commandList->GetGraphicsCommandList()->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 0, 0.0f, 0, nullptr);
+#else
+			_commandList->GetGraphicsCommandList()->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1, 0.0f, 0, nullptr);
+#endif
+
+			m_CubeMapCamera[j].SetJitter(0, 0);
+
+			SceneVisitor ShadowMapPass(*_commandList, m_CubeMapCamera[j], *m_ShadowMapPSO, *m_Window, *m_ShadowMapRenderTarget[i], false);
+			SceneVisitor ShadowMapPassAlphaTest(*_commandList, m_CubeMapCamera[j], *m_ShadowMapPSO, *m_Window, *m_ShadowMapRenderTarget[i], true);
+			m_Scene->Accept(ShadowMapPass);
+			m_Scene->Accept(ShadowMapPassAlphaTest);
+		}
+		i++;
+	}
 }
 
 bool Lesson5::LoadScene(const std::wstring& sceneFile)
@@ -869,8 +964,8 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 		scene->GetRootNode()->SetPosition(Vector4(0, -10, 0, 0));
 		//scene->GetRootNode()->SetRotation(Vector4(0, -10, 0, 0));
 		scene->GetRootNode()->SetScale(Vector4(0.5, 0.5, 0.5, 0));
-		node->SetScale(0.1, 0.1, 0.1);
-		node->SetPosition(0, 0, -7);
+		node->SetScale(0.01, 0.01, 0.01);
+		node->SetPosition(0, -2, 0);
 		node->SetRotation(0, 0, 0);
 
 		m_Scene = std::make_shared<Scene>();
@@ -995,26 +1090,28 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 
 	// Setup the lights.
 	m_PointLights.resize(numPointLights * numPointLights);
-	for (int i = 0; i < numPointLights; ++i)
+	m_PointLights[0].Instensity = 1000.0f;
+	m_PointLights[0].Range = 1000.0f;
+	m_PointLights[0].PositionWS = { 0, 0, 0, 1.0f };
+	for (int i = -numPointLights / 2; i < numPointLights / 2; ++i)
 	{
-		for (int j = 0; j < numPointLights; ++j)
+		for (int j = -numPointLights / 2; j < numPointLights / 2; ++j)
 		{
-			PointLight& l = m_PointLights[i * numPointLights + j];
-			Vector4 pos = Vector4(i * 3.0f, 0, j * 3.0f, 1.0f);
+			PointLight& l = m_PointLights[(i + numPointLights / 2) * numPointLights + (j + numPointLights / 2)];
+			Vector4 pos = Vector4(i * 1.5f, -7, 0, 1.0f);
 			Matrix4 view = m_Camera.GetViewMatrix();
 
 			Vector4 PositionVS = Vector4(DirectX::XMVector3TransformCoord(pos, view));
 
-			l.PositionWS = { i * 3.0f, 0, j * 3.0f, 1.0f };
+			l.PositionWS = { i * 1.5f, -7, 0, 1.0f };
 			XMVECTOR positionWS = XMLoadFloat4(&l.PositionWS);
 			XMVECTOR positionVS = PositionVS;
 			XMStoreFloat4(&l.PositionVS, positionVS);
 
 			l.Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 0);
 			l.Instensity = 1.0f;
-			l.LinearAttenuation = 0.08f;
-			l.QuadraticAttenuation = 0.1f;
 			l.Range = 10.0f;
+			l.ShadowMapIndex = (i + numPointLights / 2) * numPointLights + (j + numPointLights / 2);
 		}
 
 
@@ -1086,7 +1183,7 @@ void Lesson5::DrawLightMesh(SceneVisitor& _pass)
 		auto lightPos = Vector4(l.PositionWS);
 
 		m_Sphere->GetRootNode()->SetPosition(lightPos);
-		m_Sphere->GetRootNode()->SetScale(Vector4(0.2, 0.2, 0.2, 0));
+		m_Sphere->GetRootNode()->SetScale(Vector4(0.05, 0.05, 0.05, 0));
 		m_Sphere->GetRootNode()->GetActor()->GetMaterial()->SetMaterialProperties(lightMaterial);
 		m_Sphere->Accept(_pass);
 	}
@@ -1129,7 +1226,7 @@ void Lesson5::CreateGBufferRT()
 
 	//坐标通道RT的格式
 	D3D12_CLEAR_VALUE colorClearValue2;
-	colorClearValue2.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	colorClearValue2.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	colorClearValue2.Color[0] = 0.4f;
 	colorClearValue2.Color[1] = 0.6f;
 	colorClearValue2.Color[2] = 0.9f;
@@ -1148,7 +1245,7 @@ void Lesson5::CreateGBufferRT()
 
 	auto desc3 = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
 		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
-	desc3.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	desc3.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 
 	auto desc4 = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, m_Width, m_Height, 1, 1, 1,
 		0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
@@ -1194,25 +1291,21 @@ void Lesson5::CreateGBufferRT()
 	m_GBufferRenderTarget.AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
 }
 
-void Lesson5::BuildCubemapCamera()
+void Lesson5::BuildCubemapCamera(float _x, float _y, float _z)
 {
-	float x = 0;
-	float y = 0;
-	float z = 0;
-
 	//创建指定位置处的CubeMap
-	Vector4 center(x, y, z, 1.0f);//指定位置
+	Vector4 center(_x, _y, _z, 1.0f);//指定位置
 	Vector4 worldUp(0.0f, 1.0f, 0.0f, 0.0f);//向上向量
 
 	//CubeMap的6个Target向量
 	Vector4 targets[6] =
 	{
-		Vector4(x + 1.0f, y, z , 1.0f), // +X
-		Vector4(x - 1.0f, y, z , 1.0f), // -X
-		Vector4(x, y + 1.0f, z , 1.0f), // +Y
-		Vector4(x, y - 1.0f, z , 1.0f), // -Y
-		Vector4(x, y, z + 1.0f , 1.0f), // +Z
-		Vector4(x, y, z - 1.0f , 1.0f)  // -Z
+		Vector4(_x + 1.0f, _y, _z , 1.0f), // +X
+		Vector4(_x - 1.0f, _y, _z , 1.0f), // -X
+		Vector4(_x, _y + 1.0f, _z , 1.0f), // +Y
+		Vector4(_x, _y - 1.0f, _z , 1.0f), // -Y
+		Vector4(_x, _y, _z + 1.0f , 1.0f), // +Z
+		Vector4(_x, _y, _z - 1.0f , 1.0f)  // -Z
 	};
 
 	//6个Up向量，Y轴使用“特殊”的Up向量
@@ -1573,6 +1666,7 @@ void Lesson5::GUILayout(bool* _open)
 					pos[0] = m_PointLights[selectedNode].PositionWS.x;
 					pos[1] = m_PointLights[selectedNode].PositionWS.y;
 					pos[2] = m_PointLights[selectedNode].PositionWS.z;
+					pos[3] = m_PointLights[selectedNode].PositionWS.w;
 
 					ImGui::ColorEdit4("color", color);
 					ImGui::DragFloat4("pos", pos);
@@ -1782,25 +1876,25 @@ void Lesson5::GUITree(bool* _open)
 
 void Lesson5::BuildScene()
 {
-	for (int x = 0; x < 11; x+=2)
+	for (int x = -5; x < 5; x+=2)
 	{
-		for (int y = 0; y < 11; y+=2)
+		for (int y = -5; y < 5; y+=2)
 		{
 			std::shared_ptr<SceneNode> node = std::make_shared<SceneNode>();
 			std::shared_ptr<Actor> actor = std::make_shared<Actor>();
 			auto mesh = m_Sphere->GetRootNode()->GetActor(0)->GetMesh();
 			actor->SetMesh(mesh);
 
-			float roughness = Clamp(((x ) / 10.0f), 0.1f, 0.99f);
-			float metallic = Clamp(((y) / 10.0f), 0.1f, 0.99f);
+			float roughness = Clamp(((x + 5) / 10.0f), 0.1f, 0.99f);
+			float metallic = Clamp(((y + 5) / 10.0f), 0.1f, 0.99f);
 			MaterialProperties material = m_Sphere->GetRootNode()->GetActor()->GetMaterial()->GetMaterialProperties();
 			material.ORM = Vector4(1, roughness, metallic, 1.0f).GetFloat4();
 			material.Diffuse = Vector4(1.0, 0, 0, 0).GetFloat4();
 			actor->GetMaterial()->SetMaterialProperties(material);
 
 			node->AddActor(actor);
-			node->SetScale(Vector4(0.6, 0.6, 0.6, 0));
-			node->SetPosition(Vector4(x * 3 + 1.5, 0, y * 3 + 1.5, 0));
+			node->SetScale(Vector4(0.1, 0.1, 0.1, 0));
+			node->SetPosition(Vector4(x * 0.2, -1.7f, y * 0.2, 0));
 
 			m_Scene->GetRootNode()->AddChild(node);
 		}

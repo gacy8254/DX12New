@@ -92,6 +92,17 @@ D3D12_VIEWPORT RenderTarget::GetViewport(DirectX::XMFLOAT2 scale /*= { 1.0f, 1.0
 		}
 	}
 
+	if (width == 0 || height == 0)
+	{
+		auto texture = m_Textures[8];
+		if (texture)
+		{
+			auto desc = texture->GetResourceDesc();
+			width = std::max(width, desc.Width);
+			height = std::max(height, desc.Height);
+		}
+	}
+
 	D3D12_VIEWPORT viewport = {
 		(width * bias.x),       // TopLeftX
 		(height * bias.y),      // TopLeftY
@@ -112,6 +123,17 @@ D3D12_RECT RenderTarget::GetScissorRect()
 	for (int i = AttachmentPoint::Color0; i < AttachmentPoint::Color7; ++i)
 	{
 		auto texture = m_Textures[i];
+		if (texture)
+		{
+			auto desc = texture->GetResourceDesc();
+			width = std::max(width, desc.Width);
+			height = std::max(height, desc.Height);
+		}
+	}
+
+	if (width == 0 || height == 0)
+	{
+		auto texture = m_Textures[8];
 		if (texture)
 		{
 			auto desc = texture->GetResourceDesc();

@@ -1,7 +1,7 @@
 #include "PBR_Function.hlsli"
 #include "MainPassCB.hlsli"
 
-#define USE_CBDR 1
+#define USE_CBDR 0
 
 #define DEBUG 0
 
@@ -35,22 +35,23 @@ struct CameraPropertices
 
 ConstantBuffer<CameraPropertices> CameraProperticesCB : register(b2);
 // Textures
-Texture2D AlbedoText                : register(t4);
-Texture2D NormalText                : register(t5);
-Texture2D ORMText                   : register(t6);
-Texture2D EmissiveText              : register(t7);
-Texture2D WorldPosText              : register(t8);
-TextureCube<float4> IrradianceText  : register(t9);
-TextureCube<float4> PrefilterText   : register(t10);
-Texture2D IntegrateBRDFText         : register(t11);
-Texture2D DepthText                 : register(t12);
+Texture2D AlbedoText                        : register(t4);
+Texture2D NormalText                        : register(t5);
+Texture2D ORMText                           : register(t6);
+Texture2D EmissiveText                      : register(t7);
+Texture2D WorldPosText                      : register(t8);
+TextureCube<float4> IrradianceText          : register(t9);
+TextureCube<float4> PrefilterText           : register(t10);
+Texture2D IntegrateBRDFText                 : register(t11);
+Texture2D DepthText                         : register(t12);
+TextureCube<float4> ShadowMapText[10]       : register(t13);
 
-SamplerState SamPointWrap           : register(s0);
-SamplerState SamPointClamp          : register(s1);
-SamplerState SamLinearWarp          : register(s2);
-SamplerState SamLinearClamp         : register(s3);
-SamplerState SamAnisotropicWarp     : register(s4);
-SamplerState SamAnisotropicClamp    : register(s5);
+SamplerState SamPointWrap                   : register(s0);
+SamplerState SamPointClamp                  : register(s1);
+SamplerState SamLinearWarp                  : register(s2);
+SamplerState SamLinearClamp                 : register(s3);
+SamplerState SamAnisotropicWarp             : register(s4);
+SamplerState SamAnisotropicClamp            : register(s5);
 
 float LinearDepth(float depth)
 {
@@ -60,6 +61,20 @@ float LinearDepth(float depth)
 float ViewDepth(float depth)
 {
     return (FAR_Z * NEAR_Z) / (FAR_Z - depth * (FAR_Z - NEAR_Z));
+}
+
+float CalcuShadow(float _bias, float _closetDepth, float _currentdepth)
+{   
+    if (_closetDepth > _currentdepth - _bias)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+    
+
 }
 
 //计算所有灯光的直接光照
@@ -112,6 +127,8 @@ float3 DoLighting(float2 _uv, float3 _normal, float3 _worldPos, float3 _toCamera
     for (i = 0; i < numPointLight; ++i)
     {
         float3 result = DoPointLight(PointLights[LightsList[gridID].PointlightIndices[i]], _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, F0);
+        float shadow = CalcuShadow(PointLights[LightsList[gridID].PointlightIndices[i]].ShadowMapIndex, _worldPos, depthBuffer);
+        result *= shadow;
 
         totalResult += result;
     }
@@ -133,10 +150,29 @@ float3 DoLighting(float2 _uv, float3 _normal, float3 _worldPos, float3 _toCamera
     }
 #else
     
-    for (i = 0; i < LightPropertiesCB.NumPointLights; ++i)
+    for (i = 0; i < 1; ++i)
     {
         float3 result = DoPointLight(PointLights[i], _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, F0);
+        
+        //float3 toLight = PointLights[i].PositionWS.xyz - _worldPos;
+        float3 toLight = _worldPos - PointLights[i].PositionWS.xyz;
+        float closestDepth = ShadowMapText[i].Sample(SamAnisotropicClamp, normalize(toLight)).r;
+        
+//#if USE_REVERSE_Z
+//        //closestDepth = (1000.0f * 0.1f) / (0.1f - closestDepth * (0.1f - 1000.0f));
+//        closestDepth *= 1000.0f;
+//#else
+//        closestDepth = (0.1f * 1000.0f) / (1000.0f - closestDepth * (1000.0f - 0.1f));
+//#endif        
 
+        float bias = max((1.0f - dot(_normal, normalize(toLight))) * 0.05f, 0.005f);
+
+        float currentDepth = length(toLight);
+
+        float shadow = CalcuShadow(bias, closestDepth, currentDepth);
+        
+        result *= (float3)shadow;
+        
         totalResult += result;
     }
 
@@ -158,10 +194,19 @@ float3 DoLighting(float2 _uv, float3 _normal, float3 _worldPos, float3 _toCamera
 #endif  
    //
 #if DEBUG
+    float clusterColor = float(clusterZ) / CLUSTER_NUM_Z;
     float lightNum = float(numPointLight + 0) / 200.0f;
 	{
-
-        float4 color = float4(lightNum, lightNum, lightNum, 1.0f);
+        float4 color;
+        if (_uv.x * gRTSize.x  < gRTSize.x / 2.0f)
+        {
+            color = float4(clusterColor, clusterColor, clusterColor, 1.0f);
+        }
+        else
+        {
+            color = float4(lightNum, lightNum, lightNum, 1.0f);
+        }
+        
         return color;
     }
  //   return totalResult;
@@ -215,7 +260,21 @@ float4 main(PixelShaderInput IN) : SV_Target
 #endif // ENABLE_LIGHTING
    
 #if DEBUG
+    float3 toLight = WorldPos - PointLights[0].PositionWS.xyz;
+    float3 pos = ShadowMapText[1].Sample(SamAnisotropicClamp, toLight).rgb;
+    float3 aaaaa = ShadowMapText[0].Sample(SamAnisotropicClamp, WorldPos).rgb;
     float3 ccc = (float3) (directColor);
+    if (IN.TexCoord.x * gRTSize.x < gRTSize.x / 2.0f)
+    {
+        ccc = WorldPos;
+       
+    }
+    else
+    {
+        ccc = pos;
+    }
+    
+    
     return float4(ccc, alpha);
 #else
     return float4(color, alpha);

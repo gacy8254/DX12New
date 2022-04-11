@@ -10,8 +10,8 @@ struct PointLight
     //----------------------------------- (16 byte boundary)
     float range;
     float Intensity;
-    float LinearAttenuation;
-    float QuadraticAttenuation;
+    uint ShadowMapIndex;
+    bool HasShadowMap;
     //----------------------------------- (16 byte boundary)
     // Total:                              16 * 4 = 64 bytes
 };

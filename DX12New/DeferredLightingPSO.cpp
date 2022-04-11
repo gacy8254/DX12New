@@ -25,6 +25,7 @@ DeferredLightingPSO::DeferredLightingPSO(std::shared_ptr<Device> _device, bool _
 
 	CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 9, 4);
 	CD3DX12_DESCRIPTOR_RANGE1 descriptorRange1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3);
+	CD3DX12_DESCRIPTOR_RANGE1 ShadowMapDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 10, 13);
 
 	CD3DX12_ROOT_PARAMETER1 rootParameter[RootParameters::NumRootParameters];
 	rootParameter[RootParameters::LightPropertiesCB].InitAsConstants(sizeof(LightProperties) / 4, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -36,6 +37,7 @@ DeferredLightingPSO::DeferredLightingPSO(std::shared_ptr<Device> _device, bool _
 	//rootParameter[RootParameters::LightsList].InitAsShaderResourceView(3, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::LightsList].InitAsDescriptorTable(1, &descriptorRange1, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::Textures].InitAsDescriptorTable(1, &descriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParameter[RootParameters::ShadowMaps].InitAsDescriptorTable(1, &ShadowMapDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto samplers = GetStaticSamplers();
 
@@ -112,6 +114,17 @@ void DeferredLightingPSO::Apply(CommandList& _commandList)
 		BindTexture(_commandList, 6, m_Textures[PrefilterText], RootParameters::Textures);
 		BindTexture(_commandList, 7, m_Textures[IntegrateBRDFText], RootParameters::Textures);
 		BindTexture(_commandList, 8, m_Textures[DepthText], RootParameters::Textures);
+	}
+
+	if (m_DirtyFlags & DF_ShadowMap)
+	{
+
+		//…Ë÷√Ã˘Õº
+		for (int i = 0; i < m_ShadowMap.size(); i++)
+		{
+			BindTexture(_commandList, i, m_ShadowMap[i], RootParameters::ShadowMaps);
+		}
+		
 	}
 
 	if (m_DirtyFlags & DF_PointLights)

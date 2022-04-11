@@ -92,6 +92,6 @@ float4 main(float2 TexCoord : TEXCOORD) : SV_TARGET0
     }
     
     return float4(pow(abs(sdr), 1.0f / TonemapParametersCB.Gamma), 1);
-    //return float4(sdr, 1.0f);
+    //return float4(HDR, 1.0f);
 
 }
