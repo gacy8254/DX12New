@@ -12,6 +12,7 @@ public:
      * Tick the high resolution timer.
      */
     void Tick();
+    void TickWithoutElapsed();
 
     /**
      * Reset the elapsed and total time.

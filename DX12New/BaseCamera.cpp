@@ -21,7 +21,7 @@ void XM_CALLCONV BaseCamera::SetLookAt(Vector4 _eye, Vector4 _target, Vector4 _u
 {
 	pData->m_ViewMatrix = Transform::MatrixLookATLH(_eye, _target, _up);
 
-	pData->m_Translation = _eye;
+	pData->m_FocalPoint = _eye;
 	pData->m_Rotation = Transform::QuaternionRotationMatrix(pData->m_ViewMatrix);
 
 	m_InverseViewDirty = true;

@@ -80,7 +80,6 @@ Window::Window(HWND _hwnd, const std::wstring& _windowName, int _width, int _hei
 Window::~Window()
 {
 	::DestroyWindow(m_HWND);
-	std::cout << "´°¿ÚÀàÎö¹¹" << std::endl;
 }
 
 void Window::OnUpdate(UpdateEventArgs& _e)

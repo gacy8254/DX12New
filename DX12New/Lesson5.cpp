@@ -10,7 +10,7 @@
 #include "ShaderDefinition.h"
 using namespace DirectX;
 
-const int numPoint = 1;
+const int numPoint = 2;
 const int numSpot = 0;
 const int numDirect = 1;
 
@@ -350,12 +350,12 @@ void Lesson5::OnRender()
 	else
 	{
 		//创建Pass
-		SceneVisitor opaquePass(*commandList, m_Camera, *m_GBufferPso, *m_Window, m_LDRRenderTarget, false);
-		SceneVisitor transparentPass(*commandList, m_Camera, *m_GBufferDecalPso, *m_Window, m_LDRRenderTarget, true);
-		SceneVisitor unlitPass(*commandList, m_Camera, *m_UnlitPso, *m_Window, m_LDRRenderTarget, false);
-		SceneVisitor skyBoxPass(*commandList, m_Camera, *m_SkyBoxPso, *m_Window, m_LDRRenderTarget, false);
-		SceneVisitor LinePass(*commandList, m_Camera, *m_NormalVisualizePso, *m_Window, m_LDRRenderTarget, false);
-		SceneVisitor WireFramePass(*commandList, m_Camera, *m_WireframePSO, *m_Window, m_LDRRenderTarget, false);
+		SceneVisitor opaquePass(*commandList, m_Camera, *m_GBufferPso, mainPassCB, false);
+		SceneVisitor transparentPass(*commandList, m_Camera, *m_GBufferDecalPso, mainPassCB, true);
+		SceneVisitor unlitPass(*commandList, m_Camera, *m_UnlitPso, mainPassCB, false);
+		SceneVisitor skyBoxPass(*commandList, m_Camera, *m_SkyBoxPso, mainPassCB, false);
+		SceneVisitor LinePass(*commandList, m_Camera, *m_NormalVisualizePso, mainPassCB, false);
+		SceneVisitor WireFramePass(*commandList, m_Camera, *m_WireframePSO, mainPassCB, false);
 
 		if (!m_IsWireFrameMode)
 		{
@@ -372,8 +372,10 @@ void Lesson5::OnRender()
 				m_Camera.SetJitter(0, 0);
 			}
 
+#if CAST_SHADOW
 			//shadowMap Pass
 			ShadowMap(commandList);
+#endif
 
 			//设置命令列表
 			commandList->SetViewport(m_Viewport);
@@ -390,9 +392,15 @@ void Lesson5::OnRender()
 			commandList->ClearDepthStencilTexture(rendertarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
 			commandList->SetRenderTarget(rendertarget);
 
+			double time = m_Window->GetTotalTime(true);
 			//渲染场景(GBUFFER  PASS)
 			m_Scene->Accept(opaquePass);
 			m_Scene->Accept(transparentPass);
+			//std::cout << time << "                 ";
+			GbufferPassTime = m_Window->GetTotalTime(true);
+			GbufferPassTime = GbufferPassTime - time;
+			//std::cout << time << std::endl;
+		
 
 			commandList->CopyResource(m_DepthTexture, rendertarget.GetTexture(AttachmentPoint::DepthStencil));
 			//计算光照(PBR PASS)
@@ -416,24 +424,15 @@ void Lesson5::OnRender()
 			gBufferTexture[DeferredLightingPSO::IntegrateBRDFText] = m_IntegrateBRDFRenderTarget.GetTexture(AttachmentPoint::Color0);
 			gBufferTexture[DeferredLightingPSO::DepthText] = m_DepthTexture;
 
-
-			
+#if CAST_SHADOW
 			commandList->TransitionBarrier(m_ShadowMapRenderTarget[0]->GetTexture(AttachmentPoint::Color0), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-			//commandList->FlushResourceBarriers();
-			for (int i = 0; i < 10; i++)
+			for (int i = 0; i < m_ShadowMapRenderTarget.size(); i++)
 			{
-
-				if (i < 1)
-				{
-					m_ShadowMapTexture[i] = m_ShadowMapRenderTarget[0]->GetTexture(AttachmentPoint::Color0);
-				}
-				else
-				{
-					
-					m_ShadowMapTexture[i] = m_ShadowMapRenderTarget[0]->GetTexture(AttachmentPoint::Color0);
-				}
+				m_ShadowMapTexture[i] = m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::Color0);
 			}
-			//m_Camera.SetRotation(Vector4(1,0,0,0));
+			m_DeferredLightingPso->SetShadowMap(m_ShadowMapTexture);
+#endif
+
 			mainPassCB->PreviousViewProj = m_Camera.GetPreviousViewProjMatrix();
 			mainPassCB->CameraPos = m_Camera.GetFocalPoint();
 			mainPassCB->DeltaTime = m_Window->GetDeltaTime();
@@ -467,7 +466,6 @@ void Lesson5::OnRender()
 			//设置PBR光照计算需要的数据
 			m_DeferredLightingPso->SetCameraPos(m_Camera.GetFocalPoint());
 			m_DeferredLightingPso->SetTexture(gBufferTexture);
-			m_DeferredLightingPso->SetShadowMap(m_ShadowMapTexture);
 			m_DeferredLightingPso->SetMainPassCB(mainPassCB);
 			m_DeferredLightingPso->Apply(*commandList);
 			commandList->Draw(4);
@@ -493,7 +491,6 @@ void Lesson5::OnRender()
 			else
 			{
 				m_LDRPSO->SetTexture(m_HDRRenderTarget.GetTexture(AttachmentPoint::Color0));
-				//m_LDRPSO->SetTexture(m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color5));
 			}
 
 //#if USE_TAA
@@ -728,7 +725,7 @@ void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const Rende
 		{
 			char buffer[256];
 			{
-				sprintf_s(buffer, _countof(buffer), "GBuffer Pass: %.2f (%.2f ms)  ", GbufferPassTime, 1.0 / GbufferPassTime * 1000.0);
+				sprintf_s(buffer, _countof(buffer), "GBuffer Pass: %.5f (%.2f ms)  ", GbufferPassTime, GbufferPassTime * 1000.0);
 				//auto fpsTextSize = ImGui::CalcTextSize(buffer);
 				//ImGui::SameLine(ImGui::GetWindowWidth() - fpsTextSize.x);
 				ImGui::Text(buffer);
@@ -736,7 +733,7 @@ void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const Rende
 
 			char buffer1[256];
 			{
-				sprintf_s(buffer1, _countof(buffer1), "PBR Pass: %.2f (%.2f ms)  ", PBRPassTime, 1.0 / PBRPassTime * 1000.0);
+				sprintf_s(buffer1, _countof(buffer1), "PBR Pass: %.5f (%.2f ms)  ", PBRPassTime, PBRPassTime * 1000.0);
 				//auto fpsTextSize = ImGui::CalcTextSize(buffer1);
 				//ImGui::SameLine(ImGui::GetWindowWidth() - fpsTextSize.x);
 				ImGui::Text(buffer1);
@@ -744,7 +741,7 @@ void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const Rende
 
 			char buffer2[256];
 			{
-				sprintf_s(buffer2, _countof(buffer2), "Sky Pass: %.2f (%.2f ms)  ", SkyboxPassTime, 1.0 / SkyboxPassTime * 1000.0);
+				sprintf_s(buffer2, _countof(buffer2), "Sky Pass: %.5f (%.2f ms)  ", SkyboxPassTime, SkyboxPassTime * 1000.0);
 				//auto fpsTextSize = ImGui::CalcTextSize(buffer2);
 				//ImGui::SameLine(ImGui::GetWindowWidth() - fpsTextSize.x);
 				ImGui::Text(buffer2);
@@ -752,7 +749,7 @@ void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const Rende
 
 			char buffer3[256];
 			{
-				sprintf_s(buffer3, _countof(buffer3), "TAA Pass: %.2f (%.2f ms)  ", TAAPassTime, 1.0 / TAAPassTime * 1000.0);
+				sprintf_s(buffer3, _countof(buffer3), "TAA Pass: %.5f (%.2f ms)  ", TAAPassTime, TAAPassTime * 1000.0);
 				//auto fpsTextSize = ImGui::CalcTextSize(buffer3);
 				//ImGui::SameLine(ImGui::GetWindowWidth() - fpsTextSize.x);
 				ImGui::Text(buffer3);
@@ -760,7 +757,7 @@ void Lesson5::OnGUI(const std::shared_ptr<CommandList>& commandList, const Rende
 
 			char buffer4[256];
 			{
-				sprintf_s(buffer4, _countof(buffer4), "SDR Pass: %.2f (%.2f ms)  ", SDRPassTime, 1.0 / SDRPassTime * 1000.0);
+				sprintf_s(buffer4, _countof(buffer4), "SDR Pass: %.5f (%.2f ms)  ", SDRPassTime, SDRPassTime * 1000.0);
 				//auto fpsTextSize = ImGui::CalcTextSize(buffer4);
 				//ImGui::SameLine(ImGui::GetWindowWidth() - fpsTextSize.x);
 				ImGui::Text(buffer4);
@@ -823,7 +820,7 @@ void Lesson5::TAA(std::shared_ptr<CommandList> _commandList)
 	taaTexture[TAAPSO::VelocityTexture] = m_GBufferRenderTarget.GetTexture(AttachmentPoint::Color5);
 	taaTexture[TAAPSO::DepthTexture] = m_DepthTexture;
 	m_TAAPSO->SetTexture(taaTexture);
-	SceneVisitor taaPass(*_commandList, m_Camera, *m_TAAPSO, *m_Window, m_LDRRenderTarget, false);
+	SceneVisitor taaPass(*_commandList, m_Camera, *m_TAAPSO, mainPassCB, false);
 	m_Screen->Accept(taaPass);
 
 	_commandList->CopyResource(m_HistoryTexture, m_TAARenderTarget.GetTexture(AttachmentPoint::Color0));
@@ -864,11 +861,9 @@ void Lesson5::ShadowMap(std::shared_ptr<CommandList> _commandList)
 	for (const auto& l : m_PointLights)
 	{
 		BuildCubemapCamera(l.PositionWS.x, l.PositionWS.y, l.PositionWS.z);
-		//Vector4 pos = Vector4(l.PositionWS.x, l.PositionWS.y, l.PositionWS.z, 1.0f);
-		//m_ShadowMapPSO->SetLightPos(pos);
 		
-			//创建渲染目标
-		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R16_FLOAT;
+		//创建渲染目标
+		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R32_FLOAT;
 
 		//RT资源描述
 		auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(backBufferFormat, 1024, 1024, 6, 1, 1,
@@ -884,7 +879,7 @@ void Lesson5::ShadowMap(std::shared_ptr<CommandList> _commandList)
 		DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
 
 		//DS资源描述
-		auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, 1024, 1024, 6, 1, 1,
+		auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, 1024, 1024, 1, 1, 1,
 			0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 		D3D12_CLEAR_VALUE depthClearValue;
 		depthClearValue.Format = depthDesc.Format;
@@ -899,7 +894,7 @@ void Lesson5::ShadowMap(std::shared_ptr<CommandList> _commandList)
 		//深度图
 		if (!m_ShadowMapRenderTarget[i].get())
 		{
-			auto depthTexture = m_Device->CreateTexture(depthDesc, true, &depthClearValue);
+			auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
 			depthTexture->SetName(L"ShadowMap Depth Render Target");
 			m_ShadowMapRenderTarget[i] = std::make_shared<RenderTarget>();
 			m_ShadowMapRenderTarget[i]->AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
@@ -917,10 +912,13 @@ void Lesson5::ShadowMap(std::shared_ptr<CommandList> _commandList)
 
 		_commandList->TransitionBarrier(m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::Color0), D3D12_RESOURCE_STATE_RENDER_TARGET);
 		_commandList->TransitionBarrier(m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+		
 		for (int j = 0; j < 6; j++)
 		{
+
 			//设置渲染目标
-			auto dsv = m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::DepthStencil)->GetDepthStencilView(j);
+			auto dsv = m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::DepthStencil)->GetDepthStencilView();
 			auto rtv = m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::Color0)->GetRenderTargetView(j);
 
 			_commandList->GetGraphicsCommandList()->OMSetRenderTargets(1, &rtv, true, &dsv);
@@ -935,12 +933,18 @@ void Lesson5::ShadowMap(std::shared_ptr<CommandList> _commandList)
 
 			m_CubeMapCamera[j].SetJitter(0, 0);
 
-			SceneVisitor ShadowMapPass(*_commandList, m_CubeMapCamera[j], *m_ShadowMapPSO, *m_Window, *m_ShadowMapRenderTarget[i], false);
-			SceneVisitor ShadowMapPassAlphaTest(*_commandList, m_CubeMapCamera[j], *m_ShadowMapPSO, *m_Window, *m_ShadowMapRenderTarget[i], true);
+			SceneVisitor ShadowMapPass(*_commandList, m_CubeMapCamera[j], *m_ShadowMapPSO, mainPassCB, false);
+
+			SceneVisitor ShadowMapPassAlphaTest(*_commandList, m_CubeMapCamera[j], *m_ShadowMapPSO, mainPassCB, true);
+			//double time = m_Window->GetTotalTime(true);
 			m_Scene->Accept(ShadowMapPass);
 			m_Scene->Accept(ShadowMapPassAlphaTest);
+			//std::cout << time << "                 ";
+			//time = m_Window->GetTotalTime(true);
+			//std::cout << time << std::endl;
 		}
 		i++;
+		
 	}
 }
 
@@ -1090,50 +1094,26 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 
 	// Setup the lights.
 	m_PointLights.resize(numPointLights * numPointLights);
-	m_PointLights[0].Instensity = 1000.0f;
-	m_PointLights[0].Range = 1000.0f;
-	m_PointLights[0].PositionWS = { 0, 0, 0, 1.0f };
 	for (int i = -numPointLights / 2; i < numPointLights / 2; ++i)
 	{
 		for (int j = -numPointLights / 2; j < numPointLights / 2; ++j)
 		{
 			PointLight& l = m_PointLights[(i + numPointLights / 2) * numPointLights + (j + numPointLights / 2)];
-			Vector4 pos = Vector4(i * 1.5f, -7, 0, 1.0f);
+			Vector4 pos = Vector4(i * 1.0f, j * 1.0f, 0, 1.0f);
 			Matrix4 view = m_Camera.GetViewMatrix();
 
 			Vector4 PositionVS = Vector4(DirectX::XMVector3TransformCoord(pos, view));
 
-			l.PositionWS = { i * 1.5f, -7, 0, 1.0f };
+			l.PositionWS = { i * 1.0f, j * 1.0f, 0, 1.0f };
 			XMVECTOR positionWS = XMLoadFloat4(&l.PositionWS);
 			XMVECTOR positionVS = PositionVS;
 			XMStoreFloat4(&l.PositionVS, positionVS);
 
 			l.Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 0);
-			l.Instensity = 1.0f;
-			l.Range = 10.0f;
+			l.Instensity = 5.0f;
+			l.Range = 30.0f;
 			l.ShadowMapIndex = (i + numPointLights / 2) * numPointLights + (j + numPointLights / 2);
 		}
-
-
-		/*if (i == 2)
-		{
-			l.PositionWS = { -8 , -8, -5, 1.0f };
-		}
-		else if (i == 0)
-		{
-			l.PositionWS = { 8 , 8, -5, 1.0f };
-		}
-		else if (i == 3)
-		{
-			l.PositionWS = { -8 , 8, -5, 1.0f };
-		}
-		else
-		{
-			l.PositionWS = { 8 , -8, -5, 1.0f };
-		}*/
-		
-
-	
 	}
 
 	m_SpotLights.resize(numSpotLights);
@@ -1323,7 +1303,6 @@ void Lesson5::BuildCubemapCamera(float _x, float _y, float _z)
 	for (int i = 0; i < 6; i++)
 	{
 		m_CubeMapCamera[i].SetLookAt(center, targets[i], ups[i]);
-
 		m_CubeMapCamera[i].SetProjection(90.0f, 1.0f, 0.1f, 1000.0f);
 	}
 }
@@ -1390,7 +1369,7 @@ void Lesson5::PreIrradiance(std::shared_ptr<CommandList> _commandList)
 
 		_commandList->GetGraphicsCommandList()->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
 		_commandList->ClearDepthStencilTexture(m_IrradianceRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
-		SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[i], *m_PreCalPso, *m_Window, m_LDRRenderTarget, false);
+		SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[i], *m_PreCalPso, mainPassCB, false);
 		cube->Accept(skyBoxPass);
 	}
 
@@ -1465,7 +1444,7 @@ void Lesson5::Prefilter(std::shared_ptr<CommandList> _commandList)
 
 			_commandList->GetGraphicsCommandList()->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
 			_commandList->ClearDepthStencilTexture(m_PrefilterRenderTarget.GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, DepthClearValue);
-			SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[j], *m_PrefilterPso, *m_Window, m_LDRRenderTarget, false);
+			SceneVisitor skyBoxPass(*_commandList, m_CubeMapCamera[j], *m_PrefilterPso, mainPassCB, false);
 			cube->Accept(skyBoxPass);
 		}
 	}
@@ -1669,7 +1648,7 @@ void Lesson5::GUILayout(bool* _open)
 					pos[3] = m_PointLights[selectedNode].PositionWS.w;
 
 					ImGui::ColorEdit4("color", color);
-					ImGui::DragFloat4("pos", pos);
+					ImGui::DragFloat4("pos", pos, 0.05f);
 					ImGui::DragFloat("Instensity", &m_PointLights[selectedNode].Instensity);
 					ImGui::DragFloat("Range", &m_PointLights[selectedNode].Range);
 

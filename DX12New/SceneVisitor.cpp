@@ -12,16 +12,14 @@
 
 using namespace DirectX;
 
-SceneVisitor::SceneVisitor(CommandList& _commandList, const BaseCamera& _camera, BasePSO& _pso, Window& _window, RenderTarget& _rt, bool _transparent)
+SceneVisitor::SceneVisitor(CommandList& _commandList, const BaseCamera& _camera, BasePSO& _pso, const std::shared_ptr<MainPass> _mainPassCB, bool _transparent)
 	:m_CommandList(_commandList),
 	m_Camera(_camera),
 	m_LightingPSO(_pso),
-	m_Transparent(_transparent),
-	m_Window(_window),
-	m_RenderTarget(_rt)
+	m_MainPassCB(_mainPassCB),
+	m_Transparent(_transparent)
 {
 	m_ObjectCB = std::make_shared<ObjectCB>();
-	m_MainPassCB = std::make_shared<MainPass>();
 }
 
 SceneVisitor::~SceneVisitor()
@@ -67,21 +65,14 @@ void SceneVisitor::Visit(Scene& scene)
 {
 	m_MainPassCB->PreviousViewProj			= m_Camera.GetPreviousViewProjMatrix();
 	m_MainPassCB->CameraPos					= m_Camera.GetFocalPoint();
-	m_MainPassCB->DeltaTime					= m_Window.GetDeltaTime();
-	m_MainPassCB->TotalTime					= m_Window.GetTotalTime();
 	m_MainPassCB->NearZ						= m_Camera.GetNearZ();
 	m_MainPassCB->FarZ						= m_Camera.GetFarZ();
 	m_MainPassCB->Proj						= m_Camera.GetProjMatrix();
 	m_MainPassCB->View						= m_Camera.GetViewMatrix();
-	m_MainPassCB->FrameCount				= m_Window.GetFrameCount();
 	m_MainPassCB->InverseProj				= m_Camera.GetInserseProjMatrix();
 	m_MainPassCB->InverseView				= m_Camera.GetInserseViewMatrix();
 	m_MainPassCB->JitterX					= m_Camera.GetJitterX();
 	m_MainPassCB->JitterY					= m_Camera.GetJitterY();
-	m_MainPassCB->RTSizeX					= m_RenderTarget.GetWidth();
-	m_MainPassCB->RTSizeY					= m_RenderTarget.GetHeight();
-	m_MainPassCB->InverseRTSizeX			= 1.0f / (float)m_RenderTarget.GetWidth();
-	m_MainPassCB->InverseRTSizeY			= 1.0f / (float)m_RenderTarget.GetHeight();
 	m_MainPassCB->UnjitteredProj			= m_Camera.GetUnjitteredProjMatrix();
 	m_MainPassCB->UnjitteredInverseProj		= m_Camera.GetUnjitteredInverseProjMatrix();
 	m_MainPassCB->ViewProj					= m_Camera.GetViewMatrix() * m_Camera.GetProjMatrix();

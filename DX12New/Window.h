@@ -47,8 +47,16 @@ public:
 	void Show() { ::ShowWindow(m_HWND, SW_SHOW); }
 	void Hide() { ::ShowWindow(m_HWND, SW_HIDE); }
 
+	//获取时间
 	uint64_t GetFrameCount() { return m_FrameCount; }
-	double GetTotalTime() { return m_Timer.TotalSeconds(); }
+	double GetTotalTime(bool _update = false) 
+	{ 
+		if (_update)
+		{
+			m_Timer.TickWithoutElapsed();
+		}
+		return m_Timer.TotalSeconds();
+	}
 	double GetDeltaTime() { return m_Timer.ElapsedSeconds(); }
 
 	//窗口需要更新时被调用

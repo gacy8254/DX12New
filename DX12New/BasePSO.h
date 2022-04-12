@@ -47,16 +47,6 @@ struct MainPass
 class BasePSO
 {
 public:
-	struct alignas(16) Matrices
-	{
-		Matrix4 ModelMatrix;
-		Matrix4 ModelViewMatrix;
-		Matrix4 InverseTransposeModelMatrix;
-		Matrix4 ModelViewProjectionMatrix;
-	};
-
-
-
 	BasePSO(std::shared_ptr<Device> _device);
 	virtual ~BasePSO();
 
@@ -98,7 +88,7 @@ protected:
 		DF_All = DF_PointLights | DF_SpotLights | DF_DirectionalLights | DF_Material | DF_ObjectCB | DF_MainPassCB | DF_ShadowMap
 	};
 
-	void BindTexture(CommandList& _commandList, uint32_t _offset, const std::shared_ptr<Texture>& _texture, UINT _slot);
+	void BindTexture(CommandList& _commandList, uint32_t _offset, const std::shared_ptr<Texture>& _texture, UINT _slot, bool _cubeMap = false);
 
 	std::shared_ptr<Device> m_Device;
 	std::shared_ptr<RootSignature> m_RootSignature;
@@ -108,6 +98,7 @@ protected:
 
 	//默认的空白SRV用于占位贴图槽
 	std::shared_ptr<ShaderResourceView> m_DefaultSRV;
+	std::shared_ptr<ShaderResourceView> m_DefaultSRVCube;
 
 	std::shared_ptr<ObjectCB> m_pAlignedObjectCB;
 	std::shared_ptr<MainPass> m_pAlignedMainPassCB;

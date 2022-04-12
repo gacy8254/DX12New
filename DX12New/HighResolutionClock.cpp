@@ -36,6 +36,17 @@ public:
 		t0 = t1;
 	}
 
+	void TickWithoutElapsed()
+	{
+		LARGE_INTEGER t;
+		::QueryPerformanceCounter(&t);
+
+		double delta = (t.QuadPart - t0.QuadPart) * (1e9 / frequency.QuadPart);
+		totalNanseconds += delta;
+
+		t0 = t1;
+	}
+
 	void Reset()
 	{
 		::QueryPerformanceCounter(&t0);
@@ -75,8 +86,17 @@ public:
 		t1 = high_resolution_clock::now();
 		duration<double, std::nano> delta = t1 - t0;
 		t0 = t1;
-		elapsedTime = delta.count();
-		totalTime += elapsedTime;
+		totalTime += delta.count();
+		elapsedTime = totalTime - lastFrameTotalTime;
+		lastFrameTotalTime = totalTime;
+	}
+
+	void TickWithoutElapsed()
+	{
+		t1 = high_resolution_clock::now();
+		duration<double, std::nano> delta = t1 - t0;
+		t0 = t1;
+		totalTime += delta.count();
 	}
 
 	void Reset()
@@ -97,9 +117,10 @@ public:
 	}
 
 private:
-	high_resolution_clock::time_point t0, t1;
+	high_resolution_clock::time_point t0, t1, t2;
 	double                            elapsedTime;
 	double                            totalTime;
+	double                            lastFrameTotalTime;
 };
 #elif USE_CLOCK == STEADY_CLOCK
 class HighResolutionTimer::impl
@@ -119,6 +140,14 @@ public:
 		t0 = t1;
 		elapsedTime = delta.count();
 		totalTime += elapsedTime;
+	}
+
+	void TickWithoutElapsed()
+	{
+		auto t = high_resolution_clock::now();
+		duration<double, std::nano> delta = t - t0;
+
+		totalTime += delta.count();
 	}
 
 	void Reset()
@@ -155,6 +184,11 @@ HighResolutionTimer::~HighResolutionTimer() {}
 void HighResolutionTimer::Tick()
 {
 	pImpl->Tick();
+}
+
+void HighResolutionTimer::TickWithoutElapsed()
+{
+	pImpl->TickWithoutElapsed();
 }
 
 void HighResolutionTimer::Reset()

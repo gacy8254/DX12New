@@ -1,7 +1,7 @@
 #include "PBR_Function.hlsli"
 #include "MainPassCB.hlsli"
 
-#define USE_CBDR 0
+#define USE_CBDR 1
 
 #define DEBUG 0
 
@@ -21,6 +21,15 @@ static const float DepthSlicing_64[65] =
     1778, 1965, 2152, 2367, 2604, 2864, 3151, 3466, 3812, 4194, 4613, 5074, 5582, 6140, 6754, 7430,
     8544, 9826, 11300, 12995, 14944, 17186, 19764, 22728, 26138, 30058, 34567, 39752, 45715, 46715, 47715, 48715,
     50000.0f
+};
+
+static const float3 sampleOffsetDirections[20] =
+{
+    float3(1, 1, 1), float3(1, -1, 1), float3(-1, -1, 1), float3(-1, 1, 1),
+   float3(1, 1, -1), float3(1, -1, -1), float3(-1, -1, -1), float3(-1, 1, -1),
+   float3(1, 1, 0), float3(1, -1, 0), float3(-1, -1, 0), float3(-1, 1, 0),
+   float3(1, 0, 1), float3(-1, 0, 1), float3(1, 0, -1), float3(-1, 0, -1),
+   float3(0, 1, 1), float3(0, -1, 1), float3(0, -1, -1), float3(0, 1, -1)
 };
 
 struct PixelShaderInput
@@ -73,8 +82,6 @@ float CalcuShadow(float _bias, float _closetDepth, float _currentdepth)
     {
         return 0;
     }
-    
-
 }
 
 //计算所有灯光的直接光照
@@ -123,12 +130,39 @@ float3 DoLighting(float2 _uv, float3 _normal, float3 _worldPos, float3 _toCamera
 #endif
     
 #if USE_CBDR
-    
+    [unroll(200)]
     for (i = 0; i < numPointLight; ++i)
     {
         float3 result = DoPointLight(PointLights[LightsList[gridID].PointlightIndices[i]], _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, F0);
-        float shadow = CalcuShadow(PointLights[LightsList[gridID].PointlightIndices[i]].ShadowMapIndex, _worldPos, depthBuffer);
-        result *= shadow;
+    
+#if CAST_SHADOW
+        float shadow = 0.0f;
+
+        //获取点到光源的向量
+        float3 toLight = _worldPos - PointLights[i].PositionWS.xyz;
+        //点到光源的距离
+        float currentDepth = length(toLight);
+        
+        //偏移
+        float bias = max(0.05 * (1.0f - dot(_normal, -toLight)), 0.005f);
+        
+        //PCF
+        float samples = 20.0f;
+        float disToView = length(_toCamera);
+        float diskRadius = (1.0f + (disToView / 1000.0f)) / 300.0f;
+
+        for (float j = 0; j < samples; j++)
+        {
+            //从贴图中采样最近点的距离,使用偏移来进行模糊
+            float closestdepth = ShadowMapText[i].Sample(SamAnisotropicClamp, toLight + sampleOffsetDirections[j] * diskRadius).r;
+            //判断是否处于阴影中
+            shadow += CalcuShadow(bias, closestdepth, currentDepth);
+        }
+        shadow /= samples;
+
+        //光照结果乘阴影值
+        result *= (float3)shadow;
+#endif
 
         totalResult += result;
     }
@@ -150,28 +184,39 @@ float3 DoLighting(float2 _uv, float3 _normal, float3 _worldPos, float3 _toCamera
     }
 #else
     
-    for (i = 0; i < 1; ++i)
+    for (i = 0; i < LightPropertiesCB.NumPointLights; ++i)
     {
+        //计算光照结果
         float3 result = DoPointLight(PointLights[i], _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, F0);
         
-        //float3 toLight = PointLights[i].PositionWS.xyz - _worldPos;
+#if CAST_SHADOW
+        float shadow = 0.0f;
+
+        //获取点到光源的向量
         float3 toLight = _worldPos - PointLights[i].PositionWS.xyz;
-        float closestDepth = ShadowMapText[i].Sample(SamAnisotropicClamp, normalize(toLight)).r;
-        
-//#if USE_REVERSE_Z
-//        //closestDepth = (1000.0f * 0.1f) / (0.1f - closestDepth * (0.1f - 1000.0f));
-//        closestDepth *= 1000.0f;
-//#else
-//        closestDepth = (0.1f * 1000.0f) / (1000.0f - closestDepth * (1000.0f - 0.1f));
-//#endif        
-
-        float bias = max((1.0f - dot(_normal, normalize(toLight))) * 0.05f, 0.005f);
-
+        //点到光源的距离
         float currentDepth = length(toLight);
-
-        float shadow = CalcuShadow(bias, closestDepth, currentDepth);
         
+        //偏移
+        float bias = max(0.05 * (1.0f - dot(_normal, -toLight)), 0.005f);
+        
+        //PCF
+        float samples = 20.0f;
+        float disToView = length(_toCamera);
+        float diskRadius = (1.0f + (disToView / 1000.0f)) / 300.0f;
+
+        for (float j = 0; j < samples; j++)
+        {
+            //从贴图中采样最近点的距离,使用偏移来进行模糊
+            float closestdepth = ShadowMapText[i].Sample(SamAnisotropicClamp, toLight + sampleOffsetDirections[j] * diskRadius).r;
+            //判断是否处于阴影中
+            shadow += CalcuShadow(bias, closestdepth, currentDepth);
+        }
+        shadow /= samples;
+
+        //光照结果乘阴影值
         result *= (float3)shadow;
+#endif
         
         totalResult += result;
     }

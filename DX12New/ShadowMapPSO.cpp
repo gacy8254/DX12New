@@ -63,7 +63,7 @@ ShadowMapPSO::ShadowMapPSO(std::shared_ptr<Device> _device, bool _isDecal)
 
 	D3D12_RT_FORMAT_ARRAY rtvFormats = {};
 	rtvFormats.NumRenderTargets = 1;
-	rtvFormats.RTFormats[0] = DXGI_FORMAT_R16_FLOAT;
+	rtvFormats.RTFormats[0] = DXGI_FORMAT_R32_FLOAT;
 
 	//ÉèÖÃPSOÊôÐÔ
 	pipelineStateStream.pRootSignature = m_RootSignature->GetRootSignature().Get();

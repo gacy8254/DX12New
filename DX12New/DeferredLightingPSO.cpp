@@ -118,13 +118,11 @@ void DeferredLightingPSO::Apply(CommandList& _commandList)
 
 	if (m_DirtyFlags & DF_ShadowMap)
 	{
-
 		//…Ë÷√Ã˘Õº
 		for (int i = 0; i < m_ShadowMap.size(); i++)
 		{
-			BindTexture(_commandList, i, m_ShadowMap[i], RootParameters::ShadowMaps);
+			BindTexture(_commandList, i, m_ShadowMap[i], RootParameters::ShadowMaps, true);
 		}
-		
 	}
 
 	if (m_DirtyFlags & DF_PointLights)

@@ -19,6 +19,16 @@ defaultSRV.Texture2D.ResourceMinLODClamp = 0;
 defaultSRV.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
 m_DefaultSRV = m_Device->CreateShaderResourceView(nullptr, &defaultSRV);
+
+D3D12_SHADER_RESOURCE_VIEW_DESC defaultSRVCube;
+defaultSRVCube.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+defaultSRVCube.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+defaultSRVCube.TextureCube.MipLevels = 1;
+defaultSRVCube.TextureCube.MostDetailedMip = 0;
+defaultSRVCube.TextureCube.ResourceMinLODClamp = 0;
+defaultSRVCube.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+m_DefaultSRVCube = m_Device->CreateShaderResourceView(nullptr, &defaultSRVCube);
 }
 
 BasePSO::~BasePSO()
@@ -74,7 +84,7 @@ std::array<CD3DX12_STATIC_SAMPLER_DESC, 6> BasePSO::GetStaticSamplers()
 	return{ pointWarp, pointClamp, linearWarp, linearClamp, anisotropicWarp, anisotropicClamp };
 }
 
-void BasePSO::BindTexture(CommandList& _commandList, uint32_t _offset, const std::shared_ptr<Texture>& _texture, UINT _slot)
+void BasePSO::BindTexture(CommandList& _commandList, uint32_t _offset, const std::shared_ptr<Texture>& _texture, UINT _slot, bool _cubeMap)
 {
 	//如果贴图有效就设置贴图,否则就用默认的SRV填充
 	if (_texture)
@@ -83,6 +93,14 @@ void BasePSO::BindTexture(CommandList& _commandList, uint32_t _offset, const std
 	}
 	else
 	{
-		_commandList.SetShaderResourceView(_slot, _offset, m_DefaultSRV, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		if (_cubeMap)
+		{
+			_commandList.SetShaderResourceView(_slot, _offset, m_DefaultSRVCube, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
+		else
+		{
+			_commandList.SetShaderResourceView(_slot, _offset, m_DefaultSRV, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
+		
 	}
 }
