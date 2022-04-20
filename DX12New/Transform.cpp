@@ -11,6 +11,11 @@ Matrix4 Transform::MatrixPerspectiveForLH(float _fov, float _aspect, float _zNea
 	return Matrix4(XMMatrixPerspectiveFovLH(_fov, _aspect, _zNear, _zFar));
 }
 
+Matrix4 Transform::MatrixOrthogonalForLH(float _width, float _height, float _zNear, float _zFar)
+{
+	return Matrix4(XMMatrixOrthographicLH(_width, _height, _zNear, _zFar));
+}
+
 Vector4 Transform::QuaternionRotationMatrix(Matrix4 _mat)
 {
 	return Vector4(XMQuaternionRotationMatrix(XMMatrixTranspose(_mat)));

@@ -44,23 +44,27 @@ struct CameraPropertices
 
 ConstantBuffer<CameraPropertices> CameraProperticesCB : register(b2);
 // Textures
-Texture2D AlbedoText                        : register(t4);
-Texture2D NormalText                        : register(t5);
-Texture2D ORMText                           : register(t6);
-Texture2D EmissiveText                      : register(t7);
-Texture2D WorldPosText                      : register(t8);
-TextureCube<float4> IrradianceText          : register(t9);
-TextureCube<float4> PrefilterText           : register(t10);
-Texture2D IntegrateBRDFText                 : register(t11);
-Texture2D DepthText                         : register(t12);
-TextureCube<float4> ShadowMapText[10]       : register(t13);
+Texture2D AlbedoText                                                : register(t4);
+Texture2D NormalText                                                : register(t5);
+Texture2D ORMText                                                   : register(t6);
+Texture2D EmissiveText                                              : register(t7);
+Texture2D WorldPosText                                              : register(t8);
+TextureCube<float4> IrradianceText                                  : register(t9);
+TextureCube<float4> PrefilterText                                   : register(t10);
+Texture2D IntegrateBRDFText                                         : register(t11);
+Texture2D DepthText                                                 : register(t12);
+TextureCube<float> ShadowMapText[MAX_POINT_LIGHT_SHADOWMAP_NUM]     : register(t13);
+Texture2D DirectLightShadowMapText[MAX_DIRECT_LIGHT_SHADOWMAP_NUM]  : register(t23);
 
-SamplerState SamPointWrap                   : register(s0);
-SamplerState SamPointClamp                  : register(s1);
-SamplerState SamLinearWarp                  : register(s2);
-SamplerState SamLinearClamp                 : register(s3);
-SamplerState SamAnisotropicWarp             : register(s4);
-SamplerState SamAnisotropicClamp            : register(s5);
+SamplerState SamPointWrap                                           : register(s0);
+SamplerState SamPointClamp                                          : register(s1);
+SamplerState SamLinearWarp                                          : register(s2);
+SamplerState SamLinearClamp                                         : register(s3);
+SamplerState SamAnisotropicWarp                                     : register(s4);
+SamplerState SamAnisotropicClamp                                    : register(s5);
+SamplerComparisonState SamShadow                                    : register(s6);
+SamplerComparisonState SamShadow2                                   : register(s7);
+
 
 float LinearDepth(float depth)
 {
@@ -72,16 +76,122 @@ float ViewDepth(float depth)
     return (FAR_Z * NEAR_Z) / (FAR_Z - depth * (FAR_Z - NEAR_Z));
 }
 
-float CalcuShadow(float _bias, float _closetDepth, float _currentdepth)
+float PCSS(float _shadowMapIndex, float _bias, float _currentdepth, float3 _toLight)
 {   
-    if (_closetDepth > _currentdepth - _bias)
+    float shadowFactor = 0.0f;
+    const float lightSize = 0.5f;
+    
+    //获取贴图的数据
+    uint width, height, numMips;
+    ShadowMapText[_shadowMapIndex].GetDimensions(0, width, height, numMips);
+    float dx = 1.0f / (float) width;
+    
+    //计算Blocker的平均深度
+    float blockerDepth = 0.0f;
+    float blockerNum = 0;
+    
+    for (int x = -3; x <= 3; x++)
     {
-        return 1;
+        for (int y = -3; y <= 3; y++)
+        {
+            for (int z = -3; z <= 3; z++)
+            {
+                float3 uvw = _toLight + (float3) 0.011f * 5 * float3(x, y, z);
+                float shadowDepth = ShadowMapText[_shadowMapIndex].SampleLevel(SamAnisotropicClamp, uvw, 0).r;
+                if(_currentdepth + _bias > shadowDepth)
+                {
+                    blockerDepth += shadowDepth;
+                    blockerNum += 1.0f;
+                }
+            }
+        }
+    }
+    
+    if(blockerNum >= 1.0f)
+    {
+        //平均遮挡深度
+        blockerDepth /= blockerNum;
+        //计算半影范围
+        float penumbra = (_currentdepth - blockerDepth) * lightSize / blockerDepth;
+        
+        for (int x = -3; x <= 3; x++)
+        {
+            for (int y = -3; y <= 3; y++)
+            {
+                for (int z = -3; z <= 3; z++)
+                {
+                    shadowFactor += ShadowMapText[_shadowMapIndex].SampleCmpLevelZero(
+                    SamShadow, 
+                    normalize(_toLight) + (float3) 0.011f * penumbra * float3(x, y, z), 
+                    _currentdepth - _bias).r;
+                }
+            }
+        }
+        
+        shadowFactor /= 343.0f;
     }
     else
     {
-        return 0;
+        shadowFactor = 1.0f;
     }
+    
+    return shadowFactor;
+}
+
+float PCSSDir(float _shadowMapIndex, float _currentdepth, float2 _uv)
+{
+    float shadowFactor = 0.0f;
+    const float lightSize = 10.0f;
+    
+    //获取贴图的数据
+    uint width, height, numMips;
+    ShadowMapText[_shadowMapIndex].GetDimensions(0, width, height, numMips);
+    float dx = 1.0f / (float) width;
+    
+    //计算Blocker的平均深度
+    float blockerDepth = 0.0f;
+    float blockerNum = 0;
+    
+    for (int x = -3; x <= 3; x++)
+    {
+        for (int y = -3; y <= 3; y++)
+        {
+            float shadowDepth = DirectLightShadowMapText[_shadowMapIndex].SampleLevel(SamAnisotropicClamp, _uv + dx * 5 * float2(x, y), 0).r;
+            if (_currentdepth < shadowDepth)
+            {
+                blockerDepth += shadowDepth;
+                blockerNum += 1.0f;
+            }
+        }
+    }
+    
+    if (blockerNum >= 1.0f)
+    {
+        //平均遮挡深度
+        blockerDepth /= blockerNum;
+        //计算半影范围
+        float penumbra = (_currentdepth - blockerDepth) * lightSize / blockerDepth;
+        
+        for (int x = -3; x <= 3; x++)
+        {
+            for (int y = -3; y <= 3; y++)
+            {
+
+                shadowFactor += DirectLightShadowMapText[_shadowMapIndex].SampleCmpLevelZero(
+                SamShadow2,
+                _uv + dx * penumbra * float2(x, y),
+                _currentdepth).r;
+            }
+        }
+        
+        shadowFactor /= 49.0f;
+    }
+    else
+    {
+        shadowFactor = 1.0f;
+    }
+    
+    return shadowFactor;
 }
 
 //计算所有灯光的直接光照
@@ -96,7 +206,6 @@ float3 DoLighting(float2 _uv, float3 _normal, float3 _worldPos, float3 _toCamera
     //深度
     float depthBuffer = DepthText.Sample(SamAnisotropicWarp, _uv).r;
     float depth = ViewDepth(depthBuffer);
-    //depth = depthBuffer;
     float linearDepth = (depth - NEAR_Z) / (FAR_Z - NEAR_Z);
     
     if (linearDepth <= 0.0f)
@@ -130,7 +239,6 @@ float3 DoLighting(float2 _uv, float3 _normal, float3 _worldPos, float3 _toCamera
 #endif
     
 #if USE_CBDR
-    [unroll(200)]
     for (i = 0; i < numPointLight; ++i)
     {
         float3 result = DoPointLight(PointLights[LightsList[gridID].PointlightIndices[i]], _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, F0);
@@ -144,22 +252,22 @@ float3 DoLighting(float2 _uv, float3 _normal, float3 _worldPos, float3 _toCamera
         float currentDepth = length(toLight);
         
         //偏移
-        float bias = max(0.05 * (1.0f - dot(_normal, -toLight)), 0.005f);
+        float bias = max(0.05 * (1.0f - dot(_normal, normalize(toLight))), 0.005f);
+        //bias = 0.0f;
+        ////PCF
+        //float samples = 20.0f;
+        //float disToView = length(_toCamera);
+        //float diskRadius = (1.0f + (disToView / 1000.0f)) / 300.0f;
         
-        //PCF
-        float samples = 20.0f;
-        float disToView = length(_toCamera);
-        float diskRadius = (1.0f + (disToView / 1000.0f)) / 300.0f;
-
-        for (float j = 0; j < samples; j++)
-        {
-            //从贴图中采样最近点的距离,使用偏移来进行模糊
-            float closestdepth = ShadowMapText[i].Sample(SamAnisotropicClamp, toLight + sampleOffsetDirections[j] * diskRadius).r;
-            //判断是否处于阴影中
-            shadow += CalcuShadow(bias, closestdepth, currentDepth);
-        }
-        shadow /= samples;
-
+        //for (float j = 0; j < samples; j++)
+        //{
+        //    //从贴图中采样最近点的距离,使用偏移来进行模糊
+        //    shadow += ShadowMapText[i].SampleCmpLevelZero(SamShadow, toLight + sampleOffsetDirections[j] * diskRadius, currentDepth - bias).r;
+        //}
+        //shadow /= samples;
+        
+        shadow = PCSS(i, bias, currentDepth, toLight);
+        
         //光照结果乘阴影值
         result *= (float3)shadow;
 #endif
@@ -180,6 +288,33 @@ float3 DoLighting(float2 _uv, float3 _normal, float3 _worldPos, float3 _toCamera
     {
         float3 result = DoDirectionalLight(DirectionalLights[i], _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, F0);
 
+#if CAST_SHADOW
+        float shadow = 0.0f;
+        float bias = max(0.05f * (1.0f - dot(_normal, normalize(-DirectionalLights[i].DirectionWS.xyz))), 0.005f);
+        float4 posLightSpace = mul(DirectionalLights[i].LightSpaceMatrix, float4(_worldPos, 1.0f));
+        posLightSpace.xyz /= posLightSpace.w;
+        float2 uv = posLightSpace.xy * 0.5f + 0.5f;
+        uv.y = 1.0f - uv.y;
+        
+        float currentDepth = posLightSpace.z;
+        
+        shadow = PCSSDir(i, currentDepth, uv);
+       
+        //float closestDepth = DirectLightShadowMapText[i].SampleLevel(SamAnisotropicClamp, uv, 0).r;
+        
+        //if (closestDepth > currentDepth)
+        //{
+        //    shadow = 0.0f;
+        //}
+        //else
+        //{
+        //    shadow = 1.0f;
+        //}
+        
+        //光照结果乘阴影值
+        result *= (float3) shadow;
+#endif
+        
         totalResult += result;
     }
 #else
@@ -198,21 +333,9 @@ float3 DoLighting(float2 _uv, float3 _normal, float3 _worldPos, float3 _toCamera
         float currentDepth = length(toLight);
         
         //偏移
-        float bias = max(0.05 * (1.0f - dot(_normal, -toLight)), 0.005f);
-        
-        //PCF
-        float samples = 20.0f;
-        float disToView = length(_toCamera);
-        float diskRadius = (1.0f + (disToView / 1000.0f)) / 300.0f;
-
-        for (float j = 0; j < samples; j++)
-        {
-            //从贴图中采样最近点的距离,使用偏移来进行模糊
-            float closestdepth = ShadowMapText[i].Sample(SamAnisotropicClamp, toLight + sampleOffsetDirections[j] * diskRadius).r;
-            //判断是否处于阴影中
-            shadow += CalcuShadow(bias, closestdepth, currentDepth);
-        }
-        shadow /= samples;
+        float bias = max(0.1 * (1.0f - dot(_normal, -toLight)), 0.005f);
+    
+        shadow = PCSS(i, bias, currentDepth, toLight);
 
         //光照结果乘阴影值
         result *= (float3)shadow;
@@ -233,6 +356,22 @@ float3 DoLighting(float2 _uv, float3 _normal, float3 _worldPos, float3 _toCamera
     for (i = 0; i < LightPropertiesCB.NumDirectionalLights; ++i)
     {
         float3 result = DoDirectionalLight(DirectionalLights[i], _normal, _worldPos, _toCamera, _albedo, _roughness, _metallic, F0);
+    
+#if CAST_SHADOW
+        float shadow = 0.0f;
+        float bias = max(0.05f * (1.0f - dot(_normal, normalize(-DirectionalLights[i].DirectionWS.xyz))), 0.005f);
+        float4 posLightSpace = mul(DirectionalLights[i].LightSpaceMatrix, float4(_worldPos, 1.0f));
+        posLightSpace.xyz /= posLightSpace.w;
+        float2 uv = posLightSpace.xy * 0.5f + 0.5f;
+        uv.y = 1.0f - uv.y;
+        
+        float currentDepth = posLightSpace.z;
+       
+        shadow = PCSSDir(i, currentDepth, uv);
+        
+        //光照结果乘阴影值
+        result *= (float3) shadow;
+#endif
 
         totalResult += result;
     }
@@ -299,7 +438,7 @@ float4 main(PixelShaderInput IN) : SV_Target
     AmbientPBR(normal.rgb, WorldPos, toCamera, albedo.rgb, roughness, metallic, irradiance, prefilterColor, brdf, 1.0f, float2(ao, ao), ambientDiffuse, ambientSpecular);
     
     //最终光照结果
-    color = directColor + ambientSpecular + ambientDiffuse;
+    color = directColor + (ambientSpecular + ambientDiffuse) * 0.9f;
 #else 
   //shadow = -N.z;
 #endif // ENABLE_LIGHTING

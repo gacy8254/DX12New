@@ -13,7 +13,7 @@
 #define USE_REVERSE_Z 1
 
 #define Z_UPPER_BOUND 50000.0f
-#define Z_LOWER_BOUND 1.0f
+#define Z_LOWER_BOUND 0.1f
 #define Z_UPPER_BOUND_NORM 1.0f
 #define Z_LOWER_BOUND_NORM 0.0f
 
@@ -79,3 +79,6 @@
 // Shadow
 //----------------------------------------------------------------------------------------------------------
 #define CAST_SHADOW 1
+
+#define MAX_POINT_LIGHT_SHADOWMAP_NUM 10
+#define MAX_DIRECT_LIGHT_SHADOWMAP_NUM 10

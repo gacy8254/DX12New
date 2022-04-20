@@ -9,6 +9,8 @@ namespace Transform
 
 	//计算透视矩阵
 	Matrix4 MatrixPerspectiveForLH(float _fov, float _aspect, float _zNear, float _zFar);
+	//计算正交矩阵
+	Matrix4 MatrixOrthogonalForLH(float _width, float _height, float _zNear, float _zFar);
 
 	//根据矩阵计算一个旋转四元数
 	Vector4 QuaternionRotationMatrix(Matrix4 _mat);

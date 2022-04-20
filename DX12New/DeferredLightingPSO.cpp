@@ -26,6 +26,7 @@ DeferredLightingPSO::DeferredLightingPSO(std::shared_ptr<Device> _device, bool _
 	CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 9, 4);
 	CD3DX12_DESCRIPTOR_RANGE1 descriptorRange1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3);
 	CD3DX12_DESCRIPTOR_RANGE1 ShadowMapDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 10, 13);
+	CD3DX12_DESCRIPTOR_RANGE1 DirectLightShadowMapDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 10, 23);
 
 	CD3DX12_ROOT_PARAMETER1 rootParameter[RootParameters::NumRootParameters];
 	rootParameter[RootParameters::LightPropertiesCB].InitAsConstants(sizeof(LightProperties) / 4, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -34,10 +35,10 @@ DeferredLightingPSO::DeferredLightingPSO(std::shared_ptr<Device> _device, bool _
 	rootParameter[RootParameters::PointLights].InitAsShaderResourceView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::SpotLights].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::DirectionalLights].InitAsShaderResourceView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
-	//rootParameter[RootParameters::LightsList].InitAsShaderResourceView(3, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::LightsList].InitAsDescriptorTable(1, &descriptorRange1, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::Textures].InitAsDescriptorTable(1, &descriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameter[RootParameters::ShadowMaps].InitAsDescriptorTable(1, &ShadowMapDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParameter[RootParameters::DirectLightShadowMap].InitAsDescriptorTable(1, &DirectLightShadowMapDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto samplers = GetStaticSamplers();
 
@@ -118,10 +119,17 @@ void DeferredLightingPSO::Apply(CommandList& _commandList)
 
 	if (m_DirtyFlags & DF_ShadowMap)
 	{
-		//…Ë÷√Ã˘Õº
-		for (int i = 0; i < m_ShadowMap.size(); i++)
+		for (int i = 0; i < MAX_POINT_LIGHT_SHADOWMAP_NUM; i++)
 		{
 			BindTexture(_commandList, i, m_ShadowMap[i], RootParameters::ShadowMaps, true);
+		}
+	}
+
+	if (m_DirtyFlags & DF_DirectLightShadowMap)
+	{
+		for (int j = 0; j < MAX_DIRECT_LIGHT_SHADOWMAP_NUM; j++)
+		{
+			BindTexture(_commandList, j, m_DirectLightShadowMap[j], RootParameters::DirectLightShadowMap, false);
 		}
 	}
 

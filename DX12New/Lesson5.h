@@ -81,6 +81,9 @@ private:
 
     void ShadowMap(std::shared_ptr<CommandList> _commandList);
 
+    void PointLightShadowMap(std::shared_ptr<CommandList> _commandList, int& _index);
+    void DirectLightShadowMap(std::shared_ptr<CommandList> _commandList, int& _index);
+
     //加载场景
     bool LoadScene(const std::wstring& sceneFile);
 
@@ -98,6 +101,8 @@ private:
 
     //准备渲染立方体贴图所需的相机
     void BuildCubemapCamera(float _x = 0.0f, float _y = 0.0f, float _z = 0.0f);
+
+    void BuildShadowMapCamera(const Vector4& _pos, const Vector4& _dir, bool _isPerspective = true);
 
     //预计算立方体贴图卷积
     void PreIrradiance(std::shared_ptr<CommandList> _commandList);
@@ -125,6 +130,7 @@ private:
 
     std::vector<std::shared_ptr<RenderTarget>> m_ShadowMapRenderTarget;
     std::vector<std::shared_ptr<Texture>> m_ShadowMapTexture;
+    std::vector<std::shared_ptr<Texture>> m_DirectLightShadowMapTexture;
 
 
 
@@ -198,6 +204,7 @@ private:
     BaseCamera m_Camera;
     CameraController m_CameraController;
     BaseCamera m_CubeMapCamera[6];
+    BaseCamera m_ShadowMapCamera;
     //Assimp::Logger m_Logger;
 
     int m_Width;

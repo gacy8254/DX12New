@@ -26,25 +26,26 @@ public:
 
 	enum RootParameters
 	{
-		LightPropertiesCB,		// ConstantBuffer<LightProperties> LightPropertiesCB : register( b0 );
-		MainPassCB,				// ConstantBuffer<LightProperties> LightPropertiesCB : register( b0 );
-		CameraPosCB,			// ConstantBuffer<float4> CameraPos : register( b2 );
+		LightPropertiesCB,		// ConstantBuffer<LightProperties> LightPropertiesCB					: register( b0 );
+		MainPassCB,				// ConstantBuffer<LightProperties> LightPropertiesCB					: register( b0 );
+		CameraPosCB,			// ConstantBuffer<float4> CameraPos										: register( b2 );
 
-		PointLights,			// StructuredBuffer<PointLight> PointLights : register( t0 );
-		SpotLights,				// StructuredBuffer<SpotLight> SpotLights : register( t1 );
-		DirectionalLights,		// StructuredBuffer<DirectionalLight> DirectionalLights : register( t2 )
-		LightsList,				// StructuredBuffer<LightList> LightsList : register(t3);
+		PointLights,			// StructuredBuffer<PointLight> PointLights								: register( t0 );
+		SpotLights,				// StructuredBuffer<SpotLight> SpotLights								: register( t1 );
+		DirectionalLights,		// StructuredBuffer<DirectionalLight> DirectionalLights					: register( t2 )
+		LightsList,				// StructuredBuffer<LightList> LightsList								: register(t3);
 
-		Textures,				// Texture2D AlbedoText,							register (t4)
-								// Texture2D NormalText,							register (t5)
-								// Texture2D ORMText,								register (t6)
-								// Texture2D EmissiveText,							register (t7)
-								// Texture2D WorldPosText,							register (t8)
-								// Texture2D IrradianceText,						register (t9)
-								// Texture2D PrefilterText							register (t10)
-								// Texture2D IntegrateBRDFText,						register (t11)
-								// Texture2D DepthText,								register (t12)
-		ShadowMaps,				// TextureCube<float4> ShadowMapText[10],			register (t13)
+		Textures,				// Texture2D AlbedoText,												: register (t4)
+								// Texture2D NormalText,												: register (t5)
+								// Texture2D ORMText,													: register (t6)
+								// Texture2D EmissiveText,												: register (t7)
+								// Texture2D WorldPosText,												: register (t8)
+								// Texture2D IrradianceText,											: register (t9)
+								// Texture2D PrefilterText												: register (t10)
+								// Texture2D IntegrateBRDFText,											: register (t11)
+								// Texture2D DepthText,													: register (t12)
+		ShadowMaps,				// TextureCube<float4> ShadowMapText[MAX_POINT_LIGHT_SHADOWMAP_NUM],	: register (t13)
+		DirectLightShadowMap,	// Texture2D DirectLightShadowMapText[MAX_DIRECT_LIGHT_SHADOWMAP_NUM]	: register(t14);
 		NumRootParameters
 	};
 
@@ -108,6 +109,12 @@ public:
 		m_DirtyFlags |= DF_ShadowMap;
 	}
 
+	void SetDirectLightShadowMap(std::vector<std::shared_ptr<Texture>>& _textures)
+	{
+		m_DirectLightShadowMap = _textures;
+		m_DirtyFlags |= DF_DirectLightShadowMap;
+	}
+
 	//应用到渲染管线上
 	void Apply(CommandList& _commandList) override;
 
@@ -119,6 +126,7 @@ private:
 
 	std::vector<std::shared_ptr<Texture>> m_Textures;
 	std::vector<std::shared_ptr<Texture>> m_ShadowMap;
+	std::vector<std::shared_ptr<Texture>> m_DirectLightShadowMap;
 
 	std::shared_ptr<ShaderResourceView> m_LightList;
 	UINT m_ElementNum;

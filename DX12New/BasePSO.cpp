@@ -37,7 +37,7 @@ BasePSO::~BasePSO()
 	//_aligned_free(m_pAlignedMainPassCB);
 }
 
-std::array<CD3DX12_STATIC_SAMPLER_DESC, 6> BasePSO::GetStaticSamplers()
+std::array<CD3DX12_STATIC_SAMPLER_DESC, 8> BasePSO::GetStaticSamplers()
 {
 	//过滤器POINT,寻址模式WRAP的静态采样器
 	CD3DX12_STATIC_SAMPLER_DESC pointWarp(0,	//着色器寄存器
@@ -81,7 +81,32 @@ std::array<CD3DX12_STATIC_SAMPLER_DESC, 6> BasePSO::GetStaticSamplers()
 		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	//V方向上的寻址模式为CLAMP（钳位寻址模式）
 		D3D12_TEXTURE_ADDRESS_MODE_CLAMP);	//W方向上的寻址模式为CLAMP（钳位寻址模式）
 
-	return{ pointWarp, pointClamp, linearWarp, linearClamp, anisotropicWarp, anisotropicClamp };
+	CD3DX12_STATIC_SAMPLER_DESC shadowSample(6,
+		D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressW
+		0.0f,                               // mipLODBias
+		16,                                 // maxAnisotropy
+		D3D12_COMPARISON_FUNC_LESS_EQUAL,
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK);
+
+	CD3DX12_STATIC_SAMPLER_DESC shadowSample2(7,
+		D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressW
+		0.0f,                               // mipLODBias
+		16,                                 // maxAnisotropy
+#if USE_REVERSE_Z
+		D3D12_COMPARISON_FUNC_GREATER_EQUAL,
+#else
+		D3D12_COMPARISON_FUNC_LESS_EQUAL,
+#endif
+	D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK);
+		
+
+	return{ pointWarp, pointClamp, linearWarp, linearClamp, anisotropicWarp, anisotropicClamp, shadowSample, shadowSample2 };
 }
 
 void BasePSO::BindTexture(CommandList& _commandList, uint32_t _offset, const std::shared_ptr<Texture>& _texture, UINT _slot, bool _cubeMap)

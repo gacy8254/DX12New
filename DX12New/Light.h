@@ -1,5 +1,5 @@
 ﻿#pragma once
-
+#include "Matrix.h"
 /*
  *  Copyright(c) 2020 Jeremiah van Oosten
  *
@@ -101,18 +101,23 @@ struct DirectionalLight
         , DirectionVS(0.0f, 0.0f, 1.0f, 0.0f)
         , Color(1.0f, 1.0f, 1.0f, 1.0f)
         , Intensity(1.0f)
+        , PositionWS(0.0f, 0.0f, 0.0f, 0.0f)
+        , LightSpaceMatrix(Matrix4())
     {}
-
+    Matrix4 LightSpaceMatrix;
+    //----------------------------------- (64 byte boundary)
     DirectX::XMFLOAT4 DirectionWS;  // Light direction in world space.
     //----------------------------------- (16 byte boundary)
     DirectX::XMFLOAT4 DirectionVS;  // Light direction in view space.
+    //----------------------------------- (16 byte boundary)
+    DirectX::XMFLOAT4 PositionWS;  // Light direction in view space.
     //----------------------------------- (16 byte boundary)
     DirectX::XMFLOAT4 Color;
     //----------------------------------- (16 byte boundary)
     float Intensity;
     float Padding[3];
     //----------------------------------- (16 byte boundary)
-    // Total:                              16 * 4 = 64 bytes
+    // Total:                              16 * 8 = 128 bytes
 };
 
 struct LightProperties

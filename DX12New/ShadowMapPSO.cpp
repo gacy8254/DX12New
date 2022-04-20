@@ -60,6 +60,15 @@ ShadowMapPSO::ShadowMapPSO(std::shared_ptr<Device> _device, bool _isDecal)
 
 	CD3DX12_RASTERIZER_DESC rasterizerState(D3D12_DEFAULT);
 	rasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+#if USE_REVERSE_Z
+	rasterizerState.DepthBias = -500;
+	rasterizerState.DepthBiasClamp = 0.0f;
+	rasterizerState.SlopeScaledDepthBias = -1.0f;
+#else
+	rasterizerState.DepthBias = 500;
+	rasterizerState.DepthBiasClamp = 0.0f;
+	rasterizerState.SlopeScaledDepthBias = 1.0f;
+#endif
 
 	D3D12_RT_FORMAT_ARRAY rtvFormats = {};
 	rtvFormats.NumRenderTargets = 1;
@@ -108,10 +117,4 @@ void ShadowMapPSO::Apply(CommandList& _commandList)
 	{
 		_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::MainPassCB, *m_pAlignedMainPassCB);
 	}
-
-	//if (m_DirtyFlags & DF_PointLights)
-	//{
-	//	_commandList.SetGraphicsDynamicConstantBuffer(RootParameters::lightPosCB, m_LightPos.GetFloat4());
-	//}
-
 }

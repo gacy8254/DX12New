@@ -38,16 +38,20 @@ struct SpotLight
 
 struct DirectionalLight
 {
+    float4x4 LightSpaceMatrix;
+    //----------------------------------- (64 byte boundary)
     float4 DirectionWS; // Light direction in world space.
     //----------------------------------- (16 byte boundary)
     float4 DirectionVS; // Light direction in view space.
+    //----------------------------------- (16 byte boundary)
+    float4 PositionWS; // Light direction in view space.
     //----------------------------------- (16 byte boundary)
     float4 Color;
     //----------------------------------- (16 byte boundary)
     float Intensity;
     float3 Padding;
     //----------------------------------- (16 byte boundary)
-    // Total:                              16 * 4 = 64 bytes
+    // Total:                              16 * 9 = 144 bytes
 };
 
 struct LightProperties

@@ -10,7 +10,7 @@
 #include "ShaderDefinition.h"
 using namespace DirectX;
 
-const int numPoint = 2;
+const int numPoint = 1;
 const int numSpot = 0;
 const int numDirect = 1;
 
@@ -74,9 +74,9 @@ void Lesson5::LoadContent()
 	Application::Get().WndProcHandler += WndProcEvent::slot(&GUI::WndProcHandler, m_GUI);
 
 	//LoadScene(L"C:\\Code\\DX12New\\Assets\\Models\\Three.FBX");
-	//m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\Three.FBX"));
+	m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\Three.FBX"));
 	//m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\MaterialMesh.FBX"));
-	m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj"));
+	//m_LoadingTask = std::async(std::launch::async, std::bind(&Lesson5::LoadScene, this, L"C:\\Code\\DX12New\\Assets\\Models\\crytek-sponza\\sponza_nobanner.obj"));
 
 	auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
 	auto commandList = commandQueue.GetCommandList();
@@ -287,7 +287,7 @@ void Lesson5::OnResize(ResizeEventArgs& e)
 	m_Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(m_Width), static_cast<float>(m_Height));
 
 	float aspect = m_Width / (float)m_Height;
-	m_Camera.SetProjection(45.0f, aspect, 1.0f, 50000.0f);
+	m_Camera.SetProjection(45.0f, aspect, Z_LOWER_BOUND , Z_UPPER_BOUND);
 
 	m_HDRRenderTarget.Resize(m_Width, m_Height);
 	m_GBufferRenderTarget.Resize(m_Width, m_Height);
@@ -335,7 +335,8 @@ void Lesson5::OnRender()
 		PreIrradiance(commandList);
 		Prefilter(commandList);
 		IntegrateBRDF(commandList);
-		m_ShadowMapTexture.resize(10);
+		m_ShadowMapTexture.resize(MAX_POINT_LIGHT_SHADOWMAP_NUM);
+		m_DirectLightShadowMapTexture.resize(MAX_DIRECT_LIGHT_SHADOWMAP_NUM);
 		isfirst = false;
 	}
 
@@ -396,10 +397,8 @@ void Lesson5::OnRender()
 			//渲染场景(GBUFFER  PASS)
 			m_Scene->Accept(opaquePass);
 			m_Scene->Accept(transparentPass);
-			//std::cout << time << "                 ";
 			GbufferPassTime = m_Window->GetTotalTime(true);
 			GbufferPassTime = GbufferPassTime - time;
-			//std::cout << time << std::endl;
 		
 
 			commandList->CopyResource(m_DepthTexture, rendertarget.GetTexture(AttachmentPoint::DepthStencil));
@@ -423,15 +422,6 @@ void Lesson5::OnRender()
 			gBufferTexture[DeferredLightingPSO::PrefilterText] = m_PrefilterRenderTarget.GetTexture(AttachmentPoint::Color0);
 			gBufferTexture[DeferredLightingPSO::IntegrateBRDFText] = m_IntegrateBRDFRenderTarget.GetTexture(AttachmentPoint::Color0);
 			gBufferTexture[DeferredLightingPSO::DepthText] = m_DepthTexture;
-
-#if CAST_SHADOW
-			commandList->TransitionBarrier(m_ShadowMapRenderTarget[0]->GetTexture(AttachmentPoint::Color0), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-			for (int i = 0; i < m_ShadowMapRenderTarget.size(); i++)
-			{
-				m_ShadowMapTexture[i] = m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::Color0);
-			}
-			m_DeferredLightingPso->SetShadowMap(m_ShadowMapTexture);
-#endif
 
 			mainPassCB->PreviousViewProj = m_Camera.GetPreviousViewProjMatrix();
 			mainPassCB->CameraPos = m_Camera.GetFocalPoint();
@@ -857,11 +847,36 @@ void Lesson5::ClusterLight(std::shared_ptr<CommandList> _commandList)
 void Lesson5::ShadowMap(std::shared_ptr<CommandList> _commandList)
 {
 	int i = 0;
-	m_ShadowMapRenderTarget.resize(m_PointLights.size());
+	m_ShadowMapRenderTarget.resize(m_PointLights.size() + 1);
+	PointLightShadowMap(_commandList, i);
+	DirectLightShadowMap(_commandList, i);
+
+#if CAST_SHADOW
+	_commandList->TransitionBarrier(m_ShadowMapRenderTarget[0]->GetTexture(AttachmentPoint::Color0), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	for (int i = 0; i < m_ShadowMapRenderTarget.size(); i++)
+	{
+		if (i < m_PointLights.size())
+		{
+			m_ShadowMapTexture[i] = m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::Color0);
+		}
+		else
+		{
+			m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::DepthStencil)->CreateShaderResourceView();
+			m_DirectLightShadowMapTexture[i - m_PointLights.size()] = m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::DepthStencil);
+		}
+		
+	}
+	m_DeferredLightingPso->SetShadowMap(m_ShadowMapTexture);
+	m_DeferredLightingPso->SetDirectLightShadowMap(m_DirectLightShadowMapTexture);
+#endif
+}
+
+void Lesson5::PointLightShadowMap(std::shared_ptr<CommandList> _commandList, int& _index)
+{
 	for (const auto& l : m_PointLights)
 	{
 		BuildCubemapCamera(l.PositionWS.x, l.PositionWS.y, l.PositionWS.z);
-		
+
 		//创建渲染目标
 		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R32_FLOAT;
 
@@ -874,7 +889,7 @@ void Lesson5::ShadowMap(std::shared_ptr<CommandList> _commandList)
 		colorClearValue.Color[1] = 0.6f;
 		colorClearValue.Color[2] = 0.9f;
 		colorClearValue.Color[3] = 1.0f;
-		
+
 		//创建渲染目标
 		DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
 
@@ -892,34 +907,34 @@ void Lesson5::ShadowMap(std::shared_ptr<CommandList> _commandList)
 #endif
 
 		//深度图
-		if (!m_ShadowMapRenderTarget[i].get())
+		if (!m_ShadowMapRenderTarget[_index].get())
 		{
 			auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
 			depthTexture->SetName(L"ShadowMap Depth Render Target");
-			m_ShadowMapRenderTarget[i] = std::make_shared<RenderTarget>();
-			m_ShadowMapRenderTarget[i]->AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
+			m_ShadowMapRenderTarget[_index] = std::make_shared<RenderTarget>();
+			m_ShadowMapRenderTarget[_index]->AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
 
 			//RT
 			std::shared_ptr<Texture> colorTexture;
 			colorTexture = m_Device->CreateTexture(colorDesc, true, &colorClearValue);
 			colorTexture->SetName(L"ShadowMap Color Render Target");
-			m_ShadowMapRenderTarget[i]->AttachTexture(AttachmentPoint::Color0, colorTexture);
+			m_ShadowMapRenderTarget[_index]->AttachTexture(AttachmentPoint::Color0, colorTexture);
 		}
 		FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
 		//设置渲染用的视口
-		_commandList->SetScissorRect(m_ShadowMapRenderTarget[i]->GetScissorRect());
-		_commandList->SetViewport(m_ShadowMapRenderTarget[i]->GetViewport());
+		_commandList->SetScissorRect(m_ShadowMapRenderTarget[_index]->GetScissorRect());
+		_commandList->SetViewport(m_ShadowMapRenderTarget[_index]->GetViewport());
 
-		_commandList->TransitionBarrier(m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::Color0), D3D12_RESOURCE_STATE_RENDER_TARGET);
-		_commandList->TransitionBarrier(m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		_commandList->TransitionBarrier(m_ShadowMapRenderTarget[_index]->GetTexture(AttachmentPoint::Color0), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		_commandList->TransitionBarrier(m_ShadowMapRenderTarget[_index]->GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-		
+
 		for (int j = 0; j < 6; j++)
 		{
 
 			//设置渲染目标
-			auto dsv = m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::DepthStencil)->GetDepthStencilView();
-			auto rtv = m_ShadowMapRenderTarget[i]->GetTexture(AttachmentPoint::Color0)->GetRenderTargetView(j);
+			auto dsv = m_ShadowMapRenderTarget[_index]->GetTexture(AttachmentPoint::DepthStencil)->GetDepthStencilView();
+			auto rtv = m_ShadowMapRenderTarget[_index]->GetTexture(AttachmentPoint::Color0)->GetRenderTargetView(j);
 
 			_commandList->GetGraphicsCommandList()->OMSetRenderTargets(1, &rtv, true, &dsv);
 
@@ -936,15 +951,71 @@ void Lesson5::ShadowMap(std::shared_ptr<CommandList> _commandList)
 			SceneVisitor ShadowMapPass(*_commandList, m_CubeMapCamera[j], *m_ShadowMapPSO, mainPassCB, false);
 
 			SceneVisitor ShadowMapPassAlphaTest(*_commandList, m_CubeMapCamera[j], *m_ShadowMapPSO, mainPassCB, true);
-			//double time = m_Window->GetTotalTime(true);
 			m_Scene->Accept(ShadowMapPass);
 			m_Scene->Accept(ShadowMapPassAlphaTest);
-			//std::cout << time << "                 ";
-			//time = m_Window->GetTotalTime(true);
-			//std::cout << time << std::endl;
 		}
-		i++;
-		
+		_index++;
+	}
+}
+
+void Lesson5::DirectLightShadowMap(std::shared_ptr<CommandList> _commandList, int& _index)
+{
+	for (auto& l : m_DirectionalLights)
+	{
+		BuildShadowMapCamera(DirectX::XMFLOAT4(
+			l.DirectionWS.x * 20 + l.PositionWS.x, 
+			l.DirectionWS.y * 20 + l.PositionWS.y, 
+			l.DirectionWS.z * 20 + l.PositionWS.z, 1), 
+			l.DirectionWS, false);
+
+		l.LightSpaceMatrix = m_ShadowMapCamera.GetViewMatrix() * m_ShadowMapCamera.GetProjMatrix();
+
+		DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT;
+
+		//DS资源描述
+		auto depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(depthBufferFormat, 4096, 4096, 1, 1, 1,
+			0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+		D3D12_CLEAR_VALUE depthClearValue;
+		depthClearValue.Format = depthDesc.Format;
+#if USE_REVERSE_Z
+		float DepthClearValue = 0.0f;
+		depthClearValue.DepthStencil = { 0.0f, 0 };
+#else
+		float DepthClearValue = 1.0f;
+		depthClearValue.DepthStencil = { 1.0f, 0 };
+#endif
+
+		//深度图
+		if (!m_ShadowMapRenderTarget[_index].get())
+		{
+			auto depthTexture = m_Device->CreateTexture(depthDesc, false, &depthClearValue);
+			depthTexture->SetName(L"ShadowMap Depth Render Target");
+			m_ShadowMapRenderTarget[_index] = std::make_shared<RenderTarget>();
+			m_ShadowMapRenderTarget[_index]->AttachTexture(AttachmentPoint::DepthStencil, depthTexture);
+		}
+
+		//设置渲染用的视口
+		_commandList->SetScissorRect(m_ShadowMapRenderTarget[_index]->GetScissorRect());
+		_commandList->SetViewport(m_ShadowMapRenderTarget[_index]->GetViewport());
+
+		_commandList->TransitionBarrier(m_ShadowMapRenderTarget[_index]->GetTexture(AttachmentPoint::DepthStencil), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+		//设置渲染目标
+
+		_commandList->SetRenderTarget(*m_ShadowMapRenderTarget[_index]);
+
+#if USE_REVERSE_Z
+		_commandList->ClearDepthStencilTexture(m_ShadowMapRenderTarget[_index]->GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH, 0.0f);
+#else
+		_commandList->ClearDepthStencilTexture(m_ShadowMapRenderTarget[_index]->GetTexture(AttachmentPoint::DepthStencil), D3D12_CLEAR_FLAG_DEPTH);
+#endif
+
+		SceneVisitor ShadowMapPass(*_commandList, m_ShadowMapCamera, *m_ShadowMapPSO, mainPassCB, false);
+
+		SceneVisitor ShadowMapPassAlphaTest(*_commandList, m_ShadowMapCamera, *m_ShadowMapPSO, mainPassCB, true);
+		m_Scene->Accept(ShadowMapPass);
+		m_Scene->Accept(ShadowMapPassAlphaTest);
+		_index++;
 	}
 }
 
@@ -977,7 +1048,7 @@ bool Lesson5::LoadScene(const std::wstring& sceneFile)
 		m_Scene->GetRootNode()->SetPosition(0,0,0);
 		m_Scene->GetRootNode()->SetRotation(0,0,0);
 		m_Scene->GetRootNode()->SetScale(1,1,1);
-		BuildScene();
+		//BuildScene();
 	}
 
 	commandQueue.ExecuteCommandList(commandList);
@@ -1084,37 +1155,43 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 {
 	static const XMVECTORF32 LightColors[] = { Colors::Red,     Colors::Green,  Colors::Blue,   Colors::Cyan,
 											   Colors::Magenta, Colors::Yellow, Colors::Purple, Colors::White };
-
-	// Spin the lights in a circle.
-	const float radius = 1.0f;
-	// Offset angle for light sources.
-	float pointLightOffset = numPointLights > 0 ? 2.0f * XM_PI / numPointLights : 0;
-	float spotLightOffset = numSpotLights > 0 ? 2.0f * XM_PI / numSpotLights : 0;
-	float directionalLightOffset = numDirectionalLights > 0 ? 2.0f * XM_PI / numDirectionalLights : 0;
-
-	// Setup the lights.
-	m_PointLights.resize(numPointLights * numPointLights);
-	for (int i = -numPointLights / 2; i < numPointLights / 2; ++i)
+	if (numPointLights == 1)
 	{
-		for (int j = -numPointLights / 2; j < numPointLights / 2; ++j)
+		m_PointLights.resize(1);
+		m_PointLights[0].PositionWS = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+		m_PointLights[0].Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 0);
+		m_PointLights[0].Instensity = 5.0f;
+		m_PointLights[0].Range = 30.0f;
+		m_PointLights[0].ShadowMapIndex = 0;
+	}
+	else
+	{
+		// Setup the lights.
+		m_PointLights.resize(numPointLights * numPointLights);
+		for (int i = -numPointLights / 2; i < numPointLights / 2; ++i)
 		{
-			PointLight& l = m_PointLights[(i + numPointLights / 2) * numPointLights + (j + numPointLights / 2)];
-			Vector4 pos = Vector4(i * 1.0f, j * 1.0f, 0, 1.0f);
-			Matrix4 view = m_Camera.GetViewMatrix();
+			for (int j = -numPointLights / 2; j < numPointLights / 2; ++j)
+			{
+				PointLight& l = m_PointLights[(i + numPointLights / 2) * numPointLights + (j + numPointLights / 2)];
+				Vector4 pos = Vector4(i * 1.0f, j * 1.0f, 0, 1.0f);
+				Matrix4 view = m_Camera.GetViewMatrix();
 
-			Vector4 PositionVS = Vector4(DirectX::XMVector3TransformCoord(pos, view));
+				Vector4 PositionVS = Vector4(DirectX::XMVector3TransformCoord(pos, view));
 
-			l.PositionWS = { i * 1.0f, j * 1.0f, 0, 1.0f };
-			XMVECTOR positionWS = XMLoadFloat4(&l.PositionWS);
-			XMVECTOR positionVS = PositionVS;
-			XMStoreFloat4(&l.PositionVS, positionVS);
+				l.PositionWS = { i * 1.0f, j * 1.0f, 0, 1.0f };
+				XMVECTOR positionWS = XMLoadFloat4(&l.PositionWS);
+				XMVECTOR positionVS = PositionVS;
+				XMStoreFloat4(&l.PositionVS, positionVS);
 
-			l.Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 0);
-			l.Instensity = 5.0f;
-			l.Range = 30.0f;
-			l.ShadowMapIndex = (i + numPointLights / 2) * numPointLights + (j + numPointLights / 2);
+				l.Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 0);
+				l.Instensity = 5.0f;
+				l.Range = 30.0f;
+				l.ShadowMapIndex = (i + numPointLights / 2) * numPointLights + (j + numPointLights / 2);
+			}
 		}
 	}
+
 
 	m_SpotLights.resize(numSpotLights);
 	for (int i = 0; i < numSpotLights; ++i)
@@ -1143,7 +1220,7 @@ void Lesson5::BuildLighting(int numPointLights, int numSpotLights, int numDirect
 	{
 		DirectionalLight& l = m_DirectionalLights[i];
 
-		Vector4 directionWS = Vector4(1, 1, 1, 0);
+		Vector4 directionWS = Vector4(-1, 1, -1, 0);
 		Vector4 directionVS = directionWS;
 
 		XMStoreFloat4(&l.DirectionWS, directionWS);
@@ -1275,7 +1352,6 @@ void Lesson5::BuildCubemapCamera(float _x, float _y, float _z)
 {
 	//创建指定位置处的CubeMap
 	Vector4 center(_x, _y, _z, 1.0f);//指定位置
-	Vector4 worldUp(0.0f, 1.0f, 0.0f, 0.0f);//向上向量
 
 	//CubeMap的6个Target向量
 	Vector4 targets[6] =
@@ -1303,7 +1379,25 @@ void Lesson5::BuildCubemapCamera(float _x, float _y, float _z)
 	for (int i = 0; i < 6; i++)
 	{
 		m_CubeMapCamera[i].SetLookAt(center, targets[i], ups[i]);
-		m_CubeMapCamera[i].SetProjection(90.0f, 1.0f, 0.1f, 1000.0f);
+		m_CubeMapCamera[i].SetProjection(90.0f, 1.0f, 0.1f, 100.0f);
+	}
+}
+
+void Lesson5::BuildShadowMapCamera(const Vector4& _pos, const Vector4& _dir, bool _isPerspective)
+{
+	//创建指定位置处的CubeMap
+	Vector4 worldUp(0.0f, 1.0f, 0.0f, 0.0f);//向上向量
+	Vector4 target = _pos - _dir;
+	
+	if (_isPerspective)
+	{
+		m_ShadowMapCamera.SetLookAt(_pos, target, worldUp);
+		m_ShadowMapCamera.SetProjection(90.0f, 1.0f, 0.1f, 100.0f, _isPerspective);
+	}
+	else
+	{
+		m_ShadowMapCamera.SetLookAt(_pos, target, worldUp);
+		m_ShadowMapCamera.SetProjection(8, 8, 0.1f, 100.0f, _isPerspective);
 	}
 }
 
@@ -1649,7 +1743,7 @@ void Lesson5::GUILayout(bool* _open)
 
 					ImGui::ColorEdit4("color", color);
 					ImGui::DragFloat4("pos", pos, 0.05f);
-					ImGui::DragFloat("Instensity", &m_PointLights[selectedNode].Instensity);
+					ImGui::DragFloat("Instensity", &m_PointLights[selectedNode].Instensity, 0.5f, 0.0f);
 					ImGui::DragFloat("Range", &m_PointLights[selectedNode].Range);
 
 					m_PointLights[selectedNode].Color = { color };

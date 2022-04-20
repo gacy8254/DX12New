@@ -72,7 +72,7 @@ public:
 	//应用到渲染管线上
 	virtual void Apply(CommandList& _commandList) = 0;
 
-	static std::array<CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
+	static std::array<CD3DX12_STATIC_SAMPLER_DESC, 8> GetStaticSamplers();
 
 protected:
 	enum DirtyFlags
@@ -85,7 +85,8 @@ protected:
 		DF_ObjectCB = (1 << 4),
 		DF_MainPassCB = (1 << 5),
 		DF_ShadowMap = (1 << 6),
-		DF_All = DF_PointLights | DF_SpotLights | DF_DirectionalLights | DF_Material | DF_ObjectCB | DF_MainPassCB | DF_ShadowMap
+		DF_DirectLightShadowMap = (1 << 7),
+		DF_All = DF_PointLights | DF_SpotLights | DF_DirectionalLights | DF_Material | DF_ObjectCB | DF_MainPassCB | DF_ShadowMap | DF_DirectLightShadowMap
 	};
 
 	void BindTexture(CommandList& _commandList, uint32_t _offset, const std::shared_ptr<Texture>& _texture, UINT _slot, bool _cubeMap = false);

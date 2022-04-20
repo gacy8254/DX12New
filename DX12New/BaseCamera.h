@@ -20,7 +20,10 @@ public:
 	//获取观察矩阵的逆
 	Matrix4 GetInserseViewMatrix() const;
 
-	void SetProjection(float _fovY, float _aspect, float _zNear, float _zFar);
+	//设置投影矩阵的属于
+	//@Param _isProjection表示矩阵是正交矩阵还是透视矩阵,默认为透视矩阵
+	//如果为正交矩阵则 _fovY参数表示视图宽度 _aspect参数表示视图高度
+	void SetProjection(float _fovY, float _aspect, float _zNear, float _zFar, bool _isProjection = true);
 	//获取透视矩阵
 	Matrix4 GetProjMatrix() const;
 	//获取透视矩阵的逆
@@ -66,7 +69,7 @@ public:
 
 protected:
 	virtual void UpdateViewMatrix() const;
-	virtual void UpdateInerseMatrix() const;
+	virtual void UpdateInverseViewMatrix() const;
 	virtual void UpdateProjMatrix() const;
 	virtual void UpdateInverseProjMatrix() const;
 	virtual void UpdateUnjitteredProjMatrix() const;
@@ -88,6 +91,8 @@ protected:
 	};
 	AlignedData* pData;
 
+	float m_Width;
+	float m_Height;
 	float m_Fov = 45.0f;
 	float m_Aspect = 1.0f;
 	float m_ZNear = 1.0f;
@@ -104,6 +109,7 @@ protected:
 	mutable bool m_ProjDirty = true, m_InverseProjDirty = true;
 	mutable bool m_UnjitterProjDirty = true, m_UnjitterInverseProjDirty = true;
 
+	bool m_IsProjection = true;
 
 };
 

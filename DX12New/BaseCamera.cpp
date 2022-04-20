@@ -49,10 +49,19 @@ Matrix4 BaseCamera::GetInserseViewMatrix() const
 	return pData->m_InverseViewMatrix;
 }
 
-void BaseCamera::SetProjection(float _fovY, float _aspect, float _zNear, float _zFar)
+void BaseCamera::SetProjection(float _fovY, float _aspect, float _zNear, float _zFar, bool _isProjection)
 {
-	m_Fov = _fovY;
-	m_Aspect = _aspect;
+	if (_isProjection)
+	{
+		m_Fov = _fovY;
+		m_Aspect = _aspect;
+	}
+	else
+	{
+		m_Width = _fovY;
+		m_Height = _aspect;
+	}
+	
 
 #if USE_REVERSE_Z
 	m_ZFar = _zNear;
@@ -64,7 +73,7 @@ void BaseCamera::SetProjection(float _fovY, float _aspect, float _zNear, float _
 	m_ZNear = _zNear;
 #endif
 	
-
+	m_IsProjection = _isProjection;
 	m_ProjDirty = true;
 	m_InverseProjDirty = true;
 }
@@ -223,7 +232,7 @@ void BaseCamera::UpdateViewMatrix() const
 	m_ViewDirty = false;
 }
 
-void BaseCamera::UpdateInerseMatrix() const
+void BaseCamera::UpdateInverseViewMatrix() const
 {
 	if (m_ViewDirty)
 	{
@@ -255,16 +264,16 @@ void BaseCamera::UpdateInverseProjMatrix() const
 void BaseCamera::UpdateUnjitteredProjMatrix() const
 {
 	pData->m_PreviousUnjitteredProjMatrix = pData->m_UnjitteredProjMatrix;
-	float fov = DirectX::XMConvertToRadians(m_Fov);
-	pData->m_UnjitteredProjMatrix = Transform::MatrixPerspectiveForLH(fov, m_Aspect, m_ZNear, m_ZFar);
 
-	float xf = m_ZNear / (m_ZNear - m_ZFar);
-	float x = std::tan(m_Fov * 0.5f);
-
-	Vector4 r1 = Vector4(1 / (m_Aspect * x), 0, 0, 0);
-	Vector4 r2 = Vector4(0, 1 / x, 0, 0);
-	Vector4 r3 = Vector4(0, 0, xf, 1);
-	Vector4 r4 = Vector4(0, 0, -m_ZFar * xf, 0);
+	if (m_IsProjection)
+	{
+		pData->m_UnjitteredProjMatrix = Transform::MatrixPerspectiveForLH(DirectX::XMConvertToRadians(m_Fov), m_Aspect, m_ZNear, m_ZFar);
+	}
+	else
+	{
+		pData->m_UnjitteredProjMatrix = Transform::MatrixOrthogonalForLH(m_Width, m_Height, m_ZNear, m_ZFar);
+	}
+	
 
 	m_ProjDirty = true;
 	m_InverseProjDirty = true;
